@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { db, caresDb, auth } from "@/lib/firebase"; 
+import { db, auth } from "@/lib/firebase"; // REMOVED caresDb, using only db
 import { collection, onSnapshot, query, orderBy, doc, getDoc } from "firebase/firestore";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { 
@@ -17,7 +17,6 @@ interface UserProfile {
   image?: string;
 }
 
-// THIS INTERFACE WAS MISSING THE AUTH PROPERTIES
 interface AppState {
   // Data State
   events: CalendarEvent[];
@@ -25,7 +24,7 @@ interface AppState {
   curriculum: any[];
   loading: boolean;
   
-  // Auth State (These caused your errors)
+  // Auth State
   currentUser: UserProfile | null;
   authLoading: boolean;
   
@@ -34,7 +33,7 @@ interface AppState {
   subscribeTeam: () => () => void;
   subscribeCurriculum: () => () => void;
   
-  // Auth Actions (These caused your errors)
+  // Auth Actions
   login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => void;
@@ -68,17 +67,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   subscribeTeam: () => {
-    // Merging logic: We listen to 'teamMembers' (CARES DB) and 'profileOverrides' (App DB)
-    // For simplicity in this view, we'll just listen to the main team collection
-    // In a real app, you might join these manually.
-    
-    // NOTE: Ensure you are listening to the correct collection based on your setup.
-    // Assuming 'teamMembers' is the source of truth for now.
-    const q = query(collection(caresDb, "teamMembers")); 
+    // UPDATED: Now looking at the main 'db' instead of 'caresDb'
+    const q = query(collection(db, "teamMembers")); 
     
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const teamData = await Promise.all(snapshot.docs.map(async (d) => {
-         // Fetch override data if needed (e.g. local roles/assignments)
+         // Fetch override data if needed
          const overrideRef = doc(db, "profileOverrides", d.id);
          const overrideSnap = await getDoc(overrideRef);
          const overrideData = overrideSnap.exists() ? overrideSnap.data() : {};
@@ -86,7 +80,7 @@ export const useAppStore = create<AppState>((set, get) => ({
          return {
             id: d.id,
             ...d.data(),
-            ...overrideData, // Overwrite with local app data
+            ...overrideData, 
          };
       }));
       
@@ -96,16 +90,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   subscribeCurriculum: () => {
-     // Assuming a static or simple collection for curriculum
-     // If you have a 'curriculum' collection:
-     /*
-     const unsubscribe = onSnapshot(collection(db, "curriculum"), (snap) => {
-        set({ curriculum: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-     });
-     return unsubscribe;
-     */
-     
-     // Returning mock for now if no DB exists, or connect real one:
      return () => {}; 
   },
 
@@ -116,11 +100,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      // 1. Fetch User Role from Team DB 
-      // We assume the Auth UID matches a Document ID in 'teamMembers'
-      const userDoc = await getDoc(doc(caresDb, "teamMembers", uid));
+      // UPDATED: Now looking at 'db'
+      const userDoc = await getDoc(doc(db, "teamMembers", uid));
       
-      // Default / Fallback User
       let userData: UserProfile = {
          uid, 
          email: userCredential.user.email || "", 
@@ -134,7 +116,7 @@ export const useAppStore = create<AppState>((set, get) => ({
          userData.role = (data.role as Status) || "Team Member";
          userData.image = data.image;
       } else {
-         // Optional: Check 'profileOverrides' if not in main DB
+         // Fallback to profileOverrides if needed
          const overrideDoc = await getDoc(doc(db, "profileOverrides", uid));
          if (overrideDoc.exists()) {
              const data = overrideDoc.data();
@@ -155,14 +137,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   checkAuth: () => {
-    // Persistent Listener for Page Refreshes
     auth.onAuthStateChanged(async (user) => {
       if (user) {
-         // Re-fetch profile to ensure role is up to date
-         const userDoc = await getDoc(doc(caresDb, "teamMembers", user.uid));
+         // UPDATED: Now looking at 'db'
+         const userDoc = await getDoc(doc(db, "teamMembers", user.uid));
          
-         // Fallback if user is just in Auth but not in DB (e.g. initial admin)
-         // You might want to hardcode your specific email as Director here for safety
          let role: Status = "Team Member";
          let name = "Admin";
 
@@ -171,9 +150,6 @@ export const useAppStore = create<AppState>((set, get) => ({
              role = data.role as Status;
              name = data.name;
          }
-
-         // Emergency Admin Override (Optional)
-         // if (user.email === "your-email@example.com") role = "Director";
 
          set({ 
            currentUser: { 
