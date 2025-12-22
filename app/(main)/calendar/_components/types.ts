@@ -21,7 +21,16 @@ export type EventType = "Training" | "Goal" | "Deadline" | "Operation" | "OneOnO
 export type Priority = "Low" | "Medium" | "High";
 export type StickerType = "star" | "alert" | "fire" | "party" | "check";
 export type Department = "FOH" | "BOH";
-export type Status = "Onboarding" | "Training" | "Team Member" | "Team Leader" | "Assistant Director" | "Director";
+
+// UPDATED STATUS TYPE
+export type Status = 
+  | "Admin"              // Level 4 (System Owner)
+  | "Director"           // Level 3 (Store Manager)
+  | "Assistant Director" // Level 2
+  | "Team Leader"        // Level 1
+  | "Team Member"        // Level 0
+  | "Training" 
+  | "Onboarding";
 
 // --- 2. TEAM & PERFORMANCE TYPES ---
 
@@ -52,23 +61,19 @@ export interface TeamMember {
   image: string;
   level: number;
   progress: number; 
-  
-  // --- ADDED THIS FIELD ---
   completedTaskIds?: string[];
-  // -----------------------
-
-  badges: string[];
-  tags: { label: string; color: string }[];
-  stats: {
+  badges?: any[]; 
+  tags?: { label: string; color: string }[];
+  stats?: {
     speed: number;
     accuracy: number;
     hospitality: number;
     knowledge: number;
     leadership: number;
   };
-  performance: number[]; 
+  performance?: number[]; 
   goals?: Goal[];
-  pairing?: { name: string; image: string; role: string }; 
+  pairing?: { id: string; name: string; image?: string; role: string }; 
   promotionDates?: Record<string, string>; 
   curriculum?: {
     currentModule: string;
@@ -82,10 +87,8 @@ export interface TeamMember {
 export interface CalendarEvent {
   id: string;
   title: string;
-  // Primary Assigned Leader
   assignee: string; 
   assigneeName: string;
-  // Assigned Team Member (Optional)
   teamMemberId?: string;
   teamMemberName?: string;
   
@@ -99,8 +102,9 @@ export interface CalendarEvent {
   stickers?: StickerType[];
   subtasks?: Subtask[]; 
   
-  // UPDATED: Now supports multiple dependencies
   linkedEventIds?: string[]; 
+  createdAt?: any;
+  updatedAt?: any;
 }
 
 export type DraftEvent = Omit<CalendarEvent, "id" | "status">;
@@ -134,13 +138,18 @@ export const STAGES: { id: Status; title: string; icon: any }[] = [
     { id: "Team Leader", title: "Team Leader", icon: Star },
     { id: "Assistant Director", title: "Asst. Director", icon: Briefcase },
     { id: "Director", title: "Director", icon: Crown },
+    { id: "Admin", title: "Admin", icon: Crown }, // Added Admin Icon
 ];
 
 // --- 5. UI HELPERS ---
 
 export const getEventLabel = (type: EventType) => {
   switch (type) {
-    case "OneOnOne": return "1-on-1";
+    case "Training": return "Training Module";
+    case "Goal": return "Strategic Goal";
+    case "Deadline": return "Hard Deadline";
+    case "Operation": return "Unit Operation";
+    case "OneOnOne": return "1-on-1 Session";
     default: return type;
   }
 };
@@ -150,16 +159,33 @@ export const getTypeColor = (type: EventType, isGhost: boolean = false) => {
       return "bg-white/80 border-2 border-dashed border-[#004F71] text-[#004F71] shadow-xl z-50 backdrop-blur-sm mix-blend-multiply";
   }
   switch (type) {
-    case "Training": return "bg-blue-50 text-[#004F71] border-[#004F71] shadow-sm hover:shadow-md";
-    case "Goal": return "bg-emerald-50 text-emerald-800 border-emerald-600 shadow-sm hover:shadow-md";
-    case "Deadline": return "bg-red-50 text-[#E51636] border-[#E51636] shadow-sm hover:shadow-md";
-    case "Operation": return "bg-slate-100 text-slate-700 border-slate-500 shadow-sm hover:shadow-md";
-    case "OneOnOne": return "bg-purple-50 text-purple-700 border-purple-500 shadow-sm hover:shadow-md";
-    default: return "bg-white border-slate-200";
+    case "Training": return "bg-blue-50 text-blue-700 border-blue-100";
+    case "Goal": return "bg-emerald-50 text-emerald-700 border-emerald-100";
+    case "Deadline": return "bg-red-50 text-red-700 border-red-100";
+    case "Operation": return "bg-slate-100 text-slate-700 border-slate-200";
+    case "OneOnOne": return "bg-purple-50 text-purple-700 border-purple-100";
+    default: return "bg-gray-50 text-gray-700 border-gray-200";
   }
 };
 
-// --- 6. GRID MATH & LAYOUT LOGIC ---
+// --- 6. AUTHORIZATION LEVELS (UPDATED) ---
+
+export const ROLE_HIERARCHY: Record<string, number> = {
+  "Admin": 4,              // Highest Rank
+  "Director": 3,           
+  "Assistant Director": 2, 
+  "Team Leader": 1,        
+  "Team Member": 0,        
+  "Training": 0,
+  "Onboarding": 0
+};
+
+export const canPerformAction = (userRole: string, requiredLevel: number) => {
+  const level = ROLE_HIERARCHY[userRole] || 0;
+  return level >= requiredLevel;
+};
+
+// --- 7. GRID MATH & LAYOUT LOGIC ---
 
 const normalizeDate = (d: Date) => startOfDay(isValid(d) ? d : new Date());
 
