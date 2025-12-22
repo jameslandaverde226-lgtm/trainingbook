@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import { Lock, ChevronRight, Loader2, ShieldAlert } from "lucide-react";
 import { useAppStore } from "@/lib/store/useStore";
 import toast from "react-hot-toast";
-
-// Chick-fil-A Red Hex
-const CFA_RED = "#E51636";
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,68 +31,82 @@ export default function LoginPage() {
   };
 
   return (
-    // 1. Clean White Background
-    <div className="min-h-screen bg-white flex items-center justify-center p-6 relative overflow-hidden font-sans">
-      
-      {/* Subtle Background Pattern (Optional, e.g., a very light waffle fry pattern) */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#E51636 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-        // 2. Gorgeous White Login Card with Red Accent
-        className="w-full max-w-md bg-white p-10 md:p-12 rounded-[40px] shadow-[0_20px_60px_-15px_rgba(229,22,54,0.15)] relative z-10 border-t-4 border-[#E51636]"
-      >
-        <div className="flex flex-col items-center mb-10 text-center">
-          {/* 3. Chick-fil-A Themed Branding */}
-          <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6 shadow-sm border border-red-100">
-             {/* You can replace this with a CFA logo SVG */}
-             <Lock className="w-10 h-10 text-[#E51636]" />
-          </div>
-          <h1 className="text-3xl font-black text-[#E51636] tracking-tighter uppercase mb-2">TrainingBook</h1>
-          <p className="text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">Operational Command Access</p>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-6">
-          {/* 4. Clean, Rounded Input Fields */}
-          <div className="space-y-2">
-             <label className="text-xs font-black text-slate-700 uppercase tracking-widest pl-3">Operator ID</label>
-             <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold outline-none focus:border-[#E51636] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-slate-400"
-                placeholder="Enter email address..."
-             />
-          </div>
-          
-          <div className="space-y-2">
-             <label className="text-xs font-black text-slate-700 uppercase tracking-widest pl-3">Security Key</label>
-             <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold outline-none focus:border-[#E51636] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-slate-400"
-                placeholder="••••••••"
-             />
+    <div className="min-h-screen w-full flex bg-white font-sans">
+      {/* Left Column: Login Form */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center p-8 md:p-16 lg:p-24 relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full max-w-md mx-auto"
+        >
+          <div className="flex flex-col items-start mb-10">
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-red-100">
+               <Lock className="w-8 h-8 text-[#E51636]" />
+            </div>
+            <h1 className="text-4xl font-black text-[#E51636] tracking-tighter uppercase mb-2">TrainingBook</h1>
+            <p className="text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">Operational Command Access</p>
           </div>
 
-          {/* 5. Bold Chick-fil-A Red Button */}
-          <button 
-            disabled={isLoading}
-            className="w-full py-4 mt-4 bg-[#E51636] hover:bg-red-700 text-white rounded-2xl font-black uppercase text-sm tracking-[0.2em] shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Init Sequence <ChevronRight className="w-5 h-5" /></>}
-          </button>
-        </form>
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+               <label className="text-xs font-black text-slate-700 uppercase tracking-widest pl-3">Operator ID</label>
+               <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold outline-none focus:border-[#E51636] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-slate-400"
+                  placeholder="Enter email address..."
+               />
+            </div>
+            
+            <div className="space-y-2">
+               <label className="text-xs font-black text-slate-700 uppercase tracking-widest pl-3">Security Key</label>
+               <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-slate-900 font-bold outline-none focus:border-[#E51636] focus:ring-4 focus:ring-red-500/10 transition-all placeholder:text-slate-400"
+                  placeholder="••••••••"
+               />
+            </div>
 
-        {/* 6. Footer with Red Icon */}
-        <div className="mt-8 pt-8 border-t border-slate-100 flex items-center justify-center gap-2 text-slate-500">
-           <ShieldAlert className="w-4 h-4 text-[#E51636]" />
-           <span className="text-xs font-bold">Restricted Personnel Only</span>
-        </div>
-      </motion.div>
+            <button 
+              disabled={isLoading}
+              className="w-full py-4 mt-4 bg-[#E51636] hover:bg-red-700 text-white rounded-2xl font-black uppercase text-sm tracking-[0.2em] shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Init Sequence <ChevronRight className="w-5 h-5" /></>}
+            </button>
+          </form>
+
+          <div className="mt-12 pt-8 border-t border-slate-100 flex items-center gap-2 text-slate-500">
+             <ShieldAlert className="w-4 h-4 text-[#E51636]" />
+             <span className="text-xs font-bold">Restricted Personnel Only</span>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Right Column: Branding & Artwork */}
+      <div className="hidden lg:flex w-1/2 bg-[#E51636] relative overflow-hidden items-center justify-center p-16">
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10"></div>
+        <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="relative z-10 text-center text-white space-y-6"
+        >
+            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mx-auto shadow-2xl">
+                {/* Replace with an actual Chick-fil-A logo SVG if available */}
+                <span className="text-[#E51636] font-black text-4xl tracking-tighter">CFA</span>
+            </div>
+            <h2 className="text-5xl font-black tracking-tighter uppercase leading-none">Excellence in Every Order</h2>
+            <p className="text-lg font-medium opacity-80 max-w-md mx-auto">Training the next generation of leaders to serve with care and precision.</p>
+        </motion.div>
+        
+        {/* Decorative Waffle Fry Pattern - A subtle nod to the brand */}
+        <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute -top-20 -left-20 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
+      </div>
     </div>
   );
 }
