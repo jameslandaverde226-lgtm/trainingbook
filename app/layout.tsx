@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "react-hot-toast";
+import AuthGuard from "@/components/core/AuthGuard"; 
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Trainingbook",
-  description: "Training & Operations Management System",
+  description: "Operational Command System",
 };
 
 export default function RootLayout({
@@ -12,14 +17,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    /* 
-      FIX: Added suppressHydrationWarning to <html>. 
-      This tells React to ignore attribute mismatches on the root element 
-      caused by browser extensions or translation tools.
-    */
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased bg-slate-50 min-h-screen" suppressHydrationWarning>
-        {children}
+    <html lang="en">
+      <body className={`${inter.className} antialiased`}>
+        <AuthGuard>
+           {children}
+        </AuthGuard>
+        
+        {/* Global Notification Toaster */}
+        <Toaster 
+          position="bottom-right" 
+          toastOptions={{ 
+            style: { 
+              background: '#0F172A', 
+              color: '#fff', 
+              fontSize: '12px', 
+              fontWeight: 'bold',
+              borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.1)'
+            } 
+          }} 
+        />
       </body>
     </html>
   );

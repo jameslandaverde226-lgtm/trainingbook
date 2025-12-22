@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation'; // Added useRouter
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, 
@@ -14,10 +14,10 @@ import {
   Search,
   ChevronDown,
   Calendar,
-  BookOpen,
-  Menu
+  BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/lib/store/useStore'; // Import Store
 
 // CONFIGURED NAV LINKS
 const NAV_LINKS = [
@@ -30,15 +30,30 @@ const NAV_LINKS = [
 
 export default function DynamicHeader() {
   const pathname = usePathname();
+  const router = useRouter(); // For redirecting after logout
   const { scrollY } = useScroll();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  
+  // --- AUTH STATE ---
+  const { currentUser, logout } = useAppStore(); // Get real user data
+
+  // Fallback if loading or not logged in (though AuthGuard should prevent this)
+  const user = currentUser ? {
+      name: currentUser.name || "Operator",
+      email: currentUser.email || "",
+      initials: currentUser.name ? currentUser.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) : "OP",
+      role: currentUser.role || "Team Member"
+  } : { name: "Loading...", email: "", initials: "...", role: "" };
+
+  const handleSignOut = async () => {
+      await logout();
+      router.push("/login");
+  };
   
   // --- Scroll Physics ---
   const headerY = useTransform(scrollY, [0, 100], [0, -10]);
   const headerBorder = useTransform(scrollY, [0, 20], ["rgba(0,0,0,0)", "rgba(226,232,240,1)"]);
   const headerShadow = useTransform(scrollY, [0, 20], ["none", "0 10px 15px -3px rgba(0, 0, 0, 0.05)"]);
-
-  const user = { name: "James L.", email: "james@trainingbook.com", initials: "JL" };
 
   return (
     <>
@@ -115,12 +130,16 @@ export default function DynamicHeader() {
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 className="flex items-center gap-3 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200 outline-none"
               >
-                <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-md">
-                  {user.initials}
+                <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-md overflow-hidden">
+                  {currentUser?.image ? (
+                      <img src={currentUser.image} alt={user.initials} className="w-full h-full object-cover" />
+                  ) : (
+                      user.initials
+                  )}
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-bold text-slate-900 leading-none">{user.name}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase leading-none mt-0.5">Admin</p>
+                  <p className="text-xs font-bold text-slate-900 leading-none truncate max-w-[100px]">{user.name}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase leading-none mt-0.5">{user.role}</p>
                 </div>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </button>
@@ -142,7 +161,10 @@ export default function DynamicHeader() {
                       <Link href="/settings" className="flex items-center px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
                         <Settings className="mr-2 h-4 w-4" /> Preferences
                       </Link>
-                      <button className="w-full flex items-center px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors">
+                      <button 
+                        onClick={handleSignOut}
+                        className="w-full flex items-center px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+                      >
                         <LogOut className="mr-2 h-4 w-4" /> Sign Out
                       </button>
                     </motion.div>
@@ -155,20 +177,27 @@ export default function DynamicHeader() {
       </motion.header>
 
       {/* =======================================
-          MOBILE TOP BAR (Clean & Minimal)
+          MOBILE TOP BAR
       ======================================= */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 px-6 py-4 bg-slate-50/80 backdrop-blur-md flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">
             <div className="h-9 w-9 bg-[#004F71] rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg shadow-blue-900/20">T</div>
             <span className="text-lg font-black tracking-tight text-slate-900">Trainingbook</span>
           </Link>
-          <div className="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-md ring-2 ring-white">
-             {user.initials}
+          <div 
+            onClick={() => setIsProfileOpen(!isProfileOpen)} // Allow mobile users to open profile too if needed, or link to profile page
+            className="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-md ring-2 ring-white overflow-hidden"
+          >
+             {currentUser?.image ? (
+                 <img src={currentUser.image} alt={user.initials} className="w-full h-full object-cover" />
+             ) : (
+                 user.initials
+             )}
           </div>
       </header>
 
       {/* =======================================
-          MOBILE COMMAND DOCK (Floating Glass)
+          MOBILE COMMAND DOCK
       ======================================= */}
       <div className="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-auto">
         <nav className="flex items-center gap-2 p-2 bg-white/90 backdrop-blur-2xl border border-white/60 rounded-[32px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] ring-1 ring-white/50">
@@ -189,7 +218,6 @@ export default function DynamicHeader() {
                         )}
                         <link.icon className={cn("w-6 h-6 transition-all relative z-10", isActive ? "text-white scale-110" : "text-slate-400 hover:text-slate-600")} />
                         
-                        {/* Tiny Active Dot (Optional, kept for extra detail) */}
                         {isActive && (
                             <motion.div 
                                 initial={{ opacity: 0 }}

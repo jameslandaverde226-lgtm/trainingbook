@@ -20,7 +20,7 @@ import {
 import { useAppStore } from "@/lib/store/useStore";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
 import toast from "react-hot-toast";
-import ClientPortal from "@/components/core/ClientPortal"; // Added Import
+import ClientPortal from "@/components/core/ClientPortal"; 
 
 // Components
 import { Badge } from "../team/_components/Badge";
@@ -49,14 +49,14 @@ function TacticalColorPicker({ color, onChange }: { color: string, onChange: (h:
 }
 
 export default function CertificationsPage() {
-  const { team, loading } = useAppStore(); // Removed subscription logic
+  const { team, loading } = useAppStore(); 
   
   // -- UI States --
   const [searchQuery, setSearchQuery] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredMemberId, setHoveredMemberId] = useState<string | null>(null);
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
-  const [isMobileArmoryOpen, setIsMobileArmoryOpen] = useState(false); // Mobile Armory State
+  const [isMobileArmoryOpen, setIsMobileArmoryOpen] = useState(false); 
   
   // -- CRUD States --
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export default function CertificationsPage() {
         setBadgeDraft({ label: "", iconId: "Star", hex: "#E51636", desc: "Operational Excellence" });
     }
     setIsArchitectOpen(true);
-    setIsMobileArmoryOpen(false); // Close mobile sheet if open
+    setIsMobileArmoryOpen(false); 
   };
 
   const handleSaveBadge = async () => {
@@ -146,8 +146,8 @@ export default function CertificationsPage() {
             updatedAt: serverTimestamp() 
         }, { merge: true });
         toast.success(`${badge.label} Validated for ${member?.name}`, { id: loadingToast });
-        setSelectedMemberForAward(null); // Close mobile selection if active
-        setIsMobileArmoryOpen(false); // Close sheet
+        setSelectedMemberForAward(null); 
+        setIsMobileArmoryOpen(false); 
       } catch (e) {
         toast.error("Authentication Failure", { id: loadingToast });
       }
@@ -155,7 +155,6 @@ export default function CertificationsPage() {
 
   // -- MOBILE CLICK HANDLER --
   const handleMobileMemberClick = (memberId: string) => {
-      // Only on mobile do we want clicking a member to open the award sheet
       if (window.innerWidth < 1024) {
           setSelectedMemberForAward(memberId);
           setIsMobileArmoryOpen(true);
@@ -168,7 +167,6 @@ export default function CertificationsPage() {
       <div className="max-w-[1750px] mx-auto flex flex-col lg:flex-row gap-8 px-4 md:px-6">
         
         {/* --- MAIN ROSTER --- */}
-        {/* Removed huge padding-right on mobile */}
         <div className="flex-1 w-full lg:pr-[300px]">
           <div className="mb-6 md:mb-8 space-y-2 mt-12 md:mt-0">
               <div className="flex items-center gap-3">
@@ -188,6 +186,10 @@ export default function CertificationsPage() {
                         const isFOH = member.dept === "FOH";
                         const isHoveredTarget = hoveredMemberId === member.id || selectedMemberForAward === member.id;
                         const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                        
+                        // FIX: Helper to get badges safely
+                        const badges = member.badges || [];
+                        const hasBadges = badges.length > 0;
                         
                         return (
                             <motion.div 
@@ -233,19 +235,20 @@ export default function CertificationsPage() {
                                                 </div>
                                             </div>
                                             
-                                            {/* Count Indicator */}
-                                            {member.badges?.length > 0 && (
+                                            {/* Count Indicator - FIX: Checked badges length safely */}
+                                            {hasBadges && (
                                                 <div className="px-2 py-1 bg-slate-50 border border-slate-100 rounded-full text-[8px] md:text-[9px] font-black text-slate-400 uppercase tracking-widest shadow-sm">
-                                                    {member.badges.length} <span className="hidden md:inline">Certified</span>
+                                                    {badges.length} <span className="hidden md:inline">Certified</span>
                                                 </div>
                                             )}
                                         </div>
                                         
                                         {/* ASSET TRAY */}
                                         <div className="bg-slate-50/50 rounded-[16px] border border-slate-100/50 shadow-inner p-2 md:p-2.5 min-h-[44px] md:min-h-[52px]">
-                                            {member.badges?.length > 0 ? (
+                                            {/* FIX: Used safe badges array */}
+                                            {hasBadges ? (
                                                 <div className="flex flex-wrap gap-1.5 md:gap-2">
-                                                    {member.badges.map((b: any) => {
+                                                    {badges.map((b: any) => {
                                                         const Icon = TACTICAL_ICONS.find(i => i.id === b.iconId)?.icon || Award;
                                                         return (
                                                             <motion.div 
@@ -297,7 +300,7 @@ export default function CertificationsPage() {
           </div>
         </div>
 
-        {/* --- DESKTOP ARMORY SIDEBAR (Hidden on Mobile) --- */}
+        {/* --- DESKTOP ARMORY SIDEBAR --- */}
         <aside className="hidden lg:block fixed top-28 right-8 bottom-8 w-[280px] z-[40]">
             <div className="h-full bg-[#F8FAFC]/90 backdrop-blur-3xl border border-white/80 rounded-[40px] shadow-[0_20px_60px_-12px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden ring-1 ring-white/60 relative">
                 
@@ -391,7 +394,7 @@ export default function CertificationsPage() {
         </aside>
       </div>
 
-      {/* --- MOBILE FAB (Open Armory Sheet) --- */}
+      {/* --- MOBILE FAB --- */}
       <button 
         onClick={() => setIsMobileArmoryOpen(true)}
         className="lg:hidden fixed bottom-28 right-6 w-14 h-14 bg-[#0F172A] text-white rounded-full shadow-[0_10px_30px_-10px_rgba(15,23,42,0.5)] flex items-center justify-center z-50 active:scale-90 transition-transform border-4 border-white"
