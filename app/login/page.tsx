@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Lock, ChevronRight, Loader2, ShieldAlert } from "lucide-react";
+import { ChevronRight, Loader2, ShieldAlert } from "lucide-react";
 import { useAppStore } from "@/lib/store/useStore";
 import toast from "react-hot-toast";
 import Image from 'next/image';
@@ -41,8 +41,20 @@ export default function LoginPage() {
           className="w-full max-w-md mx-auto"
         >
           <div className="flex flex-col items-start mb-10">
-            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-red-100">
-               <Lock className="w-8 h-8 text-[#E51636]" />
+            {/* --- UPDATED ICON SECTION ---
+              The container is now larger, with a prominent shadow and border.
+              The SVG icon itself is sized to look grand and central.
+            */}
+            <div className="w-24 h-24 bg-white rounded-3xl flex items-center justify-center mb-6 shadow-[0_10px_30px_-10px_rgba(229,22,54,0.3)] border-[3px] border-[#E51636] p-4 relative overflow-hidden group">
+               {/* Glow effect behind the icon */}
+               <div className="absolute inset-0 bg-red-500 opacity-0 group-hover:opacity-10 transition-opacity duration-500 blur-xl"></div>
+               <Image 
+                 src="/planning.svg" 
+                 alt="TrainingBook Logo" 
+                 width={64} 
+                 height={64} 
+                 className="w-full h-full object-contain relative z-10 drop-shadow-sm transition-transform duration-500 group-hover:scale-110"
+               />
             </div>
             <h1 className="text-4xl font-black text-[#E51636] tracking-tighter uppercase mb-2">TrainingBook</h1>
             <p className="text-sm font-bold text-slate-500 uppercase tracking-[0.2em]">Operational Command Access</p>
@@ -95,15 +107,20 @@ export default function LoginPage() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="relative z-10 text-center text-white space-y-6"
         >
-            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mx-auto shadow-2xl">
-                {/* Replace with an actual Chick-fil-A logo SVG if available */}
-                <span className="text-[#E51636] font-black text-4xl tracking-tighter">CFA</span>
+            <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mx-auto shadow-2xl p-6">
+                {/* Also using the new SVG here for consistency */}
+                <Image 
+                 src="/planning.svg" 
+                 alt="TrainingBook Logo" 
+                 width={80} 
+                 height={80} 
+                 className="w-full h-full object-contain drop-shadow-md"
+               />
             </div>
             <h2 className="text-5xl font-black tracking-tighter uppercase leading-none">Excellence in Every Order</h2>
             <p className="text-lg font-medium opacity-80 max-w-md mx-auto">Training the next generation of leaders to serve with care and precision.</p>
         </motion.div>
         
-        {/* Decorative Waffle Fry Pattern - A subtle nod to the brand */}
         <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
         <div className="absolute -top-20 -left-20 w-96 h-96 bg-white/10 rounded-full blur-3xl"></div>
       </div>
