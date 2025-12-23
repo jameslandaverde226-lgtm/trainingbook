@@ -1,13 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+// Added: Trash2, RefreshCw, KeyRound, UserMinus
 import { 
-  User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save 
+  User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save,
+  ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus 
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion"; // Added for dropdown
 import { useAppStore } from "@/lib/store/useStore"; 
 import { auth } from "@/lib/firebase"; 
 import toast from "react-hot-toast";
-import { ROLE_HIERARCHY } from "../calendar/_components/types"; 
+import { ROLE_HIERARCHY, Status } from "../calendar/_components/types"; 
+import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
   const { currentUser, team } = useAppStore(); 
@@ -21,23 +25,34 @@ export default function SettingsPage() {
     name: "", 
     email: "", 
     password: "", 
-    role: "Team Member", 
+    role: "Team Member" as Status, 
     dept: "FOH",
-    linkedMemberId: "" // Track if we are activating an existing member
+    linkedMemberId: "" 
   });
   const [isCreating, setIsCreating] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
+  
+  // State for Custom Dropdown
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
 
   // --- HIERARCHY LOGIC ---
   const myLevel = ROLE_HIERARCHY[currentUser?.role || "Team Member"] || 0;
   const canCreateAccounts = myLevel >= 2;
 
-  // Filter existing members who don't have a login yet (assuming 'hasLogin' flag or just filtering generally)
+  // Filter existing members
   const filteredMembers = useMemo(() => {
      return team.filter(m => 
         m.name.toLowerCase().includes(memberSearch.toLowerCase())
      );
   }, [team, memberSearch]);
+
+  // Filter members WHO HAVE ACCESS (for management list)
+  // Assuming 'hasLogin' flag exists, or we check if they have a specialized role
+  const activeUsers = useMemo(() => {
+      // In a real app, you might want to fetch a list of auth users from an API
+      // For now, let's assume anyone with a role > Team Member has a login, or use a flag
+      return team.filter(m => m.status !== "Team Member" && m.status !== "Onboarding" && m.status !== "Training");
+  }, [team]);
 
   useEffect(() => {
     if (currentUser) {
@@ -48,17 +63,16 @@ export default function SettingsPage() {
     }
   }, [currentUser]);
 
-  // --- AUTO-FILL HANDLER ---
   const selectMemberForActivation = (member: any) => {
       setNewUser({
           ...newUser,
           name: member.name,
-          email: member.email || "", // Use existing email if they have one
+          email: member.email || "", 
           role: member.role || "Team Member",
           dept: member.dept || "FOH",
           linkedMemberId: member.id
       });
-      setMemberSearch(""); // Clear search
+      setMemberSearch(""); 
       toast.success(`Selected: ${member.name}`);
   };
 
@@ -71,8 +85,9 @@ export default function SettingsPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
       e.preventDefault();
+      if (!newUser.linkedMemberId) return toast.error("Please select a team member from the roster first.");
+      
       setIsCreating(true);
-
       try {
           const token = await auth.currentUser?.getIdToken();
           if (!token) throw new Error("Authentication Token Missing");
@@ -97,6 +112,14 @@ export default function SettingsPage() {
           setIsCreating(false);
       }
   };
+
+  // Define available roles based on hierarchy
+  const availableRoles = [
+      { id: "Team Member", label: "Team Member (Lvl 0)", level: 0 },
+      { id: "Team Leader", label: "Team Leader (Lvl 1)", level: 1 },
+      { id: "Assistant Director", label: "Assistant Director (Lvl 2)", level: 2 },
+      { id: "Director", label: "Director (Lvl 3)", level: 3 },
+  ].filter(r => r.level < myLevel || myLevel === 4); // Only allow creating roles below yours, unless Admin(4)
 
   if (!currentUser) return <div className="flex h-screen items-center justify-center bg-[#F8FAFC]"><Loader2 className="w-8 h-8 animate-spin text-[#E51636]" /></div>;
 
@@ -151,6 +174,7 @@ export default function SettingsPage() {
                 {/* --- TAB: IDENTITY --- */}
                 {activeTab === 'identity' && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
+                         {/* ... (Identity Content remains same) ... */}
                          <div className="mb-10">
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Operator Identity</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Manage your administrative profile.</p>
@@ -207,9 +231,11 @@ export default function SettingsPage() {
                     </div>
                 )}
 
-                {/* --- TAB: OPERATIONS (Create Account) --- */}
+                {/* --- TAB: OPERATIONS (Create & Manage) --- */}
                 {activeTab === 'ops' && canCreateAccounts && (
                     <div className="space-y-6">
+                        
+                        {/* 1. ONBOARDING CARD */}
                         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
                             <div className="mb-10 flex items-center justify-between">
                                 <div>
@@ -271,19 +297,38 @@ export default function SettingsPage() {
                                         <input required type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all" />
                                     </div>
                                     
-                                    {/* --- DYNAMIC ROLE DROPDOWN --- */}
-                                    <div className="space-y-2">
+                                    {/* --- CUSTOM DROPDOWN FOR CLEARANCE LEVEL --- */}
+                                    <div className="space-y-2 relative">
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Clearance Level</label>
-                                        <select 
-                                            value={newUser.role} 
-                                            onChange={e => setNewUser({...newUser, role: e.target.value})} 
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all appearance-none"
+                                        <button 
+                                            type="button"
+                                            onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all flex items-center justify-between"
                                         >
-                                            <option value="Team Member">Team Member (Lvl 0)</option>
-                                            {myLevel >= 2 && <option value="Team Leader">Team Leader (Lvl 1)</option>}
-                                            {myLevel >= 3 && <option value="Assistant Director">Assistant Director (Lvl 2)</option>}
-                                            {myLevel >= 4 && <option value="Director">Director (Lvl 3)</option>}
-                                        </select>
+                                            <span>{availableRoles.find(r => r.id === newUser.role)?.label || newUser.role}</span>
+                                            <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", isRoleDropdownOpen && "rotate-180")} />
+                                        </button>
+                                        
+                                        <AnimatePresence>
+                                            {isRoleDropdownOpen && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}
+                                                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-30 overflow-hidden"
+                                                >
+                                                    {availableRoles.map(role => (
+                                                        <button
+                                                            key={role.id}
+                                                            type="button"
+                                                            onClick={() => { setNewUser({...newUser, role: role.id as Status}); setIsRoleDropdownOpen(false); }}
+                                                            className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 flex items-center gap-2"
+                                                        >
+                                                            <span className={cn("w-2 h-2 rounded-full", newUser.role === role.id ? "bg-[#004F71]" : "bg-slate-200")} />
+                                                            {role.label}
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
 
                                     <div className="space-y-2">
@@ -312,6 +357,49 @@ export default function SettingsPage() {
                                     Initialize Operative
                                 </button>
                             </form>
+                        </div>
+
+                        {/* 2. MANAGE ACTIVE ACCOUNTS (NEW SECTION) */}
+                        <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
+                             <div className="mb-8 flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-xl font-[1000] text-slate-900 tracking-tight">Active Accounts</h2>
+                                    <p className="text-xs font-medium text-slate-400 mt-1">Users with system login access.</p>
+                                </div>
+                                <div className="p-2.5 bg-slate-100 text-slate-500 rounded-xl">
+                                    <KeyRound className="w-5 h-5" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {activeUsers.length > 0 ? activeUsers.map(user => (
+                                    <div key={user.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-sm text-slate-700 shadow-sm">
+                                                {user.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-slate-900">{user.name}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{user.role}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
+                                                    <span className="text-[9px] font-medium text-slate-400">{user.email}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-white rounded-lg transition-all" title="Reset Password">
+                                                <RefreshCw className="w-4 h-4" />
+                                            </button>
+                                            <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Revoke Login Access">
+                                                <UserMinus className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <div className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">No active login accounts</div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
