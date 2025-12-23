@@ -1,3 +1,4 @@
+// --- FILE: ./app/(main)/team/_components/TeamCard.tsx ---
 "use client";
 
 import { useState, useRef, memo, useEffect } from "react";
@@ -5,7 +6,8 @@ import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, PanIn
 import { Award, Camera, Loader2, Link2, ShieldCheck, Zap, Plus, User, Crown, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
-import { storage, caresDb } from "@/lib/firebase"; 
+// CHANGED: Imported 'db' instead of 'caresDb'
+import { storage, db } from "@/lib/firebase"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
@@ -15,13 +17,12 @@ interface Props {
   onClick: (m: TeamMember) => void;
   onAssignClick: (m: TeamMember) => void;
   onDragStart: () => void;
-  // FIX: Updated type to accept Framer Motion arguments
   onDragEnd: (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => void;
   isDragging: boolean;
   isDropTarget?: boolean;
 }
 
-// 3D Tilt Logic
+// ... (TiltWrapper component remains unchanged) ...
 const TiltWrapper = ({ children, disabled, className, ...props }: any) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -79,7 +80,9 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
       try {
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
-        await updateDoc(doc(caresDb, "teamMembers", member.id), {
+        
+        // CHANGED: Using 'db' here instead of 'caresDb'
+        await updateDoc(doc(db, "teamMembers", member.id), {
           image: url,
           updatedAt: serverTimestamp()
         });
@@ -211,7 +214,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                 </div>
               </div>
 
-              {/* --- MENTOR / CONNECTION SLOT (BEAUTIFIED) --- */}
+              {/* --- MENTOR / CONNECTION SLOT --- */}
               <div className="grid grid-cols-[1fr_auto] gap-2">
                   
                   {/* SLOT 1: MENTOR ASSIGNMENT */}
