@@ -74,3 +74,37 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Show only the print area */
+  #printable-area, #printable-area * {
+    visibility: visible;
+  }
+
+  /* Reset positioning for print */
+  #printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: white;
+    color: black;
+  }
+
+  /* Hide buttons/interactive elements inside the print area */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure text is black for readability */
+  p, h1, h2, h3, h4, span {
+    color: black !important;
+  }
+}

@@ -1,3 +1,4 @@
+// --- FILE: ./app/(main)/team/_components/MemberDetailSheet.tsx ---
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -284,9 +285,18 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
     const history: any[] = [];
     assignedEvents.forEach(e => {
         let category = 'MISSION';
-        if (e.type === 'Goal') category = 'GOAL';
+        
+        // --- NEW LOGIC START ---
+        if (e.description?.startsWith("[DOCUMENT LOG:")) {
+            const match = e.description.match(/\[DOCUMENT LOG: (.*?)\]/);
+            category = match ? match[1].toUpperCase() : 'DOCUMENT';
+            e.description = e.description.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
+        } 
+        // --- NEW LOGIC END ---
+
+        else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
-        if (e.title === "Mentorship Uplink") category = 'SYSTEM';
+        else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
         const rawDescription = e.description || "";
         const parts = rawDescription.split(/\[SESSION SUMMARY\]|\[KEY OUTCOMES\]|\[FOLLOW UP SCHEDULED:/);
@@ -307,6 +317,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
             status: e.status,
             goal,    
             summary, 
+            description: e.description, // Ensure cleaned description is passed
             rawEvent: e,
             mentorName: e.assigneeName 
         });

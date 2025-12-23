@@ -1,6 +1,7 @@
+// --- FILE: ./app/(main)/team/_components/OperationalDocumentInterface.tsx ---
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   FileText, CheckCircle2, Plus, 
@@ -10,6 +11,9 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
+import { db } from "@/lib/firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import toast from "react-hot-toast";
 
 // --- TYPES ---
 interface DocEntry {
@@ -35,42 +39,126 @@ const DOC_TYPES = [
 ] as const;
 
 export default function OperationalDocumentInterface({ member, currentUser }: Props) {
-  // Mock Data
-  const [entries, setEntries] = useState<DocEntry[]>([
-    { 
-        id: "1", 
-        type: "Performance Review", 
-        title: "Q3 Operational Assessment", 
-        content: "Andrea has shown exceptional speed in the FOH sector. Leadership capabilities are emerging, particularly during the lunch rush. Recommended for Team Leader track.", 
-        author: "Director", 
-        timestamp: new Date(Date.now() - 86400000 * 2), // 2 days ago
-        status: "Official" 
-    }
-  ]);
+  // Local state for immediate display, but real data comes from parent subscription
+  const [entries, setEntries] = useState<DocEntry[]>([]);
 
   const [isCreating, setIsCreating] = useState(false);
   const [newEntry, setNewEntry] = useState<Partial<DocEntry>>({ type: "Note", content: "" });
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
       if(!newEntry.content) return;
       setIsSaving(true);
       
-      setTimeout(() => {
-          const entry: DocEntry = {
-              id: Math.random().toString(),
-              type: newEntry.type as any || "Note",
-              title: newEntry.title || "General Entry",
-              content: newEntry.content || "",
-              author: currentUser,
-              timestamp: new Date(),
-              status: "Official"
-          };
-          setEntries([entry, ...entries]);
-          setIsCreating(false);
-          setNewEntry({ type: "Note", content: "" });
-          setIsSaving(false);
-      }, 800);
+      const timestamp = new Date();
+
+      // Create local entry object for immediate UI feedback
+      const entry: DocEntry = {
+          id: Math.random().toString(),
+          type: newEntry.type as any || "Note",
+          title: newEntry.title || "General Entry",
+          content: newEntry.content || "",
+          author: currentUser,
+          timestamp: timestamp,
+          status: "Official"
+      };
+
+      try {
+        // WRITE TO FIREBASE 'EVENTS' COLLECTION
+        // This ensures the Activity Stream (Overview Tab) picks it up automatically
+        await addDoc(collection(db, "events"), {
+            type: "Operation", 
+            title: entry.title,
+            status: "Done",
+            priority: entry.type === "Incident Report" ? "High" : "Medium",
+            startDate: timestamp,
+            endDate: timestamp,
+            assignee: "System", 
+            assigneeName: entry.author,
+            teamMemberId: member.id,
+            teamMemberName: member.name,
+            // We use a prefix tag so the Overview tab knows how to categorize it
+            description: `[DOCUMENT LOG: ${entry.type}]\n\n${entry.content}`, 
+            createdAt: serverTimestamp()
+        });
+
+        // Update local state
+        setEntries([entry, ...entries]);
+        setIsCreating(false);
+        setNewEntry({ type: "Note", content: "" });
+        toast.success("Record Officialized");
+
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to sync record");
+      } finally {
+        setIsSaving(false);
+      }
+  };
+
+  const handlePrint = (entry: DocEntry) => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) return;
+
+    doc.open();
+    doc.write(`
+        <html>
+        <head>
+            <title>Official Record - ${entry.title}</title>
+            <style>
+                body { font-family: 'Arial', sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
+                .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+                .logo { font-size: 24px; font-weight: 900; color: #004F71; text-transform: uppercase; letter-spacing: -1px; }
+                .meta { text-align: right; font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+                .badge { display: inline-block; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; border: 1px solid #e2e8f0; }
+                h1 { font-size: 28px; margin: 0 0 20px 0; font-weight: 800; line-height: 1.2; }
+                .content { font-size: 14px; line-height: 1.8; white-space: pre-wrap; color: #334155; }
+                .footer { margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; }
+                .signature { font-family: 'Courier New', monospace; font-size: 12px; }
+                .stamp { border: 2px dashed #cbd5e1; color: #cbd5e1; padding: 10px 20px; font-weight: 900; text-transform: uppercase; transform: rotate(-5deg); font-size: 12px; border-radius: 8px; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="logo">TrainingBook</div>
+                <div class="meta">
+                    Personnel Record<br/>
+                    ${format(new Date(), "MMMM do, yyyy")}
+                </div>
+            </div>
+            
+            <div class="badge">${entry.type}</div>
+            <h1>${entry.title}</h1>
+            
+            <div class="content">
+                ${entry.content}
+            </div>
+
+            <div class="footer">
+                <div class="signature">
+                    <strong>SIGNED:</strong> ${entry.author}<br/>
+                    <strong>DATE:</strong> ${format(entry.timestamp, "yyyy-MM-dd HH:mm")}
+                </div>
+                <div class="stamp">Official Entry</div>
+            </div>
+        </body>
+        </html>
+    `);
+    doc.close();
+
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+
+    setTimeout(() => {
+        document.body.removeChild(iframe);
+    }, 1000);
   };
 
   return (
@@ -225,7 +313,10 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
                                                 </div>
                                             </div>
                                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-500 hover:text-[#004F71] hover:border-blue-200 shadow-sm transition-all active:scale-95">
+                                                <button 
+                                                    onClick={() => handlePrint(entry)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-500 hover:text-[#004F71] hover:border-blue-200 shadow-sm transition-all active:scale-95"
+                                                >
                                                     <Printer className="w-3 h-3" /> Print
                                                 </button>
                                             </div>
