@@ -13,7 +13,7 @@ import {
   ArrowUpRight, Save, ChevronLeft, ChevronDown, 
   Command, TrendingUp, Lightbulb, Minimize2, ExternalLink, 
   GripHorizontal, Users, Link2, FileWarning,
-  Mail, Calendar // Added Icons
+  Mail, Calendar // Icons
 } from "lucide-react";
 import { 
     formatDistanceToNow, parseISO, startOfWeek, startOfMonth, endOfWeek, endOfMonth, 
@@ -369,7 +369,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                             <div className="flex items-center gap-1.5 text-slate-400 opacity-80 hover:opacity-100 transition-opacity">
                                 <Calendar className="w-3 h-3" />
                                 <span className="text-[9px] font-black uppercase tracking-widest">
-                                    Member Since {format(new Date(member.joined), "MMM yyyy")}
+                                    Joined {format(new Date(member.joined), "MMMM do, yyyy")}
                                 </span>
                             </div>
                         )}
@@ -442,6 +442,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                 {activeTab === 'overview' && (
                     <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 lg:p-12 space-y-6 lg:space-y-10 overflow-y-auto h-full custom-scrollbar bg-slate-50/20 pb-24">
                         
+                        {/* MENTOR CARD */}
                         {member.pairing ? (
                             <div className="bg-white p-5 rounded-[28px] border border-slate-100 shadow-sm flex items-center justify-between relative overflow-hidden group">
                                 <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} />
