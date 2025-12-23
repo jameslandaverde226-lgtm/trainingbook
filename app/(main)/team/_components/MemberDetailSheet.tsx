@@ -13,7 +13,7 @@ import {
   ArrowUpRight, Save, ChevronLeft, ChevronDown, 
   Command, TrendingUp, Lightbulb, Minimize2, ExternalLink, 
   GripHorizontal, Users, Link2, FileWarning,
-  Mail, Calendar, Camera // Added Icons
+  Mail, Calendar, Camera, FileText // Added FileText for Documents Tab
 } from "lucide-react";
 import { 
     formatDistanceToNow, parseISO, startOfWeek, startOfMonth, endOfWeek, endOfMonth, 
@@ -31,6 +31,7 @@ import { TACTICAL_ICONS } from "@/lib/icon-library";
 import toast from "react-hot-toast";
 import { Badge } from "./Badge";
 import OneOnOneSessionModal from "../../calendar/_components/OneOnOneSessionModal";
+import OperationalDocumentInterface from "./OperationalDocumentInterface"; // New Component
 
 // --- HELPERS ---
 
@@ -195,8 +196,8 @@ const CATEGORIES: { id: EventType; icon: any }[] = [
 interface Props {
   member: TeamMember; 
   onClose: () => void;
-  activeTab: "overview" | "curriculum" | "performance";
-  setActiveTab: (t: "overview" | "curriculum" | "performance") => void;
+  activeTab: "overview" | "curriculum" | "performance" | "documents"; // Added documents
+  setActiveTab: (t: "overview" | "curriculum" | "performance" | "documents") => void;
 }
 
 export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, setActiveTab }: Props) => {
@@ -463,7 +464,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
           {/* TABS HEADER */}
           <div className="px-4 lg:px-12 h-16 lg:h-24 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white z-20 overflow-x-auto no-scrollbar">
              <div className="flex gap-6 lg:gap-12 min-w-full lg:min-w-0">
-                {['overview', 'curriculum', 'performance'].map(tab => (
+                {['overview', 'documents', 'curriculum', 'performance'].map(tab => (
                    <button key={tab} onClick={() => { setActiveTab(tab as any); setSelectedSectionId(null); }} className="relative py-5 lg:py-9 group outline-none shrink-0">
                       <span className={cn("text-[10px] lg:text-xs font-bold uppercase tracking-[0.15em] transition-all", activeTab === tab ? "text-slate-900" : "text-slate-400 hover:text-slate-600")}>{tab}</span>
                       {activeTab === tab && <motion.div layoutId="detailTab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#E51636] rounded-t-full shadow-[0_-4px_10px_rgba(229,22,54,0.2)]" />}
@@ -623,6 +624,18 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                     </motion.div>
                 )}
                 
+                {/* --- TAB: DOCUMENTS (NEW) --- */}
+                {activeTab === 'documents' && (
+                    <motion.div 
+                        key="documents" 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        className="h-full flex flex-col bg-white"
+                    >
+                        <OperationalDocumentInterface member={member} currentUser="Director" />
+                    </motion.div>
+                )}
+
                 {/* --- TAB: CURRICULUM --- */}
                 {activeTab === 'curriculum' && (
                    <motion.div key="curriculum" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col bg-white">

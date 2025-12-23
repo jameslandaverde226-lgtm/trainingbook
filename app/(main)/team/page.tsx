@@ -110,7 +110,7 @@ export default function TeamBoardPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [visibleCount, setVisibleCount] = useState(12);
     const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-    const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance">("overview");
+    const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
     const [trainerDraggingId, setTrainerDraggingId] = useState<string | null>(null);
     const [isTrainerPanelOpen, setIsTrainerPanelOpen] = useState(false);
