@@ -1,4 +1,3 @@
-// --- FILE: ./app/(main)/team/_components/MemberDetailSheet.tsx ---
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -13,14 +12,14 @@ import {
   ArrowUpRight, Save, ChevronLeft, ChevronDown, 
   Command, TrendingUp, Lightbulb, Minimize2, ExternalLink, 
   GripHorizontal, Users, Link2, FileWarning,
-  Mail, Calendar, Camera, FileText
+  Mail, Calendar, Camera, FileText, ShieldAlert
 } from "lucide-react";
 import { 
     formatDistanceToNow, parseISO, startOfWeek, startOfMonth, endOfWeek, endOfMonth, 
     eachDayOfInterval, isSameDay, isBefore, isWithinInterval, isSameMonth, subMonths, addMonths, format, 
-    differenceInDays // ADDED
+    differenceInDays 
 } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, getProbationStatus } from "@/lib/utils";
 
 // --- IMPORTS ---
 import { db, storage } from "@/lib/firebase"; 
@@ -210,8 +209,8 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
 
   const member = liveMember || initialMember;
 
-  // --- 30 DAY LOGIC ---
-  const isNewHire = member.joined ? differenceInDays(new Date(), new Date(member.joined)) <= 30 : false;
+  // --- PROBATION LOGIC ---
+  const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
 
   // --- UPLOAD STATE ---
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -395,8 +394,8 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                         </div>
                     </div>
 
-                    {/* --- NEW HIRE BADGE --- */}
-                    {isNewHire && (
+                    {/* --- PROBATION BADGE (Replacing simple New Hire badge) --- */}
+                    {probation && probation.isActive && (
                         <motion.div 
                             initial={{ scale: 0, rotate: -45 }}
                             animate={{ scale: 1, rotate: 0 }}
@@ -432,6 +431,46 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                             </div>
                         )}
                     </div>
+
+                    {/* --- PROBATION TRACKER CARD --- */}
+                    {probation && probation.isActive && (
+                        <div className="w-full mt-6 p-1 bg-gradient-to-br from-amber-100/50 to-orange-100/50 rounded-[28px] border border-amber-100 shadow-sm relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-400" />
+                            
+                            <div className="bg-white/60 backdrop-blur-xl rounded-[24px] p-5 text-left">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-[8px] font-black uppercase tracking-[0.25em] text-amber-600 mb-1">Probation Protocol</span>
+                                        <span className="text-sm font-bold text-slate-800 leading-none">Evaluation Period</span>
+                                    </div>
+                                    <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shadow-sm">
+                                        <ShieldAlert className="w-4 h-4" />
+                                    </div>
+                                </div>
+
+                                {/* Visual Tracker */}
+                                <div className="relative h-3 w-full bg-slate-100 rounded-full overflow-hidden mb-2">
+                                    <motion.div 
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${probation.percentage}%` }}
+                                        transition={{ duration: 1.5, ease: "circOut" }}
+                                        className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full"
+                                    />
+                                    {/* Tick Marks for 10/20/30 */}
+                                    <div className="absolute top-0 bottom-0 left-1/3 w-px bg-white/50" />
+                                    <div className="absolute top-0 bottom-0 left-2/3 w-px bg-white/50" />
+                                </div>
+
+                                <div className="flex justify-between items-end">
+                                    <span className="text-[10px] font-bold text-slate-400">{probation.daysPassed} Days Complete</span>
+                                    <div className="text-right">
+                                        <span className="text-xl font-black text-slate-900 tabular-nums leading-none">{probation.daysRemaining}</span>
+                                        <span className="text-[8px] font-bold uppercase text-slate-400 ml-1">Days Left</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="relative w-full p-4 lg:p-6 rounded-[24px] lg:rounded-[36px] bg-white border border-slate-100 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] overflow-hidden group hover:shadow-xl transition-all duration-500 hidden md:block">

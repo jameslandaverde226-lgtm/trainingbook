@@ -1,15 +1,13 @@
-// --- FILE: ./app/(main)/team/_components/TeamCard.tsx ---
 "use client";
 
-import { useState, useRef, memo, useEffect } from "react";
+import { useState, useRef, memo, useEffect, useMemo } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, PanInfo } from "framer-motion";
-import { Award, Camera, Loader2, Link2, ShieldCheck, Zap, Plus, User, Crown, UserPlus, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Award, Camera, Loader2, Link2, ShieldCheck, Zap, Plus, User, Crown, UserPlus, Sparkles, Timer } from "lucide-react";
+import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { storage, db } from "@/lib/firebase"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { differenceInDays } from "date-fns";
 import toast from "react-hot-toast";
 
 interface Props {
@@ -67,8 +65,8 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
   const [isUploading, setIsUploading] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
 
-  // --- 30 DAY LOGIC ---
-  const isNewHire = member.joined ? differenceInDays(new Date(), new Date(member.joined)) <= 30 : false;
+  // --- PROBATION LOGIC ---
+  const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
@@ -84,7 +82,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
         
-        await updateDoc(doc(db, "profileOverrides", member.id), { // Fixed to profileOverrides for safety
+        await updateDoc(doc(db, "profileOverrides", member.id), {
           image: url,
           updatedAt: serverTimestamp()
         });
@@ -179,11 +177,25 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                     <span className="relative z-10">{member.dept} UNIT</span>
                   </div>
 
-                  {/* --- NEW HIRE BADGE --- */}
-                  {isNewHire && (
-                     <div className="px-2.5 py-1.5 rounded-xl bg-[#E51636] text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-red-500/30 flex items-center gap-1 border border-white/20 animate-pulse">
-                         <Sparkles className="w-2.5 h-2.5 fill-current" />
-                         <span>NEW</span>
+                  {/* --- PROBATION COUNTDOWN BADGE --- */}
+                  {probation && (
+                     <div className="px-2.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 backdrop-blur-md flex items-center gap-1.5 shadow-sm">
+                        <div className="relative w-3 h-3 flex items-center justify-center">
+                             <svg className="w-full h-full -rotate-90">
+                                <circle cx="6" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-500/20" />
+                                <circle 
+                                    cx="6" cy="6" r="5" fill="none" 
+                                    stroke="currentColor" strokeWidth="2" 
+                                    strokeDasharray="31.4" 
+                                    strokeDashoffset={31.4 - (31.4 * probation.percentage / 100)} 
+                                    className="text-amber-500 transition-all duration-1000" 
+                                    strokeLinecap="round" 
+                                />
+                             </svg>
+                        </div>
+                        <span className="text-[8px] font-[900] uppercase tracking-wider text-amber-500">
+                            {probation.daysRemaining} Days
+                        </span>
                      </div>
                   )}
               </div>
@@ -226,7 +238,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                 </div>
               </div>
 
-              {/* --- MENTOR / CONNECTION SLOT (BEAUTIFIED) --- */}
+              {/* --- MENTOR / CONNECTION SLOT --- */}
               <div className="grid grid-cols-[1fr_auto] gap-2">
                   
                   {/* SLOT 1: MENTOR ASSIGNMENT */}
@@ -234,15 +246,12 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                     onClick={(e) => { e.stopPropagation(); onAssignClick(member); }}
                     className={cn(
                       "rounded-2xl flex items-center relative overflow-hidden transition-all duration-300 cursor-pointer h-14 active:scale-95 group/mentor",
-                      // VISUAL LOGIC:
                       isDropTarget 
                         ? "bg-emerald-500 text-white shadow-xl shadow-emerald-500/30 col-span-2 justify-center" 
                         : (member.pairing 
                             ? (hasImage || isFOH ? "bg-white/10 border border-white/20 backdrop-blur-md px-3" : "bg-white border border-slate-100 shadow-sm px-3")
                             : (hasImage || isFOH 
-                                // Dark Card (FOH or Image) - Gradient Button
                                 ? cn("justify-center border backdrop-blur-md", isFOH ? "bg-gradient-to-br from-blue-500/20 to-blue-600/20 hover:from-blue-500/30 hover:to-blue-600/30 border-blue-400/30" : "bg-gradient-to-br from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 border-red-400/30")
-                                // Light Card - Subtle Gradient Button
                                 : "justify-center bg-gradient-to-br from-slate-100 to-slate-200 hover:from-slate-200 hover:to-slate-300 border border-slate-300/50"
                               )
                           )
