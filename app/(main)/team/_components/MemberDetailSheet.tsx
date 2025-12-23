@@ -1,7 +1,7 @@
 // --- FILE: ./app/(main)/team/_components/MemberDetailSheet.tsx ---
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useDragControls, PanInfo } from "framer-motion";
 import { 
@@ -13,7 +13,7 @@ import {
   ArrowUpRight, Save, ChevronLeft, ChevronDown, 
   Command, TrendingUp, Lightbulb, Minimize2, ExternalLink, 
   GripHorizontal, Users, Link2, FileWarning,
-  Mail, Calendar // Icons
+  Mail, Calendar, Camera // Added Icons
 } from "lucide-react";
 import { 
     formatDistanceToNow, parseISO, startOfWeek, startOfMonth, endOfWeek, endOfMonth, 
@@ -22,8 +22,9 @@ import {
 import { cn } from "@/lib/utils";
 
 // --- IMPORTS ---
-import { db } from "@/lib/firebase"; 
+import { db, storage } from "@/lib/firebase"; 
 import { collection, addDoc, serverTimestamp, doc, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAppStore } from "@/lib/store/useStore";
 import { TeamMember, STAGES, EventType, getEventLabel, getTypeColor, CalendarEvent } from "../../calendar/_components/types";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
@@ -31,7 +32,7 @@ import toast from "react-hot-toast";
 import { Badge } from "./Badge";
 import OneOnOneSessionModal from "../../calendar/_components/OneOnOneSessionModal";
 
-// --- HELPERS & SUB-COMPONENTS ---
+// --- HELPERS ---
 
 function ClientPortal({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -207,11 +208,14 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
 
   const member = liveMember || initialMember;
 
+  // --- UPLOAD STATE ---
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
   const [localCompletedIds, setLocalCompletedIds] = useState<string[]>(member.completedTaskIds || []);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [logDraft, setLogDraft] = useState({ title: "", type: "Training" as EventType, priority: "Medium" as any, startDate: new Date(), endDate: new Date(), description: "", assignee: "", assigneeName: "" });
   const [isTitleFocused, setIsTitleFocused] = useState(false);
@@ -240,6 +244,33 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
   const brandBg = isFOH ? 'bg-[#004F71]' : 'bg-[#E51636]';
   const brandText = isFOH ? 'text-[#004F71]' : 'text-[#E51636]';
   const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
+
+  // --- IMAGE UPLOAD HANDLER ---
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setIsUploading(true);
+      const file = e.target.files[0];
+      const storageRef = ref(storage, `team-avatars/${member.id}/${file.name}`);
+      try {
+        await uploadBytes(storageRef, file);
+        const url = await getDownloadURL(storageRef);
+        
+        await setDoc(doc(db, "profileOverrides", member.id), {
+          image: url,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        toast.success("Identity Updated");
+      } catch (error) {
+        console.error(error);
+        toast.error("Upload Failed");
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const hasValidImage = member.image && !member.image.includes('ui-avatars.com');
 
   const filteredCurriculum = useMemo(() => curriculum.filter(s => s.dept === member.dept), [curriculum, member.dept]);
   const activeSection = useMemo(() => filteredCurriculum.find(s => s.id === selectedSectionId), [filteredCurriculum, selectedSectionId]);
@@ -310,7 +341,6 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
   const handleUpdateEvent = async (updatedEvent: CalendarEvent) => { try { await updateDoc(doc(db, "events", updatedEvent.id), { description: updatedEvent.description, subtasks: updatedEvent.subtasks, status: updatedEvent.status, updatedAt: serverTimestamp() }); toast.success("Session Updated"); setSelectedSession(null); } catch (e) { toast.error("Update Failed"); } };
   const handleDeployLog = async () => { if (!logDraft.title) return toast.error("Identify mission objective"); try { await addDoc(collection(db, "events"), { ...logDraft, teamMemberId: member.id, teamMemberName: member.name, status: "Done", createdAt: serverTimestamp() }); toast.success("Log Deployed Successfully"); setIsLogModalOpen(false); setLogDraft({ title: "", type: "Training", priority: "Medium", startDate: new Date(), endDate: new Date(), description: "", assignee: "", assigneeName: "" }); } catch (e) { toast.error("Deployment failed"); } };
   const getEmbedUrl = () => { const base = CANVA_LINKS[member.dept as keyof typeof CANVA_LINKS]?.split('?')[0] || CANVA_LINKS.FOH; const page = activeSection?.pageStart || 1; return `${base}?embed#${page}`; };
-
   const EmptyState = ({ title, message }: { title: string, message: string }) => (
       <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center p-8 border-2 border-dashed border-slate-200 rounded-[32px] bg-slate-50/50">
           <div className="p-4 bg-white rounded-full shadow-sm mb-4">
@@ -342,10 +372,21 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
             </button>
 
             <div className="text-center space-y-4 lg:space-y-8 pt-2 lg:pt-4">
-                <div className="relative inline-block">
-                    <div className="w-20 h-20 lg:w-32 lg:h-32 rounded-[28px] lg:rounded-[44px] p-1.5 bg-white shadow-2xl border border-slate-100 mx-auto overflow-hidden lg:rotate-[-2deg]">
-                        <div className="w-full h-full rounded-[20px] lg:rounded-[34px] overflow-hidden flex items-center justify-center bg-slate-50">
-                            {member.image && !member.image.includes('ui-avatars.com') ? <img src={member.image} className="w-full h-full object-cover" /> : <span className={cn("text-2xl lg:text-4xl font-bold", brandText)}>{initials}</span>}
+                <div className="relative inline-block group/avatar cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                    <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
+                    
+                    <div className="w-20 h-20 lg:w-32 lg:h-32 rounded-[28px] lg:rounded-[44px] p-1.5 bg-white shadow-2xl border border-slate-100 mx-auto overflow-hidden lg:rotate-[-2deg] transition-transform group-hover/avatar:scale-105 group-hover/avatar:rotate-0">
+                        <div className="w-full h-full rounded-[20px] lg:rounded-[34px] overflow-hidden flex items-center justify-center bg-slate-50 relative">
+                            {hasValidImage ? (
+                                <img src={member.image} className="w-full h-full object-cover" alt="" />
+                            ) : (
+                                <span className={cn("text-2xl lg:text-4xl font-bold", brandText)}>{initials}</span>
+                            )}
+                            
+                            {/* Hover Overlay for Upload */}
+                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-300">
+                                {isUploading ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <Camera className="w-6 h-6 text-white" />}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -358,13 +399,11 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
 
                     {/* --- ADDED: Email & Join Date Block --- */}
                     <div className="mt-6 flex flex-col items-center gap-3">
-                        {/* Email Pill */}
                         <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm max-w-full">
                             <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             <span className="text-[10px] font-bold text-slate-600 truncate">{member.email || "No Email Linked"}</span>
                         </div>
                         
-                        {/* Join Date Text */}
                         {member.joined && (
                             <div className="flex items-center gap-1.5 text-slate-400 opacity-80 hover:opacity-100 transition-opacity">
                                 <Calendar className="w-3 h-3" />
