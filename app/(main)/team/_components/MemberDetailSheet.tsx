@@ -1,3 +1,4 @@
+// --- FILE: ./app/(main)/team/_components/MemberDetailSheet.tsx ---
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -10,7 +11,9 @@ import {
   Crown, Award, Medal, Shield, Clock, Zap, ChevronRight, 
   Maximize2, Layers, HardDrive, ClipboardCheck, 
   ArrowUpRight, Save, ChevronLeft, ChevronDown, 
-  Command, TrendingUp, Lightbulb, Minimize2, ExternalLink, GripHorizontal, Users, Link2, FileWarning
+  Command, TrendingUp, Lightbulb, Minimize2, ExternalLink, 
+  GripHorizontal, Users, Link2, FileWarning,
+  Mail, Calendar // Added Icons
 } from "lucide-react";
 import { 
     formatDistanceToNow, parseISO, startOfWeek, startOfMonth, endOfWeek, endOfMonth, 
@@ -38,10 +41,6 @@ function ClientPortal({ children }: { children: React.ReactNode }) {
   }, []);
   return mounted ? createPortal(children, document.body) : null;
 }
-
-// ... (ManualViewerModal, IntegratedRangePicker, WebAppDropdown remain unchanged) ...
-// To save space in this response, I'm omitting the unchanged helper components.
-// Please keep ManualViewerModal, IntegratedRangePicker, and WebAppDropdown exactly as they were.
 
 function ManualViewerModal({ url, title, pages, onClose, color }: { url: string, title: string, pages: string, onClose: () => void, color: string }) {
     const [loading, setLoading] = useState(true);
@@ -252,8 +251,6 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
         let category = 'MISSION';
         if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
-
-        // --- NEW LOGIC: Identify Uplink Events ---
         if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
         const rawDescription = e.description || "";
@@ -276,7 +273,6 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
             goal,    
             summary, 
             rawEvent: e,
-            // Pass the mentor name directly if available
             mentorName: e.assigneeName 
         });
     });
@@ -358,6 +354,25 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                     <div className="flex flex-row lg:flex-col items-center justify-center gap-2 lg:gap-3 mt-2 lg:mt-4">
                         <Badge color={isFOH ? 'blue' : 'red'} className="border-2 shadow-sm font-black">{member.dept} UNIT</Badge>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{member.role}</span>
+                    </div>
+
+                    {/* --- ADDED: Email & Join Date Block --- */}
+                    <div className="mt-6 flex flex-col items-center gap-3">
+                        {/* Email Pill */}
+                        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm max-w-full">
+                            <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span className="text-[10px] font-bold text-slate-600 truncate">{member.email || "No Email Linked"}</span>
+                        </div>
+                        
+                        {/* Join Date Text */}
+                        {member.joined && (
+                            <div className="flex items-center gap-1.5 text-slate-400 opacity-80 hover:opacity-100 transition-opacity">
+                                <Calendar className="w-3 h-3" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">
+                                    Member Since {format(new Date(member.joined), "MMM yyyy")}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -519,7 +534,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                                     </div>
                                     <div className="space-y-6 lg:space-y-8">
                                             {timelineData.length > 0 ? timelineData.slice(0, 5).map((item, idx) => {
-                                                const isSystem = item.category === 'SYSTEM'; // --- SYSTEM LOG IDENTIFICATION ---
+                                                const isSystem = item.category === 'SYSTEM';
                                                 return (
                                                     <div key={idx} className="relative group">
                                                         <div className="absolute -left-[23px] lg:-left-[31px] top-1.5 w-3 h-3 lg:w-4 lg:h-4 rounded-full border-[3px] border-white bg-slate-200 group-hover:bg-[#E51636] transition-all shadow-md z-10" />
@@ -572,12 +587,10 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                 {activeTab === 'curriculum' && (
                    <motion.div key="curriculum" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full flex flex-col bg-white">
                       {filteredCurriculum.length === 0 ? (
-                          // EMPTY STATE FOR CURRICULUM
                           <div className="h-full flex items-center justify-center p-8 bg-slate-50/30">
                               <EmptyState title="No Curriculum Found" message={`No training modules have been assigned to the ${member.dept} department yet.`} />
                           </div>
                       ) : !selectedSectionId ? (
-                         // PHASE SELECTION GRID
                          <div className="p-4 lg:p-10 grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 overflow-y-auto h-full bg-slate-50/30 pb-24">
                             {filteredCurriculum.map((section, i) => (
                                 <motion.div whileHover={{ y: -5, scale: 1.01 }} key={section.id} onClick={() => { setSelectedSectionId(section.id); setIframeLoading(true); }} className="p-6 lg:p-8 rounded-[32px] lg:rounded-[48px] bg-white border border-slate-200 transition-all duration-500 cursor-pointer shadow-sm hover:shadow-xl relative overflow-hidden group flex flex-col justify-between h-[220px] lg:h-[320px]">
@@ -589,9 +602,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                             ))}
                          </div>
                       ) : (
-                         // DETAILED VIEW
                          <div className="h-full flex flex-col">
-                            {/* Inner Header */}
                             <div className="px-4 lg:px-8 h-16 border-b border-slate-100 flex items-center justify-between bg-white shrink-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] z-30">
                                 <button onClick={() => setSelectedSectionId(null)} className="flex items-center gap-2 text-slate-400 hover:text-slate-900 text-[10px] font-bold transition-all bg-white hover:bg-slate-50 px-3 py-1.5 rounded-lg border border-transparent hover:border-slate-200">
                                     <ChevronLeft className="w-4 h-4" /> Back
@@ -654,7 +665,6 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                 {activeTab === 'performance' && (
                     <motion.div key="performance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 lg:p-12 overflow-y-auto h-full custom-scrollbar pb-24">
                         {timelineData.length === 0 ? (
-                            // EMPTY STATE FOR PERFORMANCE
                              <div className="h-full flex items-center justify-center p-8">
                                 <EmptyState title="No Performance History" message="This agent has no recorded missions, goals, or awards yet." />
                              </div>
@@ -684,7 +694,6 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                                                 </div>
                                                 <h4 className="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight leading-none mb-3 relative z-10">{item.title}</h4>
                                                 
-                                                {/* --- NEW: CUSTOM RENDER FOR SYSTEM UPLINKS --- */}
                                                 {isSystem && item.mentorName ? (
                                                     <div className="relative z-10 p-4 rounded-2xl bg-white border border-slate-200 flex items-center gap-3">
                                                         <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-black text-xs text-slate-500">
@@ -719,13 +728,12 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
         </div>
       </motion.div>
 
-      {/* --- LOG MODAL --- */}
+      {/* --- MODALS --- */}
       <AnimatePresence>
         {isLogModalOpen && (
             <div className="fixed inset-0 z-[200] flex items-end lg:items-center justify-center lg:p-4">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#0F172A]/90 backdrop-blur-md" onClick={() => setIsLogModalOpen(false)} />
                 <motion.div initial={{ scale: 0.98, opacity: 0, y: 20 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.98, opacity: 0, y: 20 }} className="bg-white w-full max-w-6xl rounded-t-[40px] lg:rounded-[48px] shadow-2xl overflow-hidden flex flex-col h-[90vh] lg:max-h-[92vh] border border-white/20 relative z-10">
-                    {/* HEADER */}
                     <div className="bg-[#E51636] px-6 lg:px-12 py-8 lg:py-10 text-white shrink-0 overflow-hidden relative">
                         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
                         <div className="absolute top-0 right-0 p-6 opacity-5 rotate-12"><Command className="w-48 h-48" /></div>
@@ -738,7 +746,6 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                         </div>
                     </div>
                     
-                    {/* BODY */}
                     <div className="p-6 lg:p-8 space-y-8 overflow-y-auto custom-scrollbar flex-1 bg-slate-50 relative z-20">
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="space-y-3"><label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] px-2 flex items-center gap-2"><Layers className="w-3 h-3" /> Classification</label><div className="flex flex-col gap-1.5">{CATEGORIES.map((cat: any) => { const isSelected = logDraft.type === cat.id; const style = getTypeColor(cat.id).split(' '); return (<button key={cat.id} onClick={() => setLogDraft({...logDraft, type: cat.id})} className={cn("w-full px-5 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all flex items-center justify-between shadow-sm", isSelected ? `${style[0]} ${style[1]} ${style[2]} shadow-xl ring-4 ring-white` : "bg-white border-slate-200 text-slate-400 hover:border-slate-300")}><div className="flex items-center gap-3"><cat.icon className="w-3.5 h-3.5" />{getEventLabel(cat.id)}</div>{isSelected && <Check className="w-3.5 h-3.5" />}</button>) })}</div></div>
@@ -748,36 +755,14 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                         <div className="relative group"><div className={cn("absolute -inset-1 bg-gradient-to-r from-[#E51636] to-red-400 rounded-[32px] blur opacity-0 transition duration-500", isBriefingFocused && "opacity-10")} /><div className="relative bg-white border border-slate-200 rounded-[28px] overflow-hidden shadow-sm transition-all duration-500"><div className="bg-slate-50/80 border-b border-slate-100 px-6 py-2.5 flex items-center justify-between"><div className="flex items-center gap-2.5"><Terminal className="w-3.5 h-3.5 text-[#E51636]" /><span className="text-[9px] font-black uppercase text-slate-600 tracking-[0.3em]">Operational Intelligence</span></div></div><div className="relative"><textarea onFocus={() => setIsBriefingFocused(true)} onBlur={() => setIsBriefingFocused(false)} value={logDraft.description} onChange={e => setLogDraft({...logDraft, description: e.target.value})} className="w-full h-32 p-6 bg-transparent text-sm font-medium outline-none resize-none text-slate-700 leading-relaxed" placeholder="Detail operational context, success criteria, or specific requirements..." /></div></div></div>
                     </div>
 
-                    {/* FOOTER */}
                     <div className="px-6 lg:px-10 py-6 bg-white border-t border-slate-100 flex justify-between items-center shrink-0 relative z-20 safe-area-pb"><button onClick={() => setIsLogModalOpen(false)} className="px-6 lg:px-10 py-5 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-[#E51636] transition-all">Discard</button><button onClick={handleDeployLog} className="px-8 lg:px-12 py-4 bg-[#004F71] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.4em] shadow-2xl flex items-center gap-3 hover:scale-[1.03] transition-all active:scale-95"><Save className="w-4 h-4" /> Deploy Mission</button></div>
                 </motion.div>
             </div>
         )}
       </AnimatePresence>
 
-      {/* --- SESSION COMPLETION MODAL --- */}
-      <AnimatePresence>
-          {selectedSession && (
-              <OneOnOneSessionModal 
-                  event={selectedSession} 
-                  onClose={() => setSelectedSession(null)} 
-                  onUpdate={handleUpdateEvent} 
-              />
-          )}
-      </AnimatePresence>
-
-      {/* --- MANUAL VIEWER MODAL (Mobile & Desktop) --- */}
-      <AnimatePresence>
-          {isManualModalOpen && activeSection && (
-              <ManualViewerModal 
-                  url={getEmbedUrl()}
-                  title={activeSection.title}
-                  pages={`${activeSection.pageStart}-${activeSection.pageEnd}`}
-                  color={brandBg}
-                  onClose={() => setIsManualModalOpen(false)}
-              />
-          )}
-      </AnimatePresence>
+      <AnimatePresence>{selectedSession && (<OneOnOneSessionModal event={selectedSession} onClose={() => setSelectedSession(null)} onUpdate={handleUpdateEvent} />)}</AnimatePresence>
+      <AnimatePresence>{isManualModalOpen && activeSection && (<ManualViewerModal url={getEmbedUrl()} title={activeSection.title} pages={`${activeSection.pageStart}-${activeSection.pageEnd}`} color={brandBg} onClose={() => setIsManualModalOpen(false)} />)}</AnimatePresence>
     </ClientPortal>
   );
 };
