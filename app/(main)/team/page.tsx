@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { AnimatePresence, motion, LayoutGroup, PanInfo, Transition, Variants } from "framer-motion";
+import { AnimatePresence, motion, LayoutGroup, PanInfo } from "framer-motion";
 import { 
   Users, Search, Zap,
-  LayoutGrid, GalleryHorizontal, Layers, ChevronDown, X
+  LayoutGrid, GalleryHorizontal, ChevronDown 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -12,35 +12,13 @@ import toast from "react-hot-toast";
 // Firebase Imports
 import { useAppStore } from "@/lib/store/useStore";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp, collection, addDoc } from "firebase/firestore"; // Added collection, addDoc
+import { doc, setDoc, serverTimestamp, collection, addDoc } from "firebase/firestore";
 
 import { Status, STAGES, TeamMember } from "../calendar/_components/types";
 import { TeamCard } from "./_components/TeamCard";
 import { MemberDetailSheet } from "./_components/MemberDetailSheet";
 import TrainerRecruitmentModal from "./_components/TrainerRecruitmentModal";
-
-// --- PHYSICS CONFIGURATION ---
-const ISLAND_TRANSITION: Transition = {
-    type: "spring",
-    damping: 25,
-    stiffness: 300,
-    mass: 0.8
-};
-
-const CONTENT_VARIANTS: Variants = {
-    closed: { 
-        opacity: 0, 
-        y: -10, 
-        filter: "blur(4px)",
-        transition: { duration: 0.2 } 
-    },
-    open: { 
-        opacity: 1, 
-        y: 0, 
-        filter: "blur(0px)",
-        transition: { delay: 0.1, duration: 0.3 } 
-    }
-};
+import TeamDynamicIsland from "./_components/TeamDynamicIsland";
 
 // --- PROMOTION HUD ---
 function PromotionHUD({ 
@@ -50,6 +28,8 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
+    // Hide Admin from promotion target list if desired
+    const visibleStages = STAGES.filter(s => s.id !== "Admin");
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
     return (
@@ -72,7 +52,7 @@ function PromotionHUD({
                     </div>
                 </div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                    {STAGES.map((stage) => {
+                    {visibleStages.map((stage) => {
                         const isCurrent = draggingMember?.status === stage.id;
                         const isHovered = hoveredStage === stage.id;
 
@@ -128,7 +108,6 @@ export default function TeamBoardPage() {
     const [activeFilter, setActiveFilter] = useState<"ALL" | "FOH" | "BOH">("ALL");
     const [viewMode, setViewMode] = useState<"grid" | "horizontal">("grid"); 
     const [searchQuery, setSearchQuery] = useState("");
-    const [isIslandExpanded, setIsIslandExpanded] = useState(false);
     const [visibleCount, setVisibleCount] = useState(12);
     const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance">("overview");
@@ -167,13 +146,11 @@ export default function TeamBoardPage() {
 
     const handleTrainerDragStart = (trainerId: string) => setTrainerDraggingId(trainerId);
 
-    // --- UPDATED ASSIGNMENT HANDLER ---
     const handleAssignTrainer = async (trainer: TeamMember, memberId: string) => {
         const member = team.find(m => m.id === memberId);
         if (member) {
             const loadToast = toast.loading("Establishing Link...");
             try {
-                // 1. Update Profile (Visual Card)
                 await setDoc(doc(db, "profileOverrides", memberId), {
                     pairing: {
                         id: trainer.id,
@@ -184,8 +161,6 @@ export default function TeamBoardPage() {
                     updatedAt: serverTimestamp()
                 }, { merge: true });
 
-                // 2. Create System Log (Events)
-                // This ensures it shows up on Dashboard and Detail Sheet
                 await addDoc(collection(db, "events"), {
                     type: "Operation",
                     title: "Mentorship Uplink",
@@ -263,117 +238,17 @@ export default function TeamBoardPage() {
         }
     };
 
-    const activeStageTitle = STAGES.find(s => s.id === activeStage)?.title || "Roster";
-
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-40 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
             <div className="absolute inset-0 pointer-events-none opacity-[0.4]" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-            <div className="fixed top-24 left-0 right-0 z-50 flex flex-col items-center pointer-events-none px-4">
-                <LayoutGroup id="island-nav">
-                    <motion.div 
-                        layout 
-                        initial={false}
-                        animate={{ 
-                            width: isIslandExpanded ? "auto" : "fit-content",
-                            height: isIslandExpanded ? "auto" : "44px",
-                            borderRadius: isIslandExpanded ? 32 : 50
-                        }}
-                        transition={ISLAND_TRANSITION}
-                        onClick={() => !isIslandExpanded && setIsIslandExpanded(true)}
-                        className={cn(
-                            "pointer-events-auto bg-white/90 backdrop-blur-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.12)] flex flex-col relative overflow-hidden transform-gpu ring-1 ring-black/5",
-                            isIslandExpanded 
-                                ? "p-2 cursor-default min-w-[340px] max-w-[95vw]" 
-                                : "px-2 cursor-pointer hover:scale-[1.02] active:scale-95 flex-row items-center justify-center"
-                        )}
-                    >
-                        <motion.div layout="position" className={cn("flex items-center justify-between w-full", !isIslandExpanded && "h-full")}>
-                            <motion.div layout="position" className="flex items-center gap-2 px-2">
-                                <motion.div layout className="flex items-center gap-2 text-[#004F71]">
-                                    <div className={cn("p-1.5 rounded-full transition-colors", isIslandExpanded ? "bg-[#004F71]/10" : "bg-transparent")}>
-                                        <Layers className="w-3.5 h-3.5 fill-current" />
-                                    </div>
-                                    <motion.span layout="position" className="text-[11px] font-[900] uppercase tracking-widest whitespace-nowrap text-slate-700">
-                                        {activeStageTitle}
-                                    </motion.span>
-                                </motion.div>
-
-                                {!isIslandExpanded && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, width: 0 }} 
-                                        animate={{ opacity: 1, width: "auto" }} 
-                                        exit={{ opacity: 0, width: 0 }}
-                                        transition={{ duration: 0.2 }}
-                                        className="flex items-center gap-2 overflow-hidden pl-1"
-                                    >
-                                        <div className="h-3 w-px bg-slate-200" />
-                                        <span className={cn(
-                                            "text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider",
-                                            activeFilter === 'FOH' ? "bg-blue-50 text-blue-600" : 
-                                            activeFilter === 'BOH' ? "bg-red-50 text-red-600" : 
-                                            "bg-slate-100 text-slate-500"
-                                        )}>
-                                            {activeFilter}
-                                        </span>
-                                    </motion.div>
-                                )}
-                            </motion.div>
-
-                            <AnimatePresence mode="popLayout">
-                                {isIslandExpanded && (
-                                    <motion.button 
-                                        layout
-                                        initial={{ opacity: 0, scale: 0.5, rotate: -90 }} 
-                                        animate={{ opacity: 1, scale: 1, rotate: 0 }} 
-                                        exit={{ opacity: 0, scale: 0.5, rotate: 90 }} 
-                                        transition={{ duration: 0.2 }} 
-                                        onClick={(e) => { e.stopPropagation(); setIsIslandExpanded(false); }} 
-                                        className="w-7 h-7 flex items-center justify-center bg-slate-100 hover:bg-slate-200 rounded-full text-slate-400 transition-colors ml-2"
-                                    >
-                                        <X className="w-3.5 h-3.5" />
-                                    </motion.button>
-                                )}
-                            </AnimatePresence>
-                        </motion.div>
-
-                        <AnimatePresence>
-                            {isIslandExpanded && (
-                                <motion.div 
-                                    variants={CONTENT_VARIANTS} 
-                                    initial="closed" 
-                                    animate="open" 
-                                    exit="closed" 
-                                    className="flex flex-col gap-4 w-full origin-top pt-4 px-2 pb-2"
-                                >
-                                    <div className="bg-slate-50 p-1.5 rounded-2xl flex relative isolate">
-                                        <div className="absolute inset-0 border border-slate-200/50 rounded-2xl pointer-events-none" />
-                                        {(["ALL", "FOH", "BOH"] as const).map(f => {
-                                            const isActive = activeFilter === f;
-                                            return (
-                                                <button key={f} onClick={() => setActiveFilter(f)} className={cn("flex-1 py-3 rounded-xl text-[10px] font-[900] uppercase tracking-widest transition-all relative z-10", isActive ? "text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600")}>
-                                                    {isActive && <motion.div layoutId="filter-pill" className="absolute inset-0 bg-white rounded-xl shadow-sm ring-1 ring-black/5" transition={ISLAND_TRANSITION} />}
-                                                    <span className="relative z-10">{f}</span>
-                                                </button>
-                                            )
-                                        })}
-                                    </div>
-                                    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 mask-linear-fade">
-                                        {STAGES.map((stage) => {
-                                            const isActive = activeStage === stage.id;
-                                            return (
-                                                <button key={stage.id} onClick={(e) => { e.stopPropagation(); setActiveStage(stage.id); }} className={cn("px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shrink-0 border whitespace-nowrap", isActive ? "bg-[#0F172A] text-white border-transparent shadow-lg shadow-slate-900/20 scale-[1.02]" : "bg-white text-slate-500 border-slate-100 hover:border-slate-300 hover:bg-slate-50")}>
-                                                    <span className="text-[10px] font-black uppercase tracking-wider">{stage.title}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
-                </LayoutGroup>
-            </div>
+            {/* --- REPLACED: NEW DYNAMIC ISLAND COMPONENT --- */}
+            <TeamDynamicIsland 
+                activeStage={activeStage} 
+                setActiveStage={setActiveStage}
+                activeFilter={activeFilter}
+                setActiveFilter={setActiveFilter}
+            />
 
             <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-48 px-2 md:px-8 space-y-6 relative z-10">
                 <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4">
