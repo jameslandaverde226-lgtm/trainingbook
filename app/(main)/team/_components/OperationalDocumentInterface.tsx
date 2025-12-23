@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Save, FileText, CheckCircle2, History, 
-  User, PenTool, Calendar, Plus, ChevronDown, 
+  FileText, CheckCircle2, Plus, 
   Printer, CornerDownRight, MoreHorizontal, ShieldAlert,
-  StickyNote
+  StickyNote, History, Calendar, User
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -29,14 +28,14 @@ interface Props {
 }
 
 const DOC_TYPES = [
-    { id: "Performance Review", icon: FileText, color: "text-blue-600 bg-blue-50" },
-    { id: "Incident Report", icon: ShieldAlert, color: "text-red-600 bg-red-50" },
-    { id: "Commendation", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
-    { id: "Note", icon: StickyNote, color: "text-amber-600 bg-amber-50" },
+    { id: "Performance Review", icon: FileText, color: "text-blue-600 bg-blue-50 border-blue-100" },
+    { id: "Incident Report", icon: ShieldAlert, color: "text-red-600 bg-red-50 border-red-100" },
+    { id: "Commendation", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
+    { id: "Note", icon: StickyNote, color: "text-amber-600 bg-amber-50 border-amber-100" },
 ] as const;
 
 export default function OperationalDocumentInterface({ member, currentUser }: Props) {
-  // Mock Data - In production, fetch this from sub-collection 'documents'
+  // Mock Data
   const [entries, setEntries] = useState<DocEntry[]>([
     { 
         id: "1", 
@@ -77,46 +76,49 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC] relative overflow-hidden">
         
-        {/* --- HEADER --- */}
-        <div className="px-6 py-4 bg-white border-b border-slate-100 flex justify-between items-center shrink-0 z-20">
-            <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-50 text-slate-500 rounded-xl border border-slate-200">
-                    <History className="w-4 h-4" />
+        {/* --- STICKY HEADER --- */}
+        <div className="px-6 py-5 bg-white/80 backdrop-blur-xl border-b border-slate-100 flex justify-between items-center shrink-0 z-30 sticky top-0">
+            <div className="flex items-center gap-4">
+                <div className="h-10 w-10 bg-slate-50 text-slate-400 rounded-xl border border-slate-200 flex items-center justify-center shadow-sm">
+                    <History className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Personnel Record</h3>
-                    <span className="text-[10px] font-bold text-slate-400">Official Ledger • {member.name}</span>
+                    <h3 className="text-sm font-[900] text-slate-900 uppercase tracking-wide">Personnel Record</h3>
+                    <span className="text-[10px] font-bold text-slate-400 tracking-wide">Official Ledger • {member.name}</span>
                 </div>
             </div>
             <button 
                 onClick={() => setIsCreating(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#004F71] text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all hover:bg-[#003b55]"
+                className="group flex items-center gap-2 px-5 py-2.5 bg-[#004F71] text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95 transition-all hover:bg-[#003b55] hover:pr-6"
             >
-                <Plus className="w-3.5 h-3.5" /> New Entry
+                <Plus className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" /> New Entry
             </button>
         </div>
 
-        {/* --- MAIN CONTENT (SCROLLABLE) --- */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8">
-            <div className="max-w-3xl mx-auto space-y-8">
+        {/* --- MAIN CONTENT --- */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-10 relative">
+            <div className="max-w-4xl mx-auto">
                 
-                {/* CREATION MODE */}
+                {/* CREATION CARD */}
                 <AnimatePresence>
                     {isCreating && (
                         <motion.div 
-                            initial={{ opacity: 0, y: -20, height: 0 }}
-                            animate={{ opacity: 1, y: 0, height: "auto" }}
-                            exit={{ opacity: 0, y: -20, height: 0 }}
-                            className="bg-white rounded-[24px] border border-[#004F71]/20 shadow-xl overflow-hidden ring-4 ring-blue-50 relative z-30"
+                            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                            className="bg-white rounded-[32px] border border-slate-200 shadow-2xl overflow-hidden mb-12 ring-4 ring-slate-50 relative z-20"
                         >
-                            <div className="p-1 bg-slate-50 border-b border-slate-100 flex gap-1 overflow-x-auto no-scrollbar">
+                            <div className="p-2 bg-slate-50/50 border-b border-slate-100 flex gap-2 overflow-x-auto no-scrollbar">
                                 {DOC_TYPES.map(t => (
                                     <button 
                                         key={t.id}
                                         onClick={() => setNewEntry({...newEntry, type: t.id})}
                                         className={cn(
-                                            "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
-                                            newEntry.type === t.id ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/5" : "text-slate-400 hover:bg-white/50"
+                                            "flex items-center gap-2 px-4 py-2.5 rounded-[18px] text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap border",
+                                            newEntry.type === t.id 
+                                                ? "bg-white text-slate-900 shadow-sm border-slate-200 ring-1 ring-black/5" 
+                                                : "text-slate-400 border-transparent hover:bg-white/60"
                                         )}
                                     >
                                         <t.icon className={cn("w-3.5 h-3.5", t.color.split(' ')[0])} />
@@ -124,29 +126,29 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
                                     </button>
                                 ))}
                             </div>
-                            <div className="p-6 space-y-4">
+                            <div className="p-8 space-y-6">
                                 <input 
-                                    className="w-full text-lg font-bold text-slate-900 placeholder:text-slate-300 outline-none bg-transparent"
-                                    placeholder="Entry Title (Optional)..."
+                                    className="w-full text-2xl font-[900] text-slate-900 placeholder:text-slate-300 outline-none bg-transparent tracking-tight"
+                                    placeholder="Title of Entry..."
                                     value={newEntry.title || ""}
                                     onChange={e => setNewEntry({...newEntry, title: e.target.value})}
+                                    autoFocus
                                 />
                                 <textarea 
-                                    className="w-full min-h-[120px] text-sm leading-relaxed text-slate-600 placeholder:text-slate-300 outline-none resize-none bg-transparent font-medium"
-                                    placeholder="Record observations, feedback, or incident details..."
+                                    className="w-full min-h-[160px] text-base leading-relaxed text-slate-600 placeholder:text-slate-300 outline-none resize-none bg-transparent font-medium"
+                                    placeholder="Record observations, tactical feedback, or incident details..."
                                     value={newEntry.content}
                                     onChange={e => setNewEntry({...newEntry, content: e.target.value})}
-                                    autoFocus
                                 />
                             </div>
                             <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
-                                <button onClick={() => setIsCreating(false)} className="px-4 py-2 text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600">Cancel</button>
+                                <button onClick={() => setIsCreating(false)} className="px-6 py-3 text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600 tracking-widest transition-colors">Cancel</button>
                                 <button 
                                     onClick={handleSave} 
                                     disabled={!newEntry.content || isSaving}
-                                    className="px-6 py-2 bg-[#004F71] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+                                    className="px-8 py-3 bg-[#004F71] text-white rounded-[18px] text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/10 active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2 hover:translate-y-[-1px]"
                                 >
-                                    {isSaving ? <span className="animate-pulse">Saving...</span> : <>Save Record <CornerDownRight className="w-3 h-3" /></>}
+                                    {isSaving ? <span className="animate-pulse">Saving...</span> : <>Save Record <CornerDownRight className="w-3.5 h-3.5" /></>}
                                 </button>
                             </div>
                         </motion.div>
@@ -154,81 +156,91 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
                 </AnimatePresence>
 
                 {/* TIMELINE FEED */}
-                <div className="relative pl-4 lg:pl-0 space-y-8">
-                    {/* The Vertical Line */}
-                    <div className="absolute left-[19px] lg:left-[27px] top-0 bottom-0 w-0.5 bg-slate-100" />
+                <div className="relative pl-8 lg:pl-10 space-y-10 pb-20">
+                    {/* The Timeline Line */}
+                    <div className="absolute left-[19px] lg:left-[21px] top-4 bottom-0 w-px bg-gradient-to-b from-slate-200 via-slate-200 to-transparent" />
 
-                    {entries.map((entry, idx) => {
-                        const typeConfig = DOC_TYPES.find(t => t.id === entry.type) || DOC_TYPES[0];
-                        const Icon = typeConfig.icon;
-                        
-                        return (
-                            <motion.div 
-                                key={entry.id}
-                                layout
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: idx * 0.1 }}
-                                className="relative flex gap-6"
-                            >
-                                {/* Timeline Dot */}
-                                <div className={cn(
-                                    "relative z-10 w-10 h-10 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center border-4 border-[#F8FAFC] shadow-sm shrink-0",
-                                    typeConfig.color
-                                )}>
-                                    <Icon className="w-5 h-5 lg:w-6 lg:h-6" />
-                                </div>
+                    <AnimatePresence>
+                        {entries.map((entry, idx) => {
+                            const typeConfig = DOC_TYPES.find(t => t.id === entry.type) || DOC_TYPES[0];
+                            const Icon = typeConfig.icon;
+                            
+                            return (
+                                <motion.div 
+                                    key={entry.id}
+                                    layout
+                                    initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                                    animate={{ opacity: 1, x: 0, scale: 1 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    className="relative"
+                                >
+                                    {/* Timeline Dot */}
+                                    <div className={cn(
+                                        "absolute -left-[42px] lg:-left-[44px] top-0 z-10 w-10 h-10 lg:w-11 lg:h-11 rounded-2xl flex items-center justify-center border-[4px] border-[#F8FAFC] shadow-sm shrink-0 bg-white",
+                                    )}>
+                                        <div className={cn("w-full h-full rounded-xl flex items-center justify-center opacity-90", typeConfig.color.replace('text-', 'bg-').replace('bg-', 'bg-opacity-20 '))} >
+                                           <Icon className={cn("w-4 h-4 lg:w-5 lg:h-5", typeConfig.color.split(' ')[0])} />
+                                        </div>
+                                    </div>
 
-                                {/* The Card */}
-                                <div className="flex-1 bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition-all">
-                                    <div className="p-5 lg:p-6 border-b border-slate-50 flex justify-between items-start">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider", typeConfig.color)}>
-                                                    {entry.type}
-                                                </span>
-                                                <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
-                                                    <Calendar className="w-3 h-3" /> {format(entry.timestamp, "MMM do, yyyy")}
-                                                </span>
+                                    {/* The Card */}
+                                    <div className="bg-white rounded-[28px] border border-slate-100 shadow-[0_10px_40px_-15px_rgba(0,0,0,0.03)] overflow-hidden group hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.08)] hover:border-slate-200 transition-all duration-300">
+                                        
+                                        {/* Card Header */}
+                                        <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-start bg-slate-50/30">
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2.5">
+                                                    <span className={cn("px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border", typeConfig.color)}>
+                                                        {entry.type}
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest flex items-center gap-1.5">
+                                                        <Calendar className="w-3 h-3" /> {format(entry.timestamp, "MMM do, yyyy")}
+                                                    </span>
+                                                </div>
+                                                <h4 className="text-xl font-[800] text-slate-900 tracking-tight mt-1">{entry.title}</h4>
                                             </div>
-                                            <h4 className="text-base lg:text-lg font-bold text-slate-900">{entry.title}</h4>
+                                            <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                                                <MoreHorizontal className="w-5 h-5" />
+                                            </button>
                                         </div>
-                                        <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all">
-                                            <MoreHorizontal className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="p-5 lg:p-6 pt-4 bg-slate-50/30">
-                                        <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
-                                            {entry.content}
-                                        </p>
-                                    </div>
+                                        
+                                        {/* Card Body */}
+                                        <div className="p-7">
+                                            <p className="text-sm lg:text-[15px] font-medium text-slate-600 leading-[1.8] whitespace-pre-wrap">
+                                                {entry.content}
+                                            </p>
+                                        </div>
 
-                                    <div className="px-5 py-3 bg-white border-t border-slate-100 flex justify-between items-center">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-5 h-5 rounded-md bg-[#004F71] text-white flex items-center justify-center text-[9px] font-black">
-                                                {entry.author.charAt(0)}
+                                        {/* Card Footer */}
+                                        <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-xl bg-[#004F71] text-white flex items-center justify-center text-[10px] font-black shadow-md shadow-blue-900/10">
+                                                    {entry.author.charAt(0)}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Signed By</span>
+                                                    <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">
+                                                        {entry.author}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                                Authored by {entry.author}
-                                            </span>
-                                        </div>
-                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="p-1.5 text-slate-400 hover:text-[#004F71]"><Printer className="w-3.5 h-3.5" /></button>
+                                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                                <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-500 hover:text-[#004F71] hover:border-blue-200 shadow-sm transition-all active:scale-95">
+                                                    <Printer className="w-3 h-3" /> Print
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </motion.div>
-                        );
-                    })}
+                                </motion.div>
+                            );
+                        })}
+                    </AnimatePresence>
 
                     {/* End Cap */}
-                    <div className="relative flex gap-6 opacity-50">
-                        <div className="relative z-10 w-10 lg:w-14 h-10 lg:h-14 rounded-full bg-slate-100 border-4 border-[#F8FAFC] flex items-center justify-center">
-                            <div className="w-2 h-2 bg-slate-300 rounded-full" />
-                        </div>
-                        <div className="pt-3">
-                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">End of Record</span>
+                    <div className="relative flex gap-6 opacity-30 pl-1">
+                        <div className="relative z-10 w-3 h-3 rounded-full bg-slate-300 -left-[24px]" />
+                        <div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">End of Record</span>
                         </div>
                     </div>
                 </div>
