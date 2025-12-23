@@ -1,225 +1,238 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Save, Clock, FileText, CheckCircle2, History, 
-  User, PenTool, Hash, Calendar, MoreHorizontal, 
-  CornerDownRight, Printer
+  Save, FileText, CheckCircle2, History, 
+  User, PenTool, Calendar, Plus, ChevronDown, 
+  Printer, CornerDownRight, MoreHorizontal, ShieldAlert,
+  StickyNote
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 
 // --- TYPES ---
-interface DocHistory {
+interface DocEntry {
   id: string;
-  action: "create" | "edit" | "save" | "sign";
-  user: string;
+  type: "Performance Review" | "Incident Report" | "Commendation" | "Note";
+  title: string;
+  content: string;
+  author: string;
   timestamp: Date;
-  meta?: string;
+  status: "Draft" | "Official";
 }
 
 interface Props {
   member: TeamMember;
-  currentUser: string; // "Admin" or similar
+  currentUser: string; 
 }
 
+const DOC_TYPES = [
+    { id: "Performance Review", icon: FileText, color: "text-blue-600 bg-blue-50" },
+    { id: "Incident Report", icon: ShieldAlert, color: "text-red-600 bg-red-50" },
+    { id: "Commendation", icon: CheckCircle2, color: "text-emerald-600 bg-emerald-50" },
+    { id: "Note", icon: StickyNote, color: "text-amber-600 bg-amber-50" },
+] as const;
+
 export default function OperationalDocumentInterface({ member, currentUser }: Props) {
-  const [content, setContent] = useState("");
-  const [title, setTitle] = useState("Performance Review - Q3");
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [sessionTime, setSessionTime] = useState(0);
-  const [wordCount, setWordCount] = useState(0);
-  
-  // The "Flight Recorder" Log
-  const [history, setHistory] = useState<DocHistory[]>([
-    { id: "1", action: "create", user: currentUser, timestamp: new Date(Date.now() - 100000), meta: "Document Initialized" },
+  // Mock Data - In production, fetch this from sub-collection 'documents'
+  const [entries, setEntries] = useState<DocEntry[]>([
+    { 
+        id: "1", 
+        type: "Performance Review", 
+        title: "Q3 Operational Assessment", 
+        content: "Andrea has shown exceptional speed in the FOH sector. Leadership capabilities are emerging, particularly during the lunch rush. Recommended for Team Leader track.", 
+        author: "Director", 
+        timestamp: new Date(Date.now() - 86400000 * 2), // 2 days ago
+        status: "Official" 
+    }
   ]);
 
-  // --- SESSION TIMER ---
-  useEffect(() => {
-    const timer = setInterval(() => setSessionTime(prev => prev + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newEntry, setNewEntry] = useState<Partial<DocEntry>>({ type: "Note", content: "" });
+  const [isSaving, setIsSaving] = useState(false);
 
-  // --- FORMAT TIMER ---
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // --- HANDLERS ---
   const handleSave = () => {
-    setIsSaving(true);
-    // Simulate Network
-    setTimeout(() => {
-      setIsSaving(false);
-      setLastSaved(new Date());
-      setHistory(prev => [
-        { id: Math.random().toString(), action: "save", user: currentUser, timestamp: new Date(), meta: `Autosave (${wordCount} words)` },
-        ...prev
-      ]);
-    }, 800);
-  };
-
-  // Debounced typing simulator for history
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
-    setWordCount(e.target.value.split(/\s+/).filter(w => w.length > 0).length);
-    
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-        handleSave();
-    }, 2000);
+      if(!newEntry.content) return;
+      setIsSaving(true);
+      
+      setTimeout(() => {
+          const entry: DocEntry = {
+              id: Math.random().toString(),
+              type: newEntry.type as any || "Note",
+              title: newEntry.title || "General Entry",
+              content: newEntry.content || "",
+              author: currentUser,
+              timestamp: new Date(),
+              status: "Official"
+          };
+          setEntries([entry, ...entries]);
+          setIsCreating(false);
+          setNewEntry({ type: "Note", content: "" });
+          setIsSaving(false);
+      }, 800);
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full bg-[#F8FAFC] relative overflow-hidden">
+    <div className="flex flex-col h-full bg-[#F8FAFC] relative overflow-hidden">
         
-        {/* --- LEFT: THE DOCUMENT (The "Google Doc" Feel) --- */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8 flex justify-center">
-            <div className="w-full max-w-3xl bg-white min-h-[900px] shadow-sm border border-slate-200/60 rounded-xl relative flex flex-col">
-                
-                {/* Doc Header */}
-                <div className="px-8 py-8 border-b border-slate-50 flex flex-col gap-1">
-                    <input 
-                        value={title} 
-                        onChange={(e) => setTitle(e.target.value)}
-                        className="text-3xl font-[800] text-slate-900 placeholder:text-slate-300 outline-none bg-transparent"
-                        placeholder="Untitled Document"
-                    />
-                    <div className="flex items-center gap-3 text-slate-400 text-xs font-medium mt-2">
-                        <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold uppercase tracking-wider text-[10px]">Official Record</span>
-                        <span>•</span>
-                        <span>Subject: {member.name}</span>
-                        <span>•</span>
-                        <span>{format(new Date(), "MMMM do, yyyy")}</span>
-                    </div>
+        {/* --- HEADER --- */}
+        <div className="px-6 py-4 bg-white border-b border-slate-100 flex justify-between items-center shrink-0 z-20">
+            <div className="flex items-center gap-3">
+                <div className="p-2 bg-slate-50 text-slate-500 rounded-xl border border-slate-200">
+                    <History className="w-4 h-4" />
                 </div>
-
-                {/* Doc Body */}
-                <textarea 
-                    value={content}
-                    onChange={handleTyping}
-                    className="flex-1 w-full p-8 text-base leading-relaxed text-slate-700 resize-none outline-none font-serif placeholder:text-slate-300 placeholder:italic"
-                    placeholder="Begin typing operational report here..."
-                />
-
-                {/* Doc Footer / Signature */}
-                <div className="mt-auto p-8 pt-0">
-                    <div className="border-t border-slate-100 pt-8 flex justify-between items-end">
-                        <div className="flex flex-col gap-4">
-                            <div className="h-16 w-48 border-b border-slate-300 relative group cursor-pointer">
-                                <span className="absolute bottom-1 left-0 text-3xl font-handwriting text-[#004F71] opacity-60 group-hover:opacity-100 transition-opacity">
-                                    {currentUser}
-                                </span>
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Authorized Signature</span>
-                        </div>
-                        <div className="h-20 w-20 border-2 border-dashed border-slate-200 rounded-full flex items-center justify-center opacity-30 rotate-12">
-                             <span className="text-[10px] font-black uppercase text-slate-400">Official</span>
-                        </div>
-                    </div>
+                <div className="flex flex-col">
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">Personnel Record</h3>
+                    <span className="text-[10px] font-bold text-slate-400">Official Ledger • {member.name}</span>
                 </div>
             </div>
+            <button 
+                onClick={() => setIsCreating(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#004F71] text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all hover:bg-[#003b55]"
+            >
+                <Plus className="w-3.5 h-3.5" /> New Entry
+            </button>
         </div>
 
-        {/* --- RIGHT: THE FLIGHT RECORDER (Sidebar) --- */}
-        <div className="w-full lg:w-[320px] bg-white border-l border-slate-200 flex flex-col shrink-0 z-10 shadow-[-10px_0_30px_-10px_rgba(0,0,0,0.02)]">
-            
-            {/* 1. Status HUD */}
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-[#004F71]">Session Uplink</h3>
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-bold text-emerald-600">LIVE</span>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-1">
-                        <span className="text-2xl font-black text-slate-900 tabular-nums">{formatTime(sessionTime)}</span>
-                        <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Duration</span>
-                    </div>
-                    <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center gap-1">
-                        <span className="text-2xl font-black text-slate-900 tabular-nums">{wordCount}</span>
-                        <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Word Count</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* 2. Timeline Feed */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Change Log</span>
-                    <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"><MoreHorizontal className="w-4 h-4" /></button>
-                </div>
+        {/* --- MAIN CONTENT (SCROLLABLE) --- */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-8">
+            <div className="max-w-3xl mx-auto space-y-8">
                 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
-                    <AnimatePresence initial={false}>
-                        {history.map((item, i) => (
+                {/* CREATION MODE */}
+                <AnimatePresence>
+                    {isCreating && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: -20, height: 0 }}
+                            animate={{ opacity: 1, y: 0, height: "auto" }}
+                            exit={{ opacity: 0, y: -20, height: 0 }}
+                            className="bg-white rounded-[24px] border border-[#004F71]/20 shadow-xl overflow-hidden ring-4 ring-blue-50 relative z-30"
+                        >
+                            <div className="p-1 bg-slate-50 border-b border-slate-100 flex gap-1 overflow-x-auto no-scrollbar">
+                                {DOC_TYPES.map(t => (
+                                    <button 
+                                        key={t.id}
+                                        onClick={() => setNewEntry({...newEntry, type: t.id})}
+                                        className={cn(
+                                            "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                                            newEntry.type === t.id ? "bg-white text-slate-900 shadow-sm ring-1 ring-black/5" : "text-slate-400 hover:bg-white/50"
+                                        )}
+                                    >
+                                        <t.icon className={cn("w-3.5 h-3.5", t.color.split(' ')[0])} />
+                                        {t.id}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <input 
+                                    className="w-full text-lg font-bold text-slate-900 placeholder:text-slate-300 outline-none bg-transparent"
+                                    placeholder="Entry Title (Optional)..."
+                                    value={newEntry.title || ""}
+                                    onChange={e => setNewEntry({...newEntry, title: e.target.value})}
+                                />
+                                <textarea 
+                                    className="w-full min-h-[120px] text-sm leading-relaxed text-slate-600 placeholder:text-slate-300 outline-none resize-none bg-transparent font-medium"
+                                    placeholder="Record observations, feedback, or incident details..."
+                                    value={newEntry.content}
+                                    onChange={e => setNewEntry({...newEntry, content: e.target.value})}
+                                    autoFocus
+                                />
+                            </div>
+                            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                                <button onClick={() => setIsCreating(false)} className="px-4 py-2 text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600">Cancel</button>
+                                <button 
+                                    onClick={handleSave} 
+                                    disabled={!newEntry.content || isSaving}
+                                    className="px-6 py-2 bg-[#004F71] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    {isSaving ? <span className="animate-pulse">Saving...</span> : <>Save Record <CornerDownRight className="w-3 h-3" /></>}
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* TIMELINE FEED */}
+                <div className="relative pl-4 lg:pl-0 space-y-8">
+                    {/* The Vertical Line */}
+                    <div className="absolute left-[19px] lg:left-[27px] top-0 bottom-0 w-0.5 bg-slate-100" />
+
+                    {entries.map((entry, idx) => {
+                        const typeConfig = DOC_TYPES.find(t => t.id === entry.type) || DOC_TYPES[0];
+                        const Icon = typeConfig.icon;
+                        
+                        return (
                             <motion.div 
-                                key={item.id}
-                                initial={{ opacity: 0, x: 20 }}
+                                key={entry.id}
+                                layout
+                                initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: i * 0.05 }}
-                                className="relative pl-4 border-l-2 border-slate-100 last:border-0 group"
+                                transition={{ delay: idx * 0.1 }}
+                                className="relative flex gap-6"
                             >
+                                {/* Timeline Dot */}
                                 <div className={cn(
-                                    "absolute -left-[5px] top-0 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm z-10",
-                                    item.action === 'save' ? "bg-emerald-500" : "bg-[#004F71]"
-                                )} />
-                                
-                                <div className="flex flex-col gap-1 -mt-1.5">
-                                    <div className="flex justify-between items-start">
-                                        <span className="text-xs font-bold text-slate-900">
-                                            {item.action === 'create' && "Initialized"}
-                                            {item.action === 'save' && "Autosaved"}
-                                            {item.action === 'sign' && "Signed Off"}
-                                        </span>
-                                        <span className="text-[9px] font-mono text-slate-400">{format(item.timestamp, "HH:mm:ss")}</span>
-                                    </div>
-                                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                                        {item.meta || "System action logged."}
-                                    </p>
-                                    <div className="flex items-center gap-1.5 mt-1">
-                                        <div className="w-4 h-4 rounded-md bg-slate-100 flex items-center justify-center text-[8px] font-black text-[#E51636]">
-                                            {item.user.charAt(0)}
+                                    "relative z-10 w-10 h-10 lg:w-14 lg:h-14 rounded-2xl flex items-center justify-center border-4 border-[#F8FAFC] shadow-sm shrink-0",
+                                    typeConfig.color
+                                )}>
+                                    <Icon className="w-5 h-5 lg:w-6 lg:h-6" />
+                                </div>
+
+                                {/* The Card */}
+                                <div className="flex-1 bg-white rounded-[24px] border border-slate-100 shadow-sm overflow-hidden group hover:shadow-md transition-all">
+                                    <div className="p-5 lg:p-6 border-b border-slate-50 flex justify-between items-start">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider", typeConfig.color)}>
+                                                    {entry.type}
+                                                </span>
+                                                <span className="text-[10px] font-medium text-slate-400 flex items-center gap-1">
+                                                    <Calendar className="w-3 h-3" /> {format(entry.timestamp, "MMM do, yyyy")}
+                                                </span>
+                                            </div>
+                                            <h4 className="text-base lg:text-lg font-bold text-slate-900">{entry.title}</h4>
                                         </div>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{item.user}</span>
+                                        <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all">
+                                            <MoreHorizontal className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="p-5 lg:p-6 pt-4 bg-slate-50/30">
+                                        <p className="text-sm font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">
+                                            {entry.content}
+                                        </p>
+                                    </div>
+
+                                    <div className="px-5 py-3 bg-white border-t border-slate-100 flex justify-between items-center">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-5 h-5 rounded-md bg-[#004F71] text-white flex items-center justify-center text-[9px] font-black">
+                                                {entry.author.charAt(0)}
+                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                Authored by {entry.author}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button className="p-1.5 text-slate-400 hover:text-[#004F71]"><Printer className="w-3.5 h-3.5" /></button>
+                                        </div>
                                     </div>
                                 </div>
                             </motion.div>
-                        ))}
-                    </AnimatePresence>
+                        );
+                    })}
+
+                    {/* End Cap */}
+                    <div className="relative flex gap-6 opacity-50">
+                        <div className="relative z-10 w-10 lg:w-14 h-10 lg:h-14 rounded-full bg-slate-100 border-4 border-[#F8FAFC] flex items-center justify-center">
+                            <div className="w-2 h-2 bg-slate-300 rounded-full" />
+                        </div>
+                        <div className="pt-3">
+                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">End of Record</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-
-            {/* 3. Action Bar */}
-            <div className="p-6 border-t border-slate-100 bg-white space-y-3">
-                <button 
-                    onClick={handleSave} 
-                    disabled={isSaving}
-                    className="w-full py-4 bg-[#004F71] hover:bg-[#003b55] text-white rounded-xl font-black uppercase text-[10px] tracking-[0.25em] shadow-lg shadow-blue-900/10 flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-70"
-                >
-                    {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {isSaving ? "Syncing..." : "Save Record"}
-                </button>
-                <div className="flex gap-3">
-                    <button className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-[9px] tracking-widest border border-slate-200 transition-all flex items-center justify-center gap-2">
-                        <Printer className="w-3.5 h-3.5" /> Print
-                    </button>
-                    <button className="flex-1 py-3 bg-red-50 hover:bg-red-100 text-[#E51636] rounded-xl font-black uppercase text-[9px] tracking-widest border border-red-100 transition-all flex items-center justify-center gap-2">
-                        <CornerDownRight className="w-3.5 h-3.5" /> Export
-                    </button>
-                </div>
-            </div>
-
         </div>
     </div>
   );
