@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-// ADDED "Save" to the import list below
 import { 
   User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save 
 } from "lucide-react";
@@ -11,7 +10,7 @@ import toast from "react-hot-toast";
 import { ROLE_HIERARCHY } from "../calendar/_components/types"; 
 
 export default function SettingsPage() {
-  const { currentUser, team } = useAppStore(); // Get Team from store
+  const { currentUser, team } = useAppStore(); 
   
   const [activeTab, setActiveTab] = useState('identity');
   const [formData, setFormData] = useState({ name: "", email: "" });
@@ -31,11 +30,9 @@ export default function SettingsPage() {
 
   // --- HIERARCHY LOGIC ---
   const myLevel = ROLE_HIERARCHY[currentUser?.role || "Team Member"] || 0;
-  
-  // Define who can create accounts (Level 2+)
   const canCreateAccounts = myLevel >= 2;
 
-  // Filter existing members for the search dropdown
+  // Filter existing members who don't have a login yet (assuming 'hasLogin' flag or just filtering generally)
   const filteredMembers = useMemo(() => {
      return team.filter(m => 
         m.name.toLowerCase().includes(memberSearch.toLowerCase())
@@ -130,7 +127,7 @@ export default function SettingsPage() {
             <div className="w-full lg:w-64 shrink-0 space-y-2">
                 {[
                     { id: 'identity', label: 'Identity', icon: User, visible: true },
-                    { id: 'ops', label: 'Operations', icon: Fingerprint, visible: canCreateAccounts }, // Hidden for regular members
+                    { id: 'ops', label: 'Operations', icon: Fingerprint, visible: canCreateAccounts }, 
                     { id: 'security', label: 'Security', icon: Shield, visible: true },
                 ].filter(i => i.visible).map((item) => (
                     <button 
@@ -158,7 +155,6 @@ export default function SettingsPage() {
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Operator Identity</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Manage your administrative profile.</p>
                         </div>
-                        {/* ... (Existing Identity Form Content) ... */}
                         <div className="flex flex-col md:flex-row gap-10 items-center md:items-start">
                             <div className="relative group">
                                 <div className="w-32 h-32 md:w-40 md:h-40 rounded-[32px] bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
@@ -195,7 +191,6 @@ export default function SettingsPage() {
                                                 disabled 
                                                 className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-500 outline-none cursor-not-allowed"
                                             />
-                                            {/* Mail Icon removed from import, using plain div or re-add import if needed */}
                                         </div>
                                     </div>
                                 </div>
@@ -285,14 +280,8 @@ export default function SettingsPage() {
                                             className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all appearance-none"
                                         >
                                             <option value="Team Member">Team Member (Lvl 0)</option>
-                                            
-                                            {/* Only Level 2+ can make Team Leaders */}
                                             {myLevel >= 2 && <option value="Team Leader">Team Leader (Lvl 1)</option>}
-                                            
-                                            {/* Only Level 3+ (Director) can make Assistant Directors */}
                                             {myLevel >= 3 && <option value="Assistant Director">Assistant Director (Lvl 2)</option>}
-                                            
-                                            {/* Only Level 4 (Admin) can make Directors */}
                                             {myLevel >= 4 && <option value="Director">Director (Lvl 3)</option>}
                                         </select>
                                     </div>

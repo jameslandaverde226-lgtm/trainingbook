@@ -20,11 +20,13 @@ import { db } from "@/lib/firebase";
 import { collection, query, orderBy, limit, onSnapshot, deleteDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
 
-// Shared Types
+// Shared Types & Components
 import { CalendarEvent, TeamMember, EventType, getEventLabel } from "../calendar/_components/types";
 import EventDetailSheet from "../calendar/_components/EventDetailSheet";
 import OneOnOneSessionModal from "../calendar/_components/OneOnOneSessionModal";
 import ClientPortal from "@/components/core/ClientPortal";
+import { TeamCard } from "../team/_components/TeamCard"; // Imported TeamCard
+import { MemberDetailSheet } from "../team/_components/MemberDetailSheet"; // Imported DetailSheet
 
 // --- REUSABLE UI COMPONENTS ---
 
@@ -53,7 +55,7 @@ const ActivityIcon = ({ type }: { type: EventType | 'System' }) => {
     }
 };
 
-// --- REDESIGNED KPI MODAL (Chick-fil-A / Web App Style) ---
+// --- REDESIGNED KPI MODAL ---
 interface KPIModalProps {
     title: string;
     items: { id: string; title: string; subtitle: string; icon?: any; status?: string, rawEvent?: CalendarEvent }[];
@@ -83,7 +85,6 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                 >
                     {/* --- HEADER --- */}
                     <div className={cn("p-8 pt-10 text-white relative overflow-hidden shrink-0", color)}>
-                        {/* Atmospheric Glows */}
                         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/20 rounded-full blur-[80px] pointer-events-none" />
                         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay" />
                         
@@ -110,7 +111,7 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                         </div>
                     </div>
                     
-                    {/* --- SEARCH BAR (Visual Only for polish) --- */}
+                    {/* --- SEARCH BAR --- */}
                     <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center gap-3 sticky top-0 z-20">
                         <Search className="w-4 h-4 text-slate-400" />
                         <input type="text" placeholder={`Search ${title}...`} className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300" />
@@ -132,12 +133,10 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                                         onItemClick && "cursor-pointer"
                                     )}
                                 >
-                                    {/* Color Indicator Strip */}
                                     <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", color)} />
 
                                     <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner shrink-0 transition-transform group-hover:scale-110", color.replace('bg-', 'bg-').replace('600', '50').replace('#', ''))}>
                                         <div className={cn("opacity-10 absolute inset-0", color)} />
-                                        {/* Dynamic Icon Color */}
                                         <span className={cn("relative z-10", color.replace('bg-', 'text-'))}>
                                             {item.icon ? <item.icon className="w-6 h-6" /> : item.title.charAt(0)}
                                         </span>
@@ -188,7 +187,7 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
     );
 };
 
-// ... (StrategicVisionBoard remains unchanged) ...
+// --- STRATEGIC VISION BOARD ---
 const StrategicVisionBoard = () => {
     return (
         <motion.div 
@@ -285,16 +284,21 @@ const StrategicVisionBoard = () => {
 // --- MAIN PAGE ---
 
 export default function DashboardPage() {
-  const { events, team, loading, subscribeEvents, subscribeTeam } = useAppStore();
+  const { events, team, loading, subscribeEvents, subscribeTeam, currentUser } = useAppStore();
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Modals State
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selected1on1, setSelected1on1] = useState<CalendarEvent | null>(null);
   const [activeKPI, setActiveKPI] = useState<{ title: string; items: any[]; color: string; icon: any } | null>(null);
+  
+  // Member Detail State for Non-Admins
+  const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+  // FIX: Added 'documents' to activeTab state
+  const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
 
   // Tab State for Mobile Scroll
-  const [activeTab, setActiveTab] = useState<'live' | 'next'>('live');
+  const [mobileTab, setMobileTab] = useState<'live' | 'next'>('live');
   const scrollRef = useRef<HTMLDivElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const nextRef = useRef<HTMLDivElement>(null);
@@ -315,9 +319,9 @@ export default function DashboardPage() {
         const scrollLeft = container.scrollLeft;
         const width = container.clientWidth;
         if (scrollLeft > width * 0.3) {
-            setActiveTab('next');
+            setMobileTab('next');
         } else {
-            setActiveTab('live');
+            setMobileTab('live');
         }
     };
 
@@ -334,6 +338,55 @@ export default function DashboardPage() {
       }
   };
 
+  // Find the logged-in user's data card
+  const myProfile = useMemo(() => {
+    return team.find(m => m.id === currentUser?.uid);
+  }, [team, currentUser]);
+
+  // --- RENDER LOGIC FOR TEAM MEMBERS ---
+  if (currentUser?.role === "Team Member") {
+    return (
+        <div className="min-h-screen bg-[#F8FAFC] p-6 flex flex-col items-center justify-center">
+            
+            <div className="text-center mb-8 animate-pulse">
+                <h1 className="text-3xl font-[1000] text-slate-900 tracking-tighter mb-2">Welcome Back</h1>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">TrainingBook Operative</p>
+            </div>
+
+            {myProfile ? (
+                 <div className="w-full max-w-sm perspective-1000">
+                     <TeamCard 
+                        member={myProfile} 
+                        onClick={() => setSelectedMember(myProfile)} 
+                        onAssignClick={() => {}} 
+                        onDragStart={() => {}}
+                        onDragEnd={() => {}}
+                        isDragging={false}
+                     />
+                 </div>
+            ) : (
+                <div className="p-8 bg-white rounded-3xl shadow-sm text-center border border-slate-100">
+                    <Loader2 className="w-8 h-8 text-[#E51636] animate-spin mx-auto mb-4" />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Profile Synchronizing...</p>
+                </div>
+            )}
+            
+            <AnimatePresence>
+                {selectedMember && (
+                    <MemberDetailSheet 
+                        member={selectedMember} 
+                        onClose={() => setSelectedMember(null)}
+                        activeTab={activeTab}
+                        setActiveTab={setActiveTab}
+                    />
+                )}
+            </AnimatePresence>
+        </div>
+    );
+  }
+
+  // --- ADMIN / DIRECTOR DASHBOARD LOGIC ---
+  
   const kpis = useMemo(() => {
     const certifiedLeaders = team.filter(m => m.status === "Director" || m.status === "Assistant Director");
     const monthlyOneOnOnes = events.filter(e => e.type === "OneOnOne" && isSameMonth(e.startDate, new Date()));
@@ -418,13 +471,13 @@ export default function DashboardPage() {
 
         {/* --- MOBILE TABS HEADER --- */}
         <div className="flex lg:hidden items-center gap-6 px-1 mb-2">
-            <button onClick={() => scrollToSection('live')} className={cn("text-lg font-black transition-colors relative", activeTab === 'live' ? "text-slate-900" : "text-slate-300")}>
+            <button onClick={() => scrollToSection('live')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'live' ? "text-slate-900" : "text-slate-300")}>
                 Live Feed
-                {activeTab === 'live' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
+                {mobileTab === 'live' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
             </button>
-            <button onClick={() => scrollToSection('next')} className={cn("text-lg font-black transition-colors relative", activeTab === 'next' ? "text-slate-900" : "text-slate-300")}>
+            <button onClick={() => scrollToSection('next')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'next' ? "text-slate-900" : "text-slate-300")}>
                 Up Next
-                {activeTab === 'next' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
+                {mobileTab === 'next' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
             </button>
         </div>
 
@@ -434,7 +487,7 @@ export default function DashboardPage() {
             className="flex lg:grid lg:grid-cols-12 gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] -mx-4 px-4 pb-8 lg:mx-0 lg:px-0 lg:pb-0"
         >
           
-          {/* LIVE FEED PANEL (First on Mobile, Main Content on Desktop) */}
+          {/* LIVE FEED PANEL */}
           <div ref={feedRef} className="min-w-[90vw] md:min-w-[50vw] lg:min-w-0 col-span-12 lg:col-span-8 lg:col-start-1 lg:row-start-1 flex flex-col gap-4 snap-center h-fit">
              <div className="hidden lg:flex items-center justify-between px-1">
                  <div className="flex items-center gap-2">
@@ -444,16 +497,10 @@ export default function DashboardPage() {
                  <div className="px-2 py-0.5 bg-white border border-slate-100 rounded-full text-[8px] font-black uppercase tracking-widest text-slate-400">Real-time</div>
              </div>
 
-             {/* WRAPPER FOR UNIFIED LOOK ON MOBILE */}
              <div className="bg-white border border-slate-100 lg:bg-transparent lg:border-0 rounded-[32px] p-4 lg:p-0 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] lg:shadow-none relative h-full">
-                
-                {/* Mobile-only decorative header for the "Card" look */}
                 <div className="lg:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 bg-slate-200 rounded-full mb-4 opacity-50" />
-
-                {/* TIMELINE LIST STYLE FOR MOBILE */}
                 <div className="relative pl-6 lg:pl-0 mt-4 lg:mt-0">
                     <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-slate-100 lg:hidden" />
-                    
                     <div className="grid grid-cols-1 gap-3 md:gap-3">
                         <AnimatePresence>
                             {activityFeed.map((event, i) => {
@@ -469,10 +516,7 @@ export default function DashboardPage() {
                                         className="group relative bg-white lg:bg-white p-3 md:p-4 rounded-[20px] md:rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex items-start gap-3 md:gap-4 overflow-hidden cursor-pointer"
                                     >
                                         <div className={cn("hidden lg:block absolute left-0 top-0 bottom-0 w-1 transition-colors", event.priority === 'High' ? "bg-[#E51636]" : "bg-[#004F71]/50")} />
-                                        
-                                        {/* Mobile: Connector Dot */}
                                         <div className="lg:hidden absolute -left-[25px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white bg-slate-300 z-10" />
-
                                         <ActivityIcon type={event.type} />
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between mb-0.5">
@@ -496,7 +540,7 @@ export default function DashboardPage() {
              </div>
           </div>
 
-          {/* UP NEXT PANEL (Second on Mobile, Right Sidebar on Desktop) */}
+          {/* UP NEXT PANEL */}
           <div ref={nextRef} className="min-w-[90vw] md:min-w-[50vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-4 lg:sticky lg:top-24 snap-center h-fit">
              <div className="hidden lg:flex items-center gap-2 px-1 mb-1">
                  <Clock className="w-4 h-4 text-[#004F71]" />
