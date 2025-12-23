@@ -13,11 +13,12 @@ import {
   ArrowUpRight, Save, ChevronLeft, ChevronDown, 
   Command, TrendingUp, Lightbulb, Minimize2, ExternalLink, 
   GripHorizontal, Users, Link2, FileWarning,
-  Mail, Calendar, Camera, FileText // Added FileText for Documents Tab
+  Mail, Calendar, Camera, FileText
 } from "lucide-react";
 import { 
     formatDistanceToNow, parseISO, startOfWeek, startOfMonth, endOfWeek, endOfMonth, 
-    eachDayOfInterval, isSameDay, isBefore, isWithinInterval, isSameMonth, subMonths, addMonths, format 
+    eachDayOfInterval, isSameDay, isBefore, isWithinInterval, isSameMonth, subMonths, addMonths, format, 
+    differenceInDays // ADDED
 } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,7 @@ import { TACTICAL_ICONS } from "@/lib/icon-library";
 import toast from "react-hot-toast";
 import { Badge } from "./Badge";
 import OneOnOneSessionModal from "../../calendar/_components/OneOnOneSessionModal";
-import OperationalDocumentInterface from "./OperationalDocumentInterface"; // New Component
+import OperationalDocumentInterface from "./OperationalDocumentInterface"; 
 
 // --- HELPERS ---
 
@@ -196,7 +197,7 @@ const CATEGORIES: { id: EventType; icon: any }[] = [
 interface Props {
   member: TeamMember; 
   onClose: () => void;
-  activeTab: "overview" | "curriculum" | "performance" | "documents"; // Added documents
+  activeTab: "overview" | "curriculum" | "performance" | "documents"; 
   setActiveTab: (t: "overview" | "curriculum" | "performance" | "documents") => void;
 }
 
@@ -208,6 +209,9 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
   [team, initialMember.id]);
 
   const member = liveMember || initialMember;
+
+  // --- 30 DAY LOGIC ---
+  const isNewHire = member.joined ? differenceInDays(new Date(), new Date(member.joined)) <= 30 : false;
 
   // --- UPLOAD STATE ---
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -390,6 +394,20 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                             </div>
                         </div>
                     </div>
+
+                    {/* --- NEW HIRE BADGE --- */}
+                    {isNewHire && (
+                        <motion.div 
+                            initial={{ scale: 0, rotate: -45 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            className="absolute -top-2 -right-6 md:-right-8 bg-[#E51636] text-white px-3 py-1 rounded-full shadow-lg shadow-red-500/30 border-2 border-white z-20 flex items-center gap-1.5"
+                        >
+                            <Sparkles className="w-3 h-3 fill-current animate-pulse" />
+                            <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
+                                New Hire
+                            </span>
+                        </motion.div>
+                    )}
                 </div>
                 <div>
                     <h2 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-1 tracking-tight leading-none">{member.name}</h2>
@@ -398,7 +416,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{member.role}</span>
                     </div>
 
-                    {/* --- ADDED: Email & Join Date Block --- */}
+                    {/* --- Email & Join Date Block --- */}
                     <div className="mt-6 flex flex-col items-center gap-3">
                         <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm max-w-full">
                             <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />

@@ -3,13 +3,13 @@
 
 import { useState, useRef, memo, useEffect } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, PanInfo } from "framer-motion";
-import { Award, Camera, Loader2, Link2, ShieldCheck, Zap, Plus, User, Crown, UserPlus } from "lucide-react";
+import { Award, Camera, Loader2, Link2, ShieldCheck, Zap, Plus, User, Crown, UserPlus, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
-// CHANGED: Imported 'db' instead of 'caresDb'
 import { storage, db } from "@/lib/firebase"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { differenceInDays } from "date-fns";
 import toast from "react-hot-toast";
 
 interface Props {
@@ -22,7 +22,7 @@ interface Props {
   isDropTarget?: boolean;
 }
 
-// ... (TiltWrapper component remains unchanged) ...
+// 3D Tilt Logic
 const TiltWrapper = ({ children, disabled, className, ...props }: any) => {
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -67,6 +67,9 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
   const [isUploading, setIsUploading] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
 
+  // --- 30 DAY LOGIC ---
+  const isNewHire = member.joined ? differenceInDays(new Date(), new Date(member.joined)) <= 30 : false;
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
     checkMobile();
@@ -81,8 +84,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
         
-        // CHANGED: Using 'db' here instead of 'caresDb'
-        await updateDoc(doc(db, "teamMembers", member.id), {
+        await updateDoc(doc(db, "profileOverrides", member.id), { // Fixed to profileOverrides for safety
           image: url,
           updatedAt: serverTimestamp()
         });
@@ -169,11 +171,21 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
             
             {/* TOP BAR */}
             <div className="flex justify-between items-start">
-              <div className={cn(
-                "px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] relative overflow-hidden",
-                isFOH ? superGlassDark + " text-blue-100" : superGlassRuby
-              )}>
-                 <span className="relative z-10">{member.dept} UNIT</span>
+              <div className="flex gap-2">
+                  <div className={cn(
+                    "px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] relative overflow-hidden flex items-center justify-center",
+                    isFOH ? superGlassDark + " text-blue-100" : superGlassRuby
+                  )}>
+                    <span className="relative z-10">{member.dept} UNIT</span>
+                  </div>
+
+                  {/* --- NEW HIRE BADGE --- */}
+                  {isNewHire && (
+                     <div className="px-2.5 py-1.5 rounded-xl bg-[#E51636] text-white text-[8px] font-black uppercase tracking-wider shadow-lg shadow-red-500/30 flex items-center gap-1 border border-white/20 animate-pulse">
+                         <Sparkles className="w-2.5 h-2.5 fill-current" />
+                         <span>NEW</span>
+                     </div>
+                  )}
               </div>
 
               {!isDropTarget && (
@@ -214,7 +226,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                 </div>
               </div>
 
-              {/* --- MENTOR / CONNECTION SLOT --- */}
+              {/* --- MENTOR / CONNECTION SLOT (BEAUTIFIED) --- */}
               <div className="grid grid-cols-[1fr_auto] gap-2">
                   
                   {/* SLOT 1: MENTOR ASSIGNMENT */}
