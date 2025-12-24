@@ -80,6 +80,7 @@ export interface TeamMember {
     moduleProgress: number;
     tasks: { id: string; label: string; completed: boolean }[];
   };
+  hasLogin?: boolean; // Flag to check if user has dashboard access
 }
 
 // --- 3. CALENDAR EVENT TYPES ---
@@ -138,7 +139,7 @@ export const STAGES: { id: Status; title: string; icon: any }[] = [
     { id: "Team Leader", title: "Team Leader", icon: Star },
     { id: "Assistant Director", title: "Asst. Director", icon: Briefcase },
     { id: "Director", title: "Director", icon: Crown },
-    { id: "Admin", title: "Admin", icon: Crown }, // Added Admin Icon
+    { id: "Admin", title: "Admin", icon: Crown },
 ];
 
 // --- 5. UI HELPERS ---
@@ -168,7 +169,7 @@ export const getTypeColor = (type: EventType, isGhost: boolean = false) => {
   }
 };
 
-// --- 6. AUTHORIZATION LEVELS (UPDATED) ---
+// --- 6. AUTHORIZATION & PERMISSIONS ---
 
 export const ROLE_HIERARCHY: Record<string, number> = {
   "Admin": 4,              // Highest Rank
@@ -178,6 +179,66 @@ export const ROLE_HIERARCHY: Record<string, number> = {
   "Team Member": 0,        
   "Training": 0,
   "Onboarding": 0
+};
+
+// Permission Structure for RBAC
+export interface PermissionSet {
+    // Operations
+    canCreateEvents: boolean;
+    canEditEvents: boolean;
+    canDeleteEvents: boolean;
+    
+    // Team Management
+    canViewFullRoster: boolean;
+    canCreateUsers: boolean;
+    canEditUsers: boolean;
+    canPromoteUsers: boolean;
+    
+    // Intelligence & Data
+    canViewSensitiveDocs: boolean;
+    canViewAnalytics: boolean;
+    
+    // System
+    canAccessSettings: boolean;
+}
+
+// Default Permission Matrix (Can be overridden by Firestore)
+export const DEFAULT_PERMISSIONS: Record<Status, PermissionSet> = {
+    "Admin": {
+        canCreateEvents: true, canEditEvents: true, canDeleteEvents: true,
+        canViewFullRoster: true, canCreateUsers: true, canEditUsers: true, canPromoteUsers: true,
+        canViewSensitiveDocs: true, canViewAnalytics: true, canAccessSettings: true
+    },
+    "Director": {
+        canCreateEvents: true, canEditEvents: true, canDeleteEvents: true,
+        canViewFullRoster: true, canCreateUsers: true, canEditUsers: true, canPromoteUsers: true,
+        canViewSensitiveDocs: true, canViewAnalytics: true, canAccessSettings: true
+    },
+    "Assistant Director": {
+        canCreateEvents: true, canEditEvents: true, canDeleteEvents: true,
+        canViewFullRoster: true, canCreateUsers: true, canEditUsers: true, canPromoteUsers: false,
+        canViewSensitiveDocs: true, canViewAnalytics: true, canAccessSettings: false
+    },
+    "Team Leader": {
+        canCreateEvents: true, canEditEvents: false, canDeleteEvents: false,
+        canViewFullRoster: true, canCreateUsers: false, canEditUsers: false, canPromoteUsers: false,
+        canViewSensitiveDocs: false, canViewAnalytics: false, canAccessSettings: false
+    },
+    "Team Member": {
+        canCreateEvents: false, canEditEvents: false, canDeleteEvents: false,
+        canViewFullRoster: true, canCreateUsers: false, canEditUsers: false, canPromoteUsers: false,
+        canViewSensitiveDocs: false, canViewAnalytics: false, canAccessSettings: false
+    },
+    "Training": {
+        canCreateEvents: false, canEditEvents: false, canDeleteEvents: false,
+        canViewFullRoster: false, canCreateUsers: false, canEditUsers: false, canPromoteUsers: false,
+        canViewSensitiveDocs: false, canViewAnalytics: false, canAccessSettings: false
+    },
+    "Onboarding": {
+        canCreateEvents: false, canEditEvents: false, canDeleteEvents: false,
+        canViewFullRoster: false, canCreateUsers: false, canEditUsers: false, canPromoteUsers: false,
+        canViewSensitiveDocs: false, canViewAnalytics: false, canAccessSettings: false
+    }
 };
 
 export const canPerformAction = (userRole: string, requiredLevel: number) => {

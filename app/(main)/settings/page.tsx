@@ -1,43 +1,56 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-// Added: Trash2, RefreshCw, KeyRound, UserMinus
 import { 
   User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save,
-  ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus 
+  ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus, Lock, Unlock, FileKey, BarChart3, Users
 } from "lucide-react";
-import { AnimatePresence, motion } from "framer-motion"; // Added for dropdown
+import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore } from "@/lib/store/useStore"; 
-import { auth } from "@/lib/firebase"; 
+import { auth, db } from "@/lib/firebase"; 
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
-import { ROLE_HIERARCHY, Status } from "../calendar/_components/types"; 
+import { ROLE_HIERARCHY, Status, PermissionSet, DEFAULT_PERMISSIONS } from "../calendar/_components/types"; 
 import { cn } from "@/lib/utils";
+import { PermissionToggle } from "./_components/PermissionToggle";
+
+// --- PERMISSION LABELS MAP ---
+const PERMISSION_CONFIG: { key: keyof PermissionSet; label: string; desc: string; category: "ops" | "people" | "system" }[] = [
+    { key: "canCreateEvents", label: "Create Missions", desc: "Start new operations or goals.", category: "ops" },
+    { key: "canEditEvents", label: "Modify Logs", desc: "Edit details of existing records.", category: "ops" },
+    { key: "canDeleteEvents", label: "Expunge Records", desc: "Permanently delete data.", category: "ops" },
+    { key: "canViewFullRoster", label: "View Global Roster", desc: "See all staff details.", category: "people" },
+    { key: "canCreateUsers", label: "Onboard Operatives", desc: "Create new login accounts.", category: "people" },
+    { key: "canPromoteUsers", label: "Promote Rank", desc: "Change security clearance levels.", category: "people" },
+    { key: "canViewSensitiveDocs", label: "Sensitive Intel", desc: "Access disciplinary docs.", category: "system" },
+    { key: "canAccessSettings", label: "System Config", desc: "Access this settings panel.", category: "system" },
+];
 
 export default function SettingsPage() {
   const { currentUser, team } = useAppStore(); 
   
+  // Tabs
   const [activeTab, setActiveTab] = useState('identity');
+  
+  // Identity State
   const [formData, setFormData] = useState({ name: "", email: "" });
   const [isSaving, setIsSaving] = useState(false);
 
-  // New User Form State
-  const [newUser, setNewUser] = useState({ 
-    name: "", 
-    email: "", 
-    password: "", 
-    role: "Team Member" as Status, 
-    dept: "FOH",
-    linkedMemberId: "" 
-  });
+  // Operations State
+  const [newUser, setNewUser] = useState({ name: "", email: "", password: "", role: "Team Member" as Status, dept: "FOH", linkedMemberId: "" });
   const [isCreating, setIsCreating] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
-  
-  // State for Custom Dropdown
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+
+  // --- ROLE MANAGEMENT STATE ---
+  const [selectedRole, setSelectedRole] = useState<Status>("Team Member");
+  const [rolePermissions, setRolePermissions] = useState<PermissionSet>(DEFAULT_PERMISSIONS["Team Member"]);
+  const [isPermSaving, setIsPermSaving] = useState(false);
 
   // --- HIERARCHY LOGIC ---
   const myLevel = ROLE_HIERARCHY[currentUser?.role || "Team Member"] || 0;
   const canCreateAccounts = myLevel >= 2;
+  const canManageRoles = myLevel >= 3; // Only Directors can manage roles
 
   // Filter existing members
   const filteredMembers = useMemo(() => {
@@ -47,10 +60,7 @@ export default function SettingsPage() {
   }, [team, memberSearch]);
 
   // Filter members WHO HAVE ACCESS (for management list)
-  // Assuming 'hasLogin' flag exists, or we check if they have a specialized role
   const activeUsers = useMemo(() => {
-      // In a real app, you might want to fetch a list of auth users from an API
-      // For now, let's assume anyone with a role > Team Member has a login, or use a flag
       return team.filter(m => m.status !== "Team Member" && m.status !== "Onboarding" && m.status !== "Training");
   }, [team]);
 
@@ -62,6 +72,33 @@ export default function SettingsPage() {
       });
     }
   }, [currentUser]);
+
+  // Load Permissions on Role Change
+  useEffect(() => {
+    const loadPermissions = async () => {
+        // Using defaults for demo UI, but structured to support DB fetch
+        setRolePermissions(DEFAULT_PERMISSIONS[selectedRole]);
+    };
+    loadPermissions();
+  }, [selectedRole]);
+
+  // --- HANDLERS ---
+  const handleTogglePermission = (key: keyof PermissionSet) => {
+      if (selectedRole === "Director") return; // Directors are always superusers
+      setRolePermissions(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleSavePermissions = async () => {
+      setIsPermSaving(true);
+      try {
+          await setDoc(doc(db, "roles", selectedRole), { ...rolePermissions, updatedAt: serverTimestamp() });
+          toast.success(`${selectedRole} protocols updated.`);
+      } catch (e) {
+          toast.error("Failed to update protocols.");
+      } finally {
+          setIsPermSaving(false);
+      }
+  };
 
   const selectMemberForActivation = (member: any) => {
       setNewUser({
@@ -119,7 +156,7 @@ export default function SettingsPage() {
       { id: "Team Leader", label: "Team Leader (Lvl 1)", level: 1 },
       { id: "Assistant Director", label: "Assistant Director (Lvl 2)", level: 2 },
       { id: "Director", label: "Director (Lvl 3)", level: 3 },
-  ].filter(r => r.level < myLevel || myLevel === 4); // Only allow creating roles below yours, unless Admin(4)
+  ].filter(r => r.level < myLevel || myLevel === 4); 
 
   if (!currentUser) return <div className="flex h-screen items-center justify-center bg-[#F8FAFC]"><Loader2 className="w-8 h-8 animate-spin text-[#E51636]" /></div>;
 
@@ -136,10 +173,19 @@ export default function SettingsPage() {
                 </div>
                 <h1 className="text-4xl md:text-5xl font-[1000] text-slate-900 tracking-tighter">Command Settings</h1>
             </div>
+            
+            {/* Contextual Action Buttons */}
             {activeTab === 'identity' && (
                 <button onClick={handleSaveProfile} disabled={isSaving} className="px-8 py-4 bg-[#E51636] hover:bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.25em] shadow-lg shadow-red-500/20 transition-all flex items-center gap-3 active:scale-95 disabled:opacity-50">
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     Deploy Changes
+                </button>
+            )}
+            
+            {activeTab === 'roles' && (
+                <button onClick={handleSavePermissions} disabled={isPermSaving} className="px-8 py-4 bg-[#004F71] text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.25em] shadow-lg shadow-blue-900/20 transition-all flex items-center gap-3 active:scale-95 disabled:opacity-50">
+                    {isPermSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Protocols
                 </button>
             )}
         </div>
@@ -151,6 +197,7 @@ export default function SettingsPage() {
                 {[
                     { id: 'identity', label: 'Identity', icon: User, visible: true },
                     { id: 'ops', label: 'Operations', icon: Fingerprint, visible: canCreateAccounts }, 
+                    { id: 'roles', label: 'Access Control', icon: FileKey, visible: canManageRoles }, 
                     { id: 'security', label: 'Security', icon: Shield, visible: true },
                 ].filter(i => i.visible).map((item) => (
                     <button 
@@ -174,7 +221,6 @@ export default function SettingsPage() {
                 {/* --- TAB: IDENTITY --- */}
                 {activeTab === 'identity' && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
-                         {/* ... (Identity Content remains same) ... */}
                          <div className="mb-10">
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Operator Identity</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Manage your administrative profile.</p>
@@ -359,7 +405,7 @@ export default function SettingsPage() {
                             </form>
                         </div>
 
-                        {/* 2. MANAGE ACTIVE ACCOUNTS (NEW SECTION) */}
+                        {/* 2. MANAGE ACTIVE ACCOUNTS */}
                         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
                              <div className="mb-8 flex items-center justify-between">
                                 <div>
@@ -400,6 +446,106 @@ export default function SettingsPage() {
                                     <div className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">No active login accounts</div>
                                 )}
                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* --- TAB: ROLES (RBAC) --- */}
+                {activeTab === 'roles' && canManageRoles && (
+                    <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
+                        <div className="mb-10">
+                            <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Access Protocols</h2>
+                            <p className="text-sm font-medium text-slate-400 mt-1">Configure capability matrix for each rank.</p>
+                        </div>
+
+                        {/* ROLE SELECTOR */}
+                        <div className="flex p-1.5 bg-slate-100 rounded-2xl mb-8 overflow-x-auto no-scrollbar">
+                            {["Team Member", "Team Leader", "Assistant Director", "Director"].map((role) => (
+                                <button
+                                    key={role}
+                                    onClick={() => setSelectedRole(role as Status)}
+                                    className={cn(
+                                        "flex-1 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap",
+                                        selectedRole === role 
+                                            ? "bg-white text-slate-900 shadow-sm" 
+                                            : "text-slate-400 hover:text-slate-600"
+                                    )}
+                                >
+                                    {role.replace("Assistant", "Asst.")}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* PERMISSIONS GRID */}
+                        <div className="space-y-8">
+                            
+                            {/* CATEGORY: OPERATIONS */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-4 px-1">
+                                    <Fingerprint className="w-4 h-4 text-[#004F71]" />
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Operational Access</span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {PERMISSION_CONFIG.filter(p => p.category === "ops").map(p => (
+                                        <PermissionToggle 
+                                            key={p.key} 
+                                            label={p.label} 
+                                            description={p.desc} 
+                                            isEnabled={rolePermissions[p.key]} 
+                                            onToggle={() => handleTogglePermission(p.key)}
+                                            disabled={selectedRole === "Director"}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* CATEGORY: PEOPLE */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-4 px-1">
+                                    <Users className="w-4 h-4 text-[#E51636]" />
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Personnel Management</span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {PERMISSION_CONFIG.filter(p => p.category === "people").map(p => (
+                                        <PermissionToggle 
+                                            key={p.key} 
+                                            label={p.label} 
+                                            description={p.desc} 
+                                            isEnabled={rolePermissions[p.key]} 
+                                            onToggle={() => handleTogglePermission(p.key)}
+                                            disabled={selectedRole === "Director"}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* CATEGORY: SYSTEM */}
+                            <div>
+                                <div className="flex items-center gap-2 mb-4 px-1">
+                                    <Shield className="w-4 h-4 text-slate-900" />
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">System Intelligence</span>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {PERMISSION_CONFIG.filter(p => p.category === "system").map(p => (
+                                        <PermissionToggle 
+                                            key={p.key} 
+                                            label={p.label} 
+                                            description={p.desc} 
+                                            isEnabled={rolePermissions[p.key]} 
+                                            onToggle={() => handleTogglePermission(p.key)}
+                                            disabled={selectedRole === "Director"}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
+                            {selectedRole === "Director" && (
+                                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-center gap-3 text-blue-600">
+                                    <Lock className="w-4 h-4" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wide">Director Clearance is Immutable</span>
+                                </div>
+                            )}
+
                         </div>
                     </div>
                 )}
