@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   FileText, CheckCircle2, Plus, 
   Printer, CornerDownRight, MoreHorizontal, ShieldAlert,
-  StickyNote, History, Calendar, User, Trash2, Pencil
+  StickyNote, History, Calendar, User, Trash2, Pencil, X
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ import { TeamMember } from "../../calendar/_components/types";
 import { db } from "@/lib/firebase";
 import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
+import ClientPortal from "@/components/core/ClientPortal";
 
 // --- TYPES ---
 interface DocEntry {
@@ -38,6 +39,60 @@ const DOC_TYPES = [
     { id: "Note", icon: StickyNote, color: "text-amber-600 bg-amber-50 border-amber-100" },
 ] as const;
 
+// --- DELETE CONFIRMATION MODAL ---
+function DeleteConfirmationModal({ isOpen, onClose, onConfirm }: { isOpen: boolean; onClose: () => void; onConfirm: () => void }) {
+    if (!isOpen) return null;
+
+    return (
+        <ClientPortal>
+            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+                {/* Backdrop */}
+                <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }} 
+                    className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-md"
+                    onClick={onClose}
+                />
+                
+                {/* Modal Card */}
+                <motion.div 
+                    initial={{ scale: 0.95, opacity: 0, y: 10 }} 
+                    animate={{ scale: 1, opacity: 1, y: 0 }} 
+                    exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                    className="relative bg-white w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden border border-white/20"
+                >
+                    <div className="p-8 flex flex-col items-center text-center">
+                        <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-6 border border-red-100 shadow-sm">
+                            <ShieldAlert className="w-8 h-8 text-[#E51636]" />
+                        </div>
+                        
+                        <h3 className="text-xl font-[1000] text-slate-900 mb-2 tracking-tight">Confirm Deletion</h3>
+                        <p className="text-sm font-medium text-slate-500 leading-relaxed mb-8">
+                            This action is permanent. The record will be expunged from the operational ledger.
+                        </p>
+
+                        <div className="flex gap-3 w-full">
+                            <button 
+                                onClick={onClose}
+                                className="flex-1 py-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={onConfirm}
+                                className="flex-1 py-3 bg-[#E51636] hover:bg-red-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-500/20 transition-all"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+        </ClientPortal>
+    );
+}
+
 export default function OperationalDocumentInterface({ member, currentUser }: Props) {
   const [entries, setEntries] = useState<DocEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +103,7 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
   const [isSaving, setIsSaving] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // --- FETCH DOCUMENTS ON MOUNT ---
   useEffect(() => {
@@ -97,18 +153,24 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
 
   // --- ACTIONS ---
 
-  const handleDelete = async (id: string) => {
-      if(!confirm("Permanently delete this record?")) return;
+  const handleDeleteClick = (id: string) => {
+      setDeleteTargetId(id);
+      setActiveMenuId(null);
+  };
+
+  const confirmDelete = async () => {
+      if (!deleteTargetId) return;
       
-      const toastId = toast.loading("Deleting...");
+      const toastId = toast.loading("Expunging record...");
       try {
-          await deleteDoc(doc(db, "events", id));
-          setEntries(prev => prev.filter(e => e.id !== id));
+          await deleteDoc(doc(db, "events", deleteTargetId));
+          setEntries(prev => prev.filter(e => e.id !== deleteTargetId));
           toast.success("Record Expunged", { id: toastId });
       } catch (e) {
           toast.error("Delete Failed", { id: toastId });
+      } finally {
+          setDeleteTargetId(null);
       }
-      setActiveMenuId(null);
   };
 
   const handleEdit = (entry: DocEntry) => {
@@ -420,7 +482,7 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
                                                                     </button>
                                                                     <div className="h-px bg-slate-50" />
                                                                     <button 
-                                                                        onClick={() => handleDelete(entry.id)}
+                                                                        onClick={() => handleDeleteClick(entry.id)}
                                                                         className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider hover:bg-red-50 flex items-center gap-2 text-red-500 transition-colors"
                                                                     >
                                                                         <Trash2 className="w-3 h-3" /> Delete
@@ -482,6 +544,17 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
                 </div>
             </div>
         </div>
+        
+        {/* DELETE CONFIRMATION MODAL */}
+        <AnimatePresence>
+            {deleteTargetId && (
+                <DeleteConfirmationModal 
+                    isOpen={!!deleteTargetId} 
+                    onClose={() => setDeleteTargetId(null)} 
+                    onConfirm={confirmDelete} 
+                />
+            )}
+        </AnimatePresence>
     </div>
   );
 }
