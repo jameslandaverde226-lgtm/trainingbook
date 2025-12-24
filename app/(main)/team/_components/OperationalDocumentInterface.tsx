@@ -6,13 +6,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   FileText, CheckCircle2, Plus, 
   Printer, CornerDownRight, MoreHorizontal, ShieldAlert,
-  StickyNote, History, Calendar, User
+  StickyNote, History, Calendar, User, Trash2, Pencil
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { db } from "@/lib/firebase";
-import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 
 // --- TYPES ---
@@ -42,9 +42,12 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
   const [entries, setEntries] = useState<DocEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Form & Action States
   const [isCreating, setIsCreating] = useState(false);
   const [newEntry, setNewEntry] = useState<Partial<DocEntry>>({ type: "Note", content: "" });
   const [isSaving, setIsSaving] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // --- FETCH DOCUMENTS ON MOUNT ---
   useEffect(() => {
@@ -61,7 +64,7 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
         const loadedEntries: DocEntry[] = snapshot.docs
           .map(doc => {
             const data = doc.data();
-            // Parse only Document Logs based on the description tag we set
+            // Parse only Document Logs based on the description tag
             if (data.description && data.description.startsWith("[DOCUMENT LOG:")) {
                const match = data.description.match(/\[DOCUMENT LOG: (.*?)\]\n\n([\s\S]*)/);
                if (match) {
@@ -92,44 +95,91 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
     fetchDocuments();
   }, [member.id]);
 
+  // --- ACTIONS ---
+
+  const handleDelete = async (id: string) => {
+      if(!confirm("Permanently delete this record?")) return;
+      
+      const toastId = toast.loading("Deleting...");
+      try {
+          await deleteDoc(doc(db, "events", id));
+          setEntries(prev => prev.filter(e => e.id !== id));
+          toast.success("Record Expunged", { id: toastId });
+      } catch (e) {
+          toast.error("Delete Failed", { id: toastId });
+      }
+      setActiveMenuId(null);
+  };
+
+  const handleEdit = (entry: DocEntry) => {
+      setNewEntry({
+          title: entry.title,
+          content: entry.content,
+          type: entry.type
+      });
+      setEditingId(entry.id);
+      setIsCreating(true);
+      setActiveMenuId(null);
+  };
+
   const handleSave = async () => {
       if(!newEntry.content) return;
       setIsSaving(true);
       
       const timestamp = new Date();
 
-      // Create local entry object for immediate UI feedback
-      const entry: DocEntry = {
-          id: Math.random().toString(),
-          type: newEntry.type as any || "Note",
-          title: newEntry.title || "General Entry",
-          content: newEntry.content || "",
-          author: currentUser,
-          timestamp: timestamp,
-          status: "Official"
-      };
-
       try {
-        await addDoc(collection(db, "events"), {
-            type: "Operation", 
-            title: entry.title,
-            status: "Done",
-            priority: entry.type === "Incident Report" ? "High" : "Medium",
-            startDate: timestamp,
-            endDate: timestamp,
-            assignee: "System", 
-            assigneeName: entry.author,
-            teamMemberId: member.id,
-            teamMemberName: member.name,
-            description: `[DOCUMENT LOG: ${entry.type}]\n\n${entry.content}`, 
-            createdAt: serverTimestamp()
-        });
+        if (editingId) {
+            // UPDATE EXISTING
+            await updateDoc(doc(db, "events", editingId), {
+                title: newEntry.title,
+                description: `[DOCUMENT LOG: ${newEntry.type}]\n\n${newEntry.content}`,
+                updatedAt: serverTimestamp()
+            });
 
-        // Update local state immediately
-        setEntries([entry, ...entries]);
+            // Update local state
+            setEntries(prev => prev.map(e => e.id === editingId ? { 
+                ...e, 
+                title: newEntry.title || "", 
+                content: newEntry.content || "", 
+                type: newEntry.type as any 
+            } : e));
+            
+            toast.success("Record Updated");
+        } else {
+            // CREATE NEW
+            const res = await addDoc(collection(db, "events"), {
+                type: "Operation", 
+                title: newEntry.title || "Untitled Entry",
+                status: "Done",
+                priority: newEntry.type === "Incident Report" ? "High" : "Medium",
+                startDate: timestamp,
+                endDate: timestamp,
+                assignee: "System", 
+                assigneeName: currentUser, // Capture Author
+                teamMemberId: member.id,
+                teamMemberName: member.name,
+                description: `[DOCUMENT LOG: ${newEntry.type}]\n\n${newEntry.content}`, 
+                createdAt: serverTimestamp()
+            });
+
+            // Add to local state
+            setEntries([{ 
+                id: res.id,
+                type: newEntry.type as any,
+                title: newEntry.title || "Untitled Entry",
+                content: newEntry.content || "",
+                author: currentUser,
+                timestamp: timestamp,
+                status: "Official"
+            }, ...entries]);
+            
+            toast.success("Record Officialized");
+        }
+
         setIsCreating(false);
+        setEditingId(null);
         setNewEntry({ type: "Note", content: "" });
-        toast.success("Record Officialized");
 
       } catch (err) {
         console.error(err);
@@ -219,7 +269,11 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
                 </div>
             </div>
             <button 
-                onClick={() => setIsCreating(true)}
+                onClick={() => {
+                    setEditingId(null);
+                    setNewEntry({ type: "Note", content: "" });
+                    setIsCreating(true);
+                }}
                 className="group flex items-center gap-2 px-5 py-2.5 bg-[#004F71] text-white rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 active:scale-95 transition-all hover:bg-[#003b55] hover:pr-6"
             >
                 <Plus className="w-3.5 h-3.5 transition-transform group-hover:rotate-90" /> New Entry
@@ -340,9 +394,45 @@ export default function OperationalDocumentInterface({ member, currentUser }: Pr
                                                         </div>
                                                         <h4 className="text-xl font-[800] text-slate-900 tracking-tight mt-1">{entry.title}</h4>
                                                     </div>
-                                                    <button className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all opacity-0 group-hover:opacity-100">
-                                                        <MoreHorizontal className="w-5 h-5" />
-                                                    </button>
+                                                    
+                                                    {/* ACTION MENU */}
+                                                    <div className="relative">
+                                                        <button 
+                                                            onClick={() => setActiveMenuId(activeMenuId === entry.id ? null : entry.id)}
+                                                            className="p-2 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+                                                        >
+                                                            <MoreHorizontal className="w-5 h-5" />
+                                                        </button>
+
+                                                        <AnimatePresence>
+                                                            {activeMenuId === entry.id && (
+                                                                <motion.div 
+                                                                    initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                                    exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                                                                    className="absolute right-0 top-full mt-2 w-32 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden ring-1 ring-black/5"
+                                                                >
+                                                                    <button 
+                                                                        onClick={() => handleEdit(entry)}
+                                                                        className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider hover:bg-slate-50 flex items-center gap-2 text-slate-600 transition-colors"
+                                                                    >
+                                                                        <Pencil className="w-3 h-3" /> Edit
+                                                                    </button>
+                                                                    <div className="h-px bg-slate-50" />
+                                                                    <button 
+                                                                        onClick={() => handleDelete(entry.id)}
+                                                                        className="w-full text-left px-4 py-3 text-[10px] font-bold uppercase tracking-wider hover:bg-red-50 flex items-center gap-2 text-red-500 transition-colors"
+                                                                    >
+                                                                        <Trash2 className="w-3 h-3" /> Delete
+                                                                    </button>
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                        
+                                                        {activeMenuId === entry.id && (
+                                                            <div className="fixed inset-0 z-40" onClick={() => setActiveMenuId(null)} />
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 
                                                 {/* Card Body */}
