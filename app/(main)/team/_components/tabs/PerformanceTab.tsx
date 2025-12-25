@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { 
   ShieldCheck, MessageSquare, Link2, Medal, Zap, Target, Activity, 
-  FileText, CheckCircle2, AlertTriangle, BookOpen, Star, StickyNote, File, Trophy, Vote
+  FileText, CheckCircle2, AlertTriangle, BookOpen, Star, StickyNote, File, Trophy, Vote, Crown, ArrowLeftRight, UserPlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember, CalendarEvent } from "../../../calendar/_components/types";
@@ -19,7 +19,7 @@ interface Props {
   member: TeamMember;
 }
 
-// Visual Configuration for different activity types
+// Visual Configuration
 const getActivityConfig = (type: string) => {
     switch (type) {
         // Operational
@@ -29,6 +29,11 @@ const getActivityConfig = (type: string) => {
         case 'AWARD': return { icon: Trophy, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500' };
         case 'VOTE': return { icon: Vote, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', accent: 'border-l-slate-400' };
         
+        // --- NEW ICONS ---
+        case 'PROMOTION': return { icon: Crown, color: 'bg-indigo-500', text: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', accent: 'border-l-indigo-500' };
+        case 'TRANSFER': return { icon: ArrowLeftRight, color: 'bg-cyan-500', text: 'text-cyan-700', bg: 'bg-cyan-50', border: 'border-cyan-200', accent: 'border-l-cyan-500' };
+        case 'ASSIGNMENT': return { icon: UserPlus, color: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50', border: 'border-sky-200', accent: 'border-l-sky-500' };
+
         // Documents
         case 'INCIDENT': return { icon: AlertTriangle, color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', accent: 'border-l-red-500' };
         case 'COMMENDATION': return { icon: Star, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500' };
@@ -50,7 +55,6 @@ export function PerformanceTab({ member }: Props) {
   const timelineData = useMemo(() => {
     const history: any[] = [];
     
-    // 1. CALENDAR EVENTS & DOCUMENTS
     const relevantEvents = events.filter(e => 
         e.teamMemberId === member.id || (e.assignee === member.id && e.type === 'Goal')
     );
@@ -69,8 +73,6 @@ export function PerformanceTab({ member }: Props) {
              else if (docType.includes("Review")) category = 'REVIEW';
              else if (docType.includes("Note")) category = 'NOTE';
              else category = 'DOCUMENT';
-             
-             // Strip headers for clean display
              desc = desc.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
         }
         else if (e.type === 'Goal') category = 'GOAL';
@@ -79,15 +81,19 @@ export function PerformanceTab({ member }: Props) {
         else if (e.type === 'Vote') category = 'VOTE';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
-        // Clean System Logs (e.g. Awards/EOTM)
+        // NEW CATEGORIES
+        if (desc.includes("[SYSTEM LOG: PROMOTION]")) category = 'PROMOTION';
+        else if (desc.includes("[SYSTEM LOG: TRANSFER]")) category = 'TRANSFER';
+        else if (desc.includes("[SYSTEM LOG: ASSIGNMENT]")) category = 'ASSIGNMENT';
+
+        // Clean System Logs
         if (desc.startsWith("[SYSTEM LOG:") || desc.startsWith("[OFFICIAL")) {
-             // Removes the bracketed header line to show only the message body
              desc = desc.replace(/\[.*?\]\n/, "").trim();
         }
 
         history.push({ 
             id: e.id, 
-            date: e.createdAt?.toDate ? e.createdAt.toDate() : e.startDate, // Prefer creation date for feed accuracy
+            date: e.createdAt?.toDate ? e.createdAt.toDate() : e.startDate,
             title, 
             category, 
             rawEvent: e, 
@@ -95,10 +101,7 @@ export function PerformanceTab({ member }: Props) {
         });
     });
 
-    // NOTE: We REMOVED manual badge injection here to prevent duplicates.
-    // Awards are now standard events in the 'events' collection.
-
-    // 2. CURRICULUM MODULES (Virtual Events)
+    // 2. CURRICULUM MODULES
     if (member.completedTaskIds && member.completedTaskIds.length > 0) {
         let completedNames: string[] = [];
         curriculum.forEach(section => {
@@ -144,8 +147,6 @@ export function PerformanceTab({ member }: Props) {
   return (
     <>
         <div className="p-8 pb-32 h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
-            
-            {/* Header */}
             <div className="flex items-center gap-3 mb-8">
                 <div className="p-3 bg-slate-900 text-white rounded-2xl shadow-lg">
                     <Activity className="w-5 h-5" />
@@ -163,7 +164,6 @@ export function PerformanceTab({ member }: Props) {
                  </div>
             ) : (
                 <div className="relative pl-6 lg:pl-10 space-y-8">
-                    {/* Connecting Line */}
                     <div className="absolute left-[23px] lg:left-[39px] top-4 bottom-4 w-0.5 bg-slate-200" />
 
                     {timelineData.map((item, idx) => {
@@ -180,7 +180,6 @@ export function PerformanceTab({ member }: Props) {
                                 className={cn("relative group", isInteractive && "cursor-pointer")}
                                 onClick={() => handleItemClick(item)}
                             >
-                                {/* Timeline Dot */}
                                 <div className={cn(
                                     "absolute -left-[34px] lg:-left-[54px] top-0 w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center border-4 border-[#F8FAFC] shadow-sm z-10 text-white", 
                                     config.color
@@ -188,15 +187,12 @@ export function PerformanceTab({ member }: Props) {
                                     <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4 fill-current" />
                                 </div>
 
-                                {/* Content Card */}
                                 <div className={cn(
                                     "p-5 lg:p-6 bg-white border rounded-[24px] shadow-sm transition-all relative overflow-hidden",
-                                    // Add left accent border
                                     "border-l-4", config.accent,
                                     config.border,
                                     isInteractive ? "hover:shadow-md active:scale-[0.99]" : ""
                                 )}>
-                                    {/* Category Tag */}
                                     <div className="flex justify-between items-start mb-2">
                                         <span className={cn("px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider", config.bg, config.text)}>
                                             {item.category}
@@ -214,7 +210,6 @@ export function PerformanceTab({ member }: Props) {
                                         </p>
                                     )}
 
-                                    {/* Interactive Hint */}
                                     {isInteractive && (
                                         <div className="mt-4 pt-3 border-t border-purple-100 flex items-center gap-2 text-purple-600 text-[10px] font-black uppercase tracking-wider">
                                             <MessageSquare className="w-3 h-3" /> View Session Details

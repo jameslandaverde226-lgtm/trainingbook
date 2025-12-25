@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { TeamMember } from "../../calendar/_components/types";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, serverTimestamp, writeBatch } from "firebase/firestore";
+// ADDED IMPORTS
+import { doc, serverTimestamp, writeBatch, collection, addDoc } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import { useAppStore } from "@/lib/store/useStore";
@@ -70,8 +71,25 @@ export function MemberProfileHeader({ member }: Props) {
           batch.set(overrideRef, { dept: newDept, updatedAt: serverTimestamp() }, { merge: true });
           const baseRef = doc(db, "teamMembers", member.id);
           batch.update(baseRef, { dept: newDept });
+          
           await batch.commit();
           
+          // LOG: UNIT TRANSFER
+          await addDoc(collection(db, "events"), {
+                title: `Unit Transfer: ${newDept}`,
+                type: "Operation",
+                status: "Done",
+                priority: "Medium",
+                startDate: new Date(),
+                endDate: new Date(),
+                assignee: "System",
+                assigneeName: "Command",
+                teamMemberId: member.id,
+                teamMemberName: member.name,
+                description: `[SYSTEM LOG: TRANSFER]\nOperational unit reassignment to ${newDept}.`,
+                createdAt: serverTimestamp()
+          });
+
           toast.success(`Unit Updated: ${newDept}`, { id: loadToast });
       } catch(e) {
           console.error(e);

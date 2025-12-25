@@ -3,10 +3,10 @@
 import { useMemo } from "react";
 import { 
   Zap, Users, Check, Award, Command, Activity, Target, 
-  ShieldAlert, CalendarClock, MessageSquare, Lightbulb, Goal, Star, Medal, Vote
+  ShieldAlert, CalendarClock, MessageSquare, Lightbulb, Goal, BookOpen, FileText, Star, StickyNote, File, ArrowLeftRight, UserPlus, Crown
 } from "lucide-react";
 import { cn, getProbationStatus } from "@/lib/utils";
-import { TeamMember, STAGES } from "../../../calendar/_components/types";
+import { TeamMember, STAGES, CalendarEvent } from "../../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore";
 import { format, formatDistanceToNow, isValid } from "date-fns";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
@@ -21,8 +21,14 @@ const getCategoryStyle = (type: string) => {
     switch (type) {
         case 'GOAL': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
         case '1-ON-1': return 'bg-purple-50 text-purple-700 border-purple-100';
-        case 'AWARD': return 'bg-amber-50 text-amber-700 border-amber-100'; // Gold for Awards
-        case 'VOTE': return 'bg-slate-100 text-slate-600 border-slate-200'; // Subtle for Votes
+        case 'AWARD': return 'bg-amber-50 text-amber-700 border-amber-100'; 
+        case 'VOTE': return 'bg-slate-100 text-slate-600 border-slate-200'; 
+        
+        // NEW SYSTEM TYPES
+        case 'PROMOTION': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+        case 'TRANSFER': return 'bg-cyan-50 text-cyan-700 border-cyan-100';
+        case 'ASSIGNMENT': return 'bg-sky-50 text-sky-700 border-sky-100';
+
         case 'INCIDENT': return 'bg-red-50 text-red-700 border-red-100';
         case 'COMMENDATION': return 'bg-amber-50 text-amber-700 border-amber-100';
         case 'REVIEW': return 'bg-blue-50 text-blue-700 border-blue-100';
@@ -46,7 +52,6 @@ export function OverviewTab({ member }: Props) {
         let category = 'MISSION';
         let desc = e.description || "";
 
-        // Determine Category
         if (desc.startsWith("[DOCUMENT LOG:")) {
              const match = desc.match(/\[DOCUMENT LOG: (.*?)\]/);
              const docType = match ? match[1] : 'Note';
@@ -55,8 +60,6 @@ export function OverviewTab({ member }: Props) {
              else if (docType.includes("Review")) category = 'REVIEW';
              else if (docType.includes("Note")) category = 'NOTE';
              else category = 'DOCUMENT';
-             
-             // Strip headers for clean display
              desc = desc.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
         }
         else if (e.type === 'Goal') category = 'GOAL';
@@ -65,27 +68,22 @@ export function OverviewTab({ member }: Props) {
         else if (e.type === 'Vote') category = 'VOTE';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
-        // Clean System Logs (e.g. Certification) for Display
+        // DETECT NEW SYSTEM LOGS
+        if (desc.includes("[SYSTEM LOG: PROMOTION]")) category = 'PROMOTION';
+        else if (desc.includes("[SYSTEM LOG: TRANSFER]")) category = 'TRANSFER';
+        else if (desc.includes("[SYSTEM LOG: ASSIGNMENT]")) category = 'ASSIGNMENT';
+
+        // Clean System Logs
         if (desc.startsWith("[SYSTEM LOG:") || desc.startsWith("[OFFICIAL")) {
-             // Removes the first line [SYSTEM LOG: X] and trims
              desc = desc.replace(/\[.*?\]\n/, "").trim();
         }
 
         history.push({ 
-            id: e.id, 
-            date: e.startDate, 
-            title: e.title, 
-            category, 
-            description: desc, 
-            rawEvent: e, 
-            mentorName: e.assigneeName 
+            id: e.id, date: e.startDate, title: e.title, category, 
+            description: desc, rawEvent: e, mentorName: e.assigneeName 
         });
     });
 
-    // NOTE: We REMOVED the manual injection of `member.badges` here.
-    // The `events` collection now handles the history of awards, fixing the duplication issue.
-
-    // Module Completion Logic
     if (member.completedTaskIds && member.completedTaskIds.length > 0) {
         let completedNames: string[] = [];
         curriculum.forEach(section => {
@@ -96,7 +94,7 @@ export function OverviewTab({ member }: Props) {
         if (completedNames.length > 0) {
              history.push({
                  id: 'module-summary',
-                 date: new Date(), // Always shows as recent for demo/context, could be refined if we stored timestamps per module
+                 date: new Date(),
                  title: `${completedNames.length} Training Modules Verified`,
                  category: 'MODULE',
                  description: `Completed: ${completedNames.slice(0, 2).join(", ")}${completedNames.length > 2 ? "..." : ""}`
@@ -113,10 +111,8 @@ export function OverviewTab({ member }: Props) {
 
   return (
     <div className="p-5 lg:p-10 space-y-6 lg:space-y-8 pb-32 h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
-        
-        {/* --- TOP ROW: MENTOR & PROBATION --- */}
+        {/* ... Mentor & Probation Cards (Unchanged) ... */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-            {/* Mentor Card */}
             {member.pairing ? (
                 <div className="bg-white p-4 lg:p-5 rounded-[24px] lg:rounded-[28px] border border-slate-200 shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
                     <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} />
@@ -136,8 +132,6 @@ export function OverviewTab({ member }: Props) {
             ) : (
                 <div className="p-6 rounded-[24px] lg:rounded-[28px] border-2 border-dashed border-slate-200 flex items-center justify-center gap-3 text-slate-300 bg-slate-50/50"><Users className="w-5 h-5" /><span className="text-[10px] font-black uppercase tracking-widest">No Mentor Assigned</span></div>
             )}
-            
-            {/* Probation Card */}
             {probation && probation.isActive && (
                 <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 lg:p-5 rounded-[24px] lg:rounded-[28px] border border-amber-100 shadow-sm relative overflow-hidden">
                     <div className="flex justify-between items-start mb-2 relative z-10">
@@ -150,7 +144,7 @@ export function OverviewTab({ member }: Props) {
             )}
         </div>
 
-        {/* --- DEPLOYMENT STATUS TIMELINE (Unchanged) --- */}
+        {/* ... Deployment Status (Unchanged) ... */}
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 text-center">Unit Deployment Status</h4>
             <div className="overflow-x-auto no-scrollbar pt-12 pb-6 -mx-6 px-6 scroll-smooth snap-x">
@@ -173,7 +167,7 @@ export function OverviewTab({ member }: Props) {
             </div>
         </div>
 
-        {/* --- ACCOLADES (Visual Display Only) --- */}
+        {/* ... Accolades ... */}
         <div className="space-y-3">
             <div className="flex items-center gap-3 px-2"><Award className="w-4 h-4 text-amber-500" /><span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Validated Accolades</span></div>
             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 pl-2 snap-x">
@@ -191,7 +185,7 @@ export function OverviewTab({ member }: Props) {
             </div>
         </div>
 
-        {/* --- INTELLIGENCE (Activity Feed) --- */}
+        {/* --- INTELLIGENCE --- */}
         <div className="bg-white p-5 lg:p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-[#004F71] text-white rounded-xl shadow-md"><Command className="w-4 h-4" /></div>

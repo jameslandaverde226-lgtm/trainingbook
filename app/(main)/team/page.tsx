@@ -208,6 +208,23 @@ export default function TeamBoardPage() {
                 dept: dept,
                 updatedAt: serverTimestamp()
             });
+
+            // LOG: INITIAL ASSIGNMENT
+            await addDoc(collection(db, "events"), {
+                title: `Unit Assignment: ${dept}`,
+                type: "Operation",
+                status: "Done",
+                priority: "High",
+                startDate: new Date(),
+                endDate: new Date(),
+                assignee: "System",
+                assigneeName: "Command",
+                teamMemberId: assignmentMember.id,
+                teamMemberName: assignmentMember.name,
+                description: `[SYSTEM LOG: ASSIGNMENT]\nInitial deployment to ${dept} Unit.`,
+                createdAt: serverTimestamp()
+            });
+
             toast.success("Unit Assigned", { id: loadToast });
             setAssignmentMember(null);
         } catch (e) {
@@ -278,12 +295,13 @@ export default function TeamBoardPage() {
         }
     };
 
-    // --- PROMOTION LOGIC (UPDATED WITH DATE TRACKING) ---
+    // --- PROMOTION LOGIC (UPDATED WITH EVENT LOGGING) ---
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         setMemberDraggingId(null); 
         
         const toastId = toast.loading(`Promoting to ${newRole}...`);
         const today = new Date().toISOString();
+        const member = team.find(m => m.id === memberId);
         
         // Optimistic Update
         updateMemberLocal(memberId, { status: newRole, role: newRole });
@@ -308,6 +326,23 @@ export default function TeamBoardPage() {
             });
 
             await batch.commit();
+
+            // LOG: PROMOTION EVENT
+            await addDoc(collection(db, "events"), {
+                title: `Rank Advancement: ${newRole}`,
+                type: "Operation",
+                status: "Done",
+                priority: "High",
+                startDate: new Date(),
+                endDate: new Date(),
+                assignee: "System",
+                assigneeName: "Command",
+                teamMemberId: memberId,
+                teamMemberName: member?.name || "Member",
+                description: `[SYSTEM LOG: PROMOTION]\nOfficial rank advanced to ${newRole}.`,
+                createdAt: serverTimestamp()
+            });
+
             toast.success("Promotion Confirmed", { id: toastId, icon: '🎖️' });
         } catch (error) {
             console.error("Promotion failed:", error);
