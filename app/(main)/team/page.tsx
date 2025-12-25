@@ -19,7 +19,7 @@ import { TeamCard } from "./_components/TeamCard";
 import { MemberDetailSheet } from "./_components/MemberDetailSheet";
 import TrainerRecruitmentModal from "./_components/TrainerRecruitmentModal";
 import TeamDynamicIsland from "./_components/TeamDynamicIsland";
-import UnitAssignmentModal from "./_components/UnitAssignmentModal"; 
+import UnitAssignmentModal from "./_components/UnitAssignmentModal";
 
 // --- PROMOTION HUD (Drop Target for Role Changes) ---
 function PromotionHUD({ 
@@ -29,6 +29,7 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
+    // Hide Admin from promotion target list
     const visibleStages = STAGES.filter(s => s.id !== "Admin");
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
@@ -103,7 +104,6 @@ function PromotionHUD({
 
 // --- MAIN PAGE ---
 export default function TeamBoardPage() {
-    // FIX: Include updateMemberLocal in destructuring
     const { team, subscribeTeam, subscribeEvents, updateMemberLocal } = useAppStore(); 
     
     // Filters
@@ -243,14 +243,7 @@ export default function TeamBoardPage() {
                     createdAt: serverTimestamp()
                 });
 
-                toast.success(
-                    <div className="flex flex-col">
-                        <span className="font-bold">Mentorship Established</span>
-                        <span className="text-xs opacity-90">{trainer.name} is now guiding {member.name}</span>
-                    </div>,
-                    { id: loadToast, icon: '🤝', style: { background: '#004F71', color: '#fff', padding: '16px', borderRadius: '16px' } }
-                );
-                
+                toast.success(`Linked: ${trainer.name} -> ${member.name}`, { id: loadToast });
                 setIsTrainerPanelOpen(false);
             } catch (err) {
                 console.error(err);
@@ -279,27 +272,27 @@ export default function TeamBoardPage() {
 
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         setMemberDraggingId(null); 
-        const loadToast = toast.loading(`Promoting to ${newRole}...`);
         
-        // 1. OPTIMISTIC UPDATE: Update local state instantly
+        // 1. Create toast and get ID
+        const toastId = toast.loading(`Promoting to ${newRole}...`);
+        
+        // 2. Optimistic Update (Immediate Feedback)
         updateMemberLocal(memberId, { status: newRole, role: newRole });
 
         try {
-            // 2. REAL UPDATE
+            // 3. Database Update
             await setDoc(doc(db, "profileOverrides", memberId), {
                 role: newRole, 
                 status: newRole,
                 updatedAt: serverTimestamp()
             }, { merge: true });
 
-            toast.success("Promotion Confirmed", { id: loadToast, icon: '🎖️' });
+            // 4. Update existing toast
+            toast.success("Promotion Confirmed", { id: toastId, icon: '🎖️' });
         } catch (error) {
             console.error(error);
-            toast.error("Deployment Failed", { id: loadToast });
-            
-            // Revert on fail if needed
-            // const original = team.find(m => m.id === memberId);
-            // if(original) updateMemberLocal(memberId, { status: original.status });
+            toast.error("Deployment Failed", { id: toastId });
+            // Optional: Revert local state here on failure
         }
     };
 

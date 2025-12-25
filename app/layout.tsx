@@ -17,20 +17,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // suppressHydrationWarning prevents errors caused by browser extensions 
-    // modifying the <html> tag (e.g., Grammarly, Dark Reader, Translators).
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
         <AuthGuard>
            {children}
         </AuthGuard>
         
-        {/* Global Toast Notifications */}
+        {/* Global Toast Config - Tactical Dark Mode Style */}
         <Toaster 
           position="bottom-right" 
           toastOptions={{
+            // Define default styles
             style: {
-              background: '#0F172A',
+              background: '#0F172A', // Slate 900
               color: '#fff',
               borderRadius: '16px',
               fontSize: '12px',
@@ -38,18 +37,34 @@ export default function RootLayout({
               padding: '12px 16px',
               boxShadow: '0 10px 30px -10px rgba(0,0,0,0.3)',
               border: '1px solid rgba(255,255,255,0.1)',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
             },
+            // Success State
             success: {
                 iconTheme: {
-                    primary: '#10b981',
+                    primary: '#10b981', // Emerald 500
                     secondary: '#fff',
                 },
+                style: {
+                    borderLeft: '4px solid #10b981',
+                }
             },
+            // Error State
             error: {
                 iconTheme: {
-                    primary: '#ef4444',
+                    primary: '#ef4444', // Red 500
                     secondary: '#fff',
                 },
+                style: {
+                    borderLeft: '4px solid #ef4444',
+                }
+            },
+            // Loading State
+            loading: {
+                style: {
+                    borderLeft: '4px solid #3b82f6', // Blue 500
+                }
             }
         }} />
       </body>
