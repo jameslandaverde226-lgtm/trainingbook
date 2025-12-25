@@ -1,3 +1,4 @@
+// --- FILE: ./app/(main)/calendar/_components/EventDetailSheet.tsx ---
 "use client";
 
 import { useState } from "react";
@@ -6,7 +7,8 @@ import {
   X, Calendar, Clock, User, Shield, Target, Zap, Activity, 
   MessageSquare, Trash2, CheckCircle2, AlertCircle, 
   Terminal, Sparkles, Fingerprint, Crown, ArrowRight, Save,
-  Quote, ShieldAlert, AlertTriangle, Info, Sticker
+  Quote, ShieldAlert, AlertTriangle, Info, Sticker,
+  FileText, StickyNote 
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -97,6 +99,32 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
           : [...currentStickers, stickerId];
       
       onUpdate(event.id, { stickers: newStickers });
+  };
+
+  // --- PARSE DOCUMENT LOGS ---
+  const isDocumentLog = event.description?.startsWith("[DOCUMENT LOG:");
+  let logType = "";
+  let cleanDescription = event.description || "";
+
+  if (isDocumentLog) {
+      const match = event.description?.match(/\[DOCUMENT LOG: (.*?)\]\n\n([\s\S]*)/);
+      if (match) {
+          logType = match[1];
+          cleanDescription = match[2];
+      } else {
+          // Fallback if regex fails but tag exists
+          cleanDescription = event.description?.replace(/\[DOCUMENT LOG: .*?\]/, "").trim() || "";
+      }
+  }
+
+  // Helper to get icon for log type
+  const getLogIcon = (type: string) => {
+      switch(type) {
+          case 'Incident Report': return <ShieldAlert className="w-5 h-5 text-red-500" />;
+          case 'Commendation': return <CheckCircle2 className="w-5 h-5 text-emerald-500" />;
+          case 'Performance Review': return <FileText className="w-5 h-5 text-blue-500" />;
+          default: return <StickyNote className="w-5 h-5 text-amber-500" />;
+      }
   };
 
   return (
@@ -194,15 +222,29 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
                 </div>
             </div>
 
-            {/* Operational Intel */}
+            {/* Operational Intel (Includes Document Parsing) */}
             <div className="space-y-3">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
                     <MessageSquare className="w-3.5 h-3.5" /> Operational Intel
                 </span>
                 <div className="p-6 md:p-8 bg-slate-50/50 border border-slate-200 rounded-[32px] relative overflow-hidden group">
                     <Quote className="absolute top-4 right-4 w-10 h-10 text-slate-200 rotate-12" />
+                    
+                    {/* NEW: Document Log Header */}
+                    {isDocumentLog && (
+                        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200/60">
+                            <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100">
+                                {getLogIcon(logType)}
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">Official Record</span>
+                                <span className="text-sm font-bold text-slate-900">{logType}</span>
+                            </div>
+                        </div>
+                    )}
+
                     <p className="text-sm md:text-base font-medium text-slate-600 leading-relaxed italic relative z-10 whitespace-pre-wrap">
-                        {event.description || "No specific operational context provided."}
+                        {cleanDescription || "No specific operational context provided."}
                     </p>
                 </div>
             </div>
