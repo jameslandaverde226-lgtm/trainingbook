@@ -64,14 +64,12 @@ export default function CertificationsDynamicIsland({
 }: Props) {
 
     return (
-        // CHANGED top-20/top-24 to top-28/top-32 to sit clearly below the main header
         <div className="fixed top-24 md:top-28 left-0 right-0 z-[90] flex justify-center pointer-events-none px-4">
             <motion.div 
                 layout
                 transition={SPRING_TRANSITION}
                 className={cn(
                     "pointer-events-auto bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.2)] rounded-[32px] flex flex-col overflow-hidden ring-1 ring-black/5",
-                    // Width Logic
                     isExpanded && activeView === 'armory' ? "w-[94vw] md:w-[600px]" : "w-fit"
                 )}
             >
@@ -79,7 +77,7 @@ export default function CertificationsDynamicIsland({
                 <motion.div layout="position" className="flex items-center justify-between p-1.5 gap-1.5">
                     
                     <div className="flex items-center gap-1.5">
-                        {/* ARMORY TAB (Navy) */}
+                        {/* ARMORY TAB */}
                         <button 
                             onClick={() => { setActiveView("armory"); setIsExpanded(false); }}
                             className={cn(
@@ -92,7 +90,7 @@ export default function CertificationsDynamicIsland({
                             <Award className="w-4 h-4" /> <span className="hidden md:inline">Armory</span>
                         </button>
 
-                        {/* RECOGNITION TAB (Red) */}
+                        {/* RECOGNITION TAB */}
                         <button 
                             onClick={() => { setActiveView("eotm"); setIsExpanded(false); }}
                             className={cn(

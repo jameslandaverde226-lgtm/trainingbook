@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { 
   Search, Loader2, Sparkles, X, Layout, Pipette, Check, 
-  Trash2, Edit3, User, Users, RefreshCw, Star, Plus, MoreHorizontal, ArrowRight, Shield, Award
+  Trash2, Edit3, User, Users, RefreshCw, Star, Plus, MoreHorizontal, ArrowRight, Shield, Award, Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -239,24 +239,30 @@ export default function CertificationsPage() {
       }
   };
 
-  const handleDragUpdate = (_: any, info: PanInfo) => {
-    const target = document.elementFromPoint(info.point.x, info.point.y);
-    const card = target?.closest("[data-member-id]");
+  // --- DRAG HANDLERS ---
+  const handleDragStart = () => {
+    setIsDragging(true);
+    setIsArmoryExpanded(true); // Ensure source is visible
+  };
+
+  const handleDragEnd = async (event: any, info: any, badge: any) => {
+    setIsDragging(false);
+    
+    // Hit Detection
+    const x = info.point.x;
+    const y = info.point.y;
+    const elements = document.elementsFromPoint(x, y);
+    const card = elements.find(el => el.hasAttribute("data-member-id"));
+    
     if (card) {
-        const id = card.getAttribute("data-member-id");
-        if (id !== hoveredMemberId) setHoveredMemberId(id);
-    } else {
-        setHoveredMemberId(null);
+        const targetId = card.getAttribute("data-member-id");
+        if (targetId) {
+            await awardBadge(targetId, badge);
+        }
     }
   };
 
-  const handleDragEnd = async (_: any, __: any, badge: any) => {
-    setIsDragging(false);
-    const targetId = hoveredMemberId; 
-    setHoveredMemberId(null);
-    if (targetId) awardBadge(targetId, badge);
-  };
-
+  // --- CRUD HANDLERS ---
   const openForge = (badge?: any) => {
     if (badge) {
         setEditingId(badge.id);
@@ -307,7 +313,7 @@ export default function CertificationsPage() {
           setIsExpanded={setIsArmoryExpanded}
           badges={customAccolades}
           onOpenForge={() => openForge()}
-          onDragStart={() => { setIsDragging(true); setIsArmoryExpanded(true); }}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
       />
 
@@ -398,6 +404,15 @@ export default function CertificationsPage() {
                                         >
                                             <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} />
                                             
+                                            {/* DROPPABLE OVERLAY */}
+                                            {isDragging && (
+                                                <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/60 backdrop-blur-[1px]">
+                                                    <div className="px-4 py-2 bg-[#004F71] text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2">
+                                                        <Target className="w-4 h-4" /> Drop to Award
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <div className="p-5 pl-7 flex items-start gap-4">
                                                 <div className="relative shrink-0">
                                                     <div className={cn(
@@ -456,15 +471,6 @@ export default function CertificationsPage() {
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            {/* Drop Overlay */}
-                                            {isHoveredTarget && isDragging && (
-                                                <div className="absolute inset-0 z-40 bg-white/80 backdrop-blur-sm flex items-center justify-center">
-                                                    <div className="px-5 py-2 bg-[#004F71] text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl animate-bounce flex items-center gap-2">
-                                                        <Sparkles className="w-3.5 h-3.5" /> Validate
-                                                    </div>
-                                                </div>
-                                            )}
                                         </motion.div>
                                     );
                                 })
