@@ -114,19 +114,25 @@ export default function TeamBoardPage() {
     const [visibleCount, setVisibleCount] = useState(12);
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    // Interaction State
-    const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+    // --- KEY CHANGE: Use ID instead of Object to allow live updates ---
+    const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+    
     const [assignmentMember, setAssignmentMember] = useState<TeamMember | null>(null); 
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
     const [trainerDraggingId, setTrainerDraggingId] = useState<string | null>(null);
     const [isTrainerPanelOpen, setIsTrainerPanelOpen] = useState(false);
 
+    // Derived active member (Reactive!)
+    const selectedMember = useMemo(() => 
+        team.find(m => m.id === selectedMemberId) || null, 
+    [team, selectedMemberId]);
+
     // Subscriptions
     useEffect(() => {
         const unsubTeam = subscribeTeam();
         const unsubEvents = subscribeEvents(); 
-        const unsubCurriculum = subscribeCurriculum(); // Added Curriculum Subscription
+        const unsubCurriculum = subscribeCurriculum();
         
         return () => { 
             unsubTeam(); 
@@ -188,7 +194,7 @@ export default function TeamBoardPage() {
         if (member.dept === "Unassigned") {
             setAssignmentMember(member);
         } else {
-            setSelectedMember(member);
+            setSelectedMemberId(member.id); // Save ID, not object
         }
     };
 
@@ -273,23 +279,17 @@ export default function TeamBoardPage() {
         }
     };
 
-    // --- FIX: UPDATED PROMOTION LOGIC TO USE BATCH WRITE ---
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         setMemberDraggingId(null); 
         
-        // 1. Create Toast ID
         const toastId = toast.loading(`Promoting to ${newRole}...`);
         
-        // 2. OPTIMISTIC UPDATE: Update both STATUS and ROLE locally
+        // Optimistic Update
         updateMemberLocal(memberId, { status: newRole, role: newRole });
 
         try {
-            // 3. DATABASE UPDATE: Using Batch Write to ensure consistency
             const batch = writeBatch(db);
-            
-            // Ref for overrides (so scraper doesn't overwrite it later)
             const overrideRef = doc(db, "profileOverrides", memberId);
-            // Ref for base document (so it appears correct immediately in console/lists)
             const memberRef = doc(db, "teamMembers", memberId);
 
             batch.set(overrideRef, {
@@ -305,20 +305,15 @@ export default function TeamBoardPage() {
             });
 
             await batch.commit();
-
-            // 4. SUCCESS
             toast.success("Promotion Confirmed", { id: toastId, icon: '🎖️' });
         } catch (error) {
             console.error("Promotion failed:", error);
             toast.error("Deployment Failed", { id: toastId });
-            // Optional: Revert optimistic update here if critical
         }
     };
 
     const handleMemberDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo, member: TeamMember) => {
         setMemberDraggingId(null);
-        
-        // Get drop coordinates
         // @ts-ignore
         const clientX = event.clientX || event.changedTouches?.[0]?.clientX;
         // @ts-ignore
@@ -341,7 +336,6 @@ export default function TeamBoardPage() {
         <div className="min-h-screen bg-[#F8FAFC] pb-20 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
             <div className="absolute inset-0 pointer-events-none opacity-[0.4]" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-            {/* DYNAMIC ISLAND FILTER */}
             <TeamDynamicIsland 
                 activeStage={activeStage} 
                 setActiveStage={setActiveStage}
@@ -349,14 +343,12 @@ export default function TeamBoardPage() {
                 setActiveFilter={setActiveFilter}
             />
 
-            {/* HEADER */}
             <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-48 px-4 md:px-8 space-y-6 relative z-10">
                 <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="space-y-1"><h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none uppercase">{activeStage}</h2></div>
                 </div>
             </div>
 
-            {/* GRID AREA */}
             <div className="mt-4 md:mt-8 relative z-10 px-0 md:px-8 max-w-[1400px] mx-auto">
                 {viewMode === "grid" ? (
                     <>
@@ -396,7 +388,6 @@ export default function TeamBoardPage() {
                             </motion.div>
                         </LayoutGroup>
 
-                        {/* Infinite Scroll Sentinel */}
                         {visibleCount < filteredMembers.length && (
                             <div ref={loadMoreRef} className="py-12 flex justify-center w-full">
                                 <div className="flex items-center gap-2 text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-100 shadow-sm">
@@ -413,7 +404,6 @@ export default function TeamBoardPage() {
                 )}
             </div>
 
-            {/* MOBILE SEARCH BAR */}
             <div className="md:hidden fixed bottom-28 left-0 right-0 z-40 flex items-center pointer-events-none justify-center px-4">
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="pointer-events-auto flex items-center bg-white/90 backdrop-blur-2xl border border-white/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] rounded-full h-14 p-1.5 ring-1 ring-slate-900/5 w-full max-w-sm gap-2">
                     <button onClick={() => setViewMode(viewMode === 'grid' ? 'horizontal' : 'grid')} className="w-11 h-full bg-slate-100 rounded-full flex items-center justify-center text-slate-500 shadow-sm border border-slate-200 shrink-0 active:scale-95 transition-transform">
@@ -426,10 +416,8 @@ export default function TeamBoardPage() {
                 </motion.div>
             </div>
 
-            {/* MODALS & OVERLAYS */}
             <TrainerRecruitmentModal isOpen={isTrainerPanelOpen} onClose={() => setIsTrainerPanelOpen(false)} onDragStart={handleTrainerDragStart} onDragEnd={handleTrainerDragEnd} draggingId={trainerDraggingId} />
             
-            {/* ASSIGNMENT MODAL */}
             <AnimatePresence>
                 {assignmentMember && (
                     <UnitAssignmentModal 
@@ -441,7 +429,17 @@ export default function TeamBoardPage() {
             </AnimatePresence>
 
             <AnimatePresence>{memberDraggingId && <PromotionHUD draggingMember={team.find(m => m.id === memberDraggingId)} onPromote={handlePromoteMember} />}</AnimatePresence>
-            <AnimatePresence>{selectedMember && <MemberDetailSheet member={selectedMember} activeTab={activeTab} setActiveTab={setActiveTab} onClose={() => setSelectedMember(null)} />}</AnimatePresence>
+            
+            <AnimatePresence>
+                {selectedMember && (
+                    <MemberDetailSheet 
+                        member={selectedMember} 
+                        activeTab={activeTab} 
+                        setActiveTab={setActiveTab} 
+                        onClose={() => setSelectedMemberId(null)} 
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }
