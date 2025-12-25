@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { format, addDays, differenceInCalendarDays } from "date-fns";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, LayoutGroup } from "framer-motion";
 import { 
   Plus, Search, Loader2, Calendar as CalendarIcon, 
   RotateCcw, ChevronDown, Layers, ShieldCheck, UserCheck, 
@@ -31,60 +31,70 @@ import AdvancedCreateModal from "./_components/AdvancedCreateModal";
 import EventDetailSheet from "./_components/EventDetailSheet";
 import ClientPortal from "@/components/core/ClientPortal";
 
-// --- SIDEBAR ACCORDION ---
-function SidebarAccordion({ id, title, icon: Icon, isOpen, onToggle, children, activeCount, totalCount }: any) {
+// --- NEW SMOOTH ACCORDION COMPONENT ---
+function TacticalSidebarAccordion({ 
+    id, 
+    title, 
+    icon: Icon, 
+    isOpen, 
+    onToggle, 
+    children, 
+    activeCount, 
+    totalCount 
+}: any) {
     const isFiltered = activeCount < totalCount;
+
     return (
-        <div className={cn(
-            "border-b border-slate-100/60 transition-all duration-500",
-            isOpen ? "bg-slate-50/40" : "bg-transparent"
-        )}>
-            <button 
+        <motion.div layout className="relative overflow-hidden">
+            <motion.button 
+                layout="position"
                 onClick={() => onToggle(isOpen ? null : id)}
-                className="w-full py-5 px-8 flex items-center justify-between group outline-none"
+                className={cn(
+                    "w-full py-4 px-6 flex items-center justify-between group outline-none transition-all duration-300 rounded-2xl mx-2 my-1",
+                    isOpen ? "bg-white shadow-lg shadow-slate-200/50" : "hover:bg-slate-100/50"
+                )}
+                style={{ width: "calc(100% - 16px)" }}
             >
-                <div className="flex items-center gap-4">
-                    <div className={cn(
-                        "p-2 rounded-xl transition-all duration-500 shadow-sm",
-                        isOpen ? "bg-white text-[#E51636]" : "bg-slate-100 text-slate-400 group-hover:text-slate-600"
-                    )}>
-                        <Icon className="w-4 h-4" />
-                    </div>
-                    <div className="flex flex-col items-start leading-none">
-                        <span className={cn(
-                            "text-[10px] font-black uppercase tracking-widest transition-colors",
-                            isOpen ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600"
-                        )}>{title}</span>
-                    </div>
-                </div>
                 <div className="flex items-center gap-3">
-                    {isFiltered && !isOpen && (
-                        <div className="px-2 py-0.5 rounded-full bg-red-50 text-[#E51636] flex items-center justify-center text-[8px] font-black border border-red-100 uppercase tracking-tighter">
-                            Filtered
-                        </div>
-                    )}
-                    <ChevronDown className={cn(
-                        "w-4 h-4 text-slate-300 transition-transform duration-500",
-                        isOpen && "rotate-180 text-[#E51636]"
-                    )} />
+                    <div className={cn(
+                        "p-2 rounded-xl transition-all duration-500 shadow-sm relative z-10",
+                        isOpen ? "bg-[#004F71] text-white" : "bg-white border border-slate-100 text-slate-400 group-hover:text-slate-600 group-hover:scale-110"
+                    )}>
+                        <Icon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex flex-col items-start leading-none gap-0.5">
+                        <span className={cn(
+                            "text-[9px] font-black uppercase tracking-[0.2em] transition-colors",
+                            isOpen ? "text-[#004F71]" : "text-slate-400 group-hover:text-slate-600"
+                        )}>{title}</span>
+                        {isFiltered && !isOpen && (
+                            <span className="text-[8px] font-bold text-[#E51636] uppercase tracking-wider">Filtered</span>
+                        )}
+                    </div>
                 </div>
-            </button>
-            <AnimatePresence initial={false}>
+                <div className={cn("transition-transform duration-500", isOpen && "rotate-180")}>
+                    <ChevronDown className={cn("w-3.5 h-3.5", isOpen ? "text-[#004F71]" : "text-slate-300")} />
+                </div>
+            </motion.button>
+            
+            <AnimatePresence>
                 {isOpen && (
                     <motion.div 
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
                         className="overflow-hidden"
                     >
-                        <div className="px-6 pb-6 pt-2 space-y-2">
-                            {children}
+                        <div className="px-4 pb-4 pt-1 space-y-2">
+                            <div className="p-3 bg-slate-50/50 rounded-3xl border border-slate-100/60 shadow-inner">
+                                {children}
+                            </div>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </motion.div>
     );
 }
 
@@ -285,38 +295,52 @@ export default function CalendarPage() {
 
   // --- COMPONENT: Sidebar Content ---
   const SidebarContent = () => (
-    <>
-        <div className="p-8 pb-6 border-b border-slate-200/40 bg-white shadow-sm flex items-center justify-between shrink-0">
-            <div>
-                <h1 className="text-xl font-black text-slate-900 tracking-tighter uppercase leading-none mb-2">Ops Center</h1>
-                <div className="flex items-center gap-2">
-                    <div className="bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg text-[9px] shadow-inner"><SystemClock /></div>
-                    <button onClick={resetFilters} className="text-slate-400 hover:text-[#E51636] font-bold text-[8px] uppercase tracking-[0.2em] transition-colors group flex items-center gap-1">
-                        <RotateCcw className="w-3 h-3 group-hover:rotate-[-90deg] transition-transform" /> Reset
+    <div className="flex flex-col h-full bg-[#F8FAFC]">
+        {/* Header */}
+        <div className="p-6 pb-4 border-b border-slate-100 bg-white/50 backdrop-blur-sm sticky top-0 z-20">
+            <div className="flex items-center justify-between mb-2">
+                <h1 className="text-lg font-[1000] text-slate-900 tracking-tight uppercase">Ops Center</h1>
+                <div className="flex gap-2">
+                    <button onClick={resetFilters} className="p-2 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-[#E51636] transition-all border border-transparent hover:border-slate-100" title="Reset Filters">
+                        <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                    {/* Hide on mobile, show on desktop */}
+                    <button onClick={() => setIsSidebarOpen(false)} className="hidden lg:flex p-2 hover:bg-white hover:shadow-sm rounded-lg text-slate-400 hover:text-[#004F71] transition-all border border-transparent hover:border-slate-100">
+                        <PanelLeftClose className="w-3.5 h-3.5" />
                     </button>
                 </div>
             </div>
-            {/* Collapse Trigger (Desktop Only) */}
-            <button 
-                onClick={() => setIsSidebarOpen(false)}
-                className="hidden lg:flex p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-[#004F71] transition-all"
-            >
-                <PanelLeftClose className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+                <div className="bg-white border border-slate-200 px-2 py-0.5 rounded-md text-[9px] shadow-sm"><SystemClock /></div>
+                <span className="text-[8px] font-bold text-slate-300 uppercase tracking-widest">Live Command</span>
+            </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-20">
-            {/* 0. TACTICAL MARKERS */}
-            <SidebarAccordion id="stickers" title="Tactical Markers" icon={Sticker} isOpen={openSection === 'stickers'} onToggle={setOpenSection} activeCount={0} totalCount={0}>
-                <div className={cn("p-4 rounded-3xl border transition-all duration-500", activeSticker ? "bg-blue-50/50 border-[#004F71]/20 shadow-inner" : "bg-white border-slate-100 shadow-sm")}>
-                    <div className="flex justify-between items-center mb-4">
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            {activeSticker ? "Select Event to Apply" : "Select Tool"}
-                        </p>
-                        {activeSticker && <button onClick={() => setActiveSticker(null)} className="text-[9px] font-black text-[#E51636] uppercase tracking-widest hover:underline">Clear</button>}
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+            <LayoutGroup>
+                {/* 0. SYSTEM LOGS (Simple Toggle) */}
+                <motion.button 
+                    layout="position"
+                    onClick={() => setShowSystemLogs(!showSystemLogs)} 
+                    className={cn(
+                        "w-full flex items-center justify-between py-4 px-6 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all border mx-2 my-1",
+                        showSystemLogs 
+                            ? "bg-white border-[#E51636]/20 text-[#E51636] shadow-lg shadow-red-500/10" 
+                            : "bg-transparent border-transparent text-slate-400 hover:bg-slate-100/50 hover:text-slate-600"
+                    )}
+                    style={{ width: "calc(100% - 16px)" }}
+                >
+                    <div className="flex items-center gap-3">
+                        <Server className={cn("w-3.5 h-3.5", showSystemLogs && "text-[#E51636]")} />
+                        <span>System Logs</span>
                     </div>
-                    
-                    <div className="grid grid-cols-4 gap-3">
+                    <div className={cn("w-1.5 h-1.5 rounded-full transition-all duration-500", showSystemLogs ? "bg-[#E51636] shadow-[0_0_8px_#E51636] scale-125" : "bg-slate-200")} />
+                </motion.button>
+
+                {/* 1. TACTICAL MARKERS */}
+                <TacticalSidebarAccordion id="stickers" title="Tactical Markers" icon={Sticker} isOpen={openSection === 'stickers'} onToggle={setOpenSection} activeCount={0} totalCount={0}>
+                    <div className="grid grid-cols-4 gap-2">
                         {STICKERS.map(s => {
                             const isActive = activeSticker === s.id;
                             return (
@@ -326,63 +350,65 @@ export default function CalendarPage() {
                             )
                         })}
                     </div>
-                </div>
-            </SidebarAccordion>
+                    {activeSticker && (
+                        <div className="mt-3 text-center">
+                            <button onClick={() => setActiveSticker(null)} className="text-[8px] font-black text-[#E51636] uppercase tracking-widest hover:underline">Clear Selection</button>
+                        </div>
+                    )}
+                </TacticalSidebarAccordion>
 
-            {/* SYSTEM LOGS */}
-            <div className="px-8 py-2">
-                <button onClick={() => setShowSystemLogs(!showSystemLogs)} className={cn("w-full flex items-center justify-between py-3 px-5 rounded-[22px] text-[10px] font-black uppercase tracking-widest transition-all border", showSystemLogs ? "bg-red-50 border-red-100 text-[#E51636] shadow-sm shadow-red-500/10" : "bg-white/40 border-slate-100 text-slate-400 hover:bg-white")}>
-                    <div className="flex items-center gap-3"><Server className={cn("w-3.5 h-3.5", showSystemLogs && "text-[#E51636]")} /><span>System Logs</span></div>
-                    <div className={cn("w-1.5 h-1.5 rounded-full", showSystemLogs ? "bg-[#E51636] shadow-[0_0_8px_#E51636] animate-pulse" : "bg-slate-300")} />
-                </button>
-            </div>
+                {/* 2. CLASSIFICATION */}
+                <TacticalSidebarAccordion id="classification" title="Classification" icon={Layers} isOpen={openSection === 'classification'} onToggle={setOpenSection} activeCount={activeTypes.length} totalCount={EVENT_TYPES.length}>
+                    <div className="space-y-1.5">
+                        {EVENT_TYPES.map(type => {
+                            const isSelected = activeTypes.includes(type);
+                            return (
+                                <button key={type} onClick={() => toggle(activeTypes, type, setActiveTypes)} className={cn("w-full flex items-center justify-between py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border", isSelected ? `bg-white border-slate-200 text-slate-900 shadow-sm` : "bg-transparent border-transparent text-slate-400 hover:bg-slate-100")}>
+                                    <div className="flex items-center gap-2"><div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-[#004F71]" : "bg-slate-300")} /><span>{getEventLabel(type)}</span></div>
+                                    {isSelected && <Check className="w-3 h-3 text-[#004F71]" />}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </TacticalSidebarAccordion>
 
-            {/* 1. CLASSIFICATION */}
-            <SidebarAccordion id="classification" title="Classification" icon={Layers} isOpen={openSection === 'classification'} onToggle={setOpenSection} activeCount={activeTypes.length} totalCount={EVENT_TYPES.length}>
-                <div className="grid grid-cols-1 gap-2">
-                    {EVENT_TYPES.map(type => {
-                        const isSelected = activeTypes.includes(type);
-                        return (
-                            <button key={type} onClick={() => toggle(activeTypes, type, setActiveTypes)} className={cn("w-full flex items-center justify-between py-3 px-5 rounded-[22px] text-[10px] font-black uppercase tracking-widest transition-all border", isSelected ? `bg-white border-slate-900 shadow-lg scale-[1.02]` : "bg-white/40 border-slate-100 text-slate-400 opacity-60")}>
-                                <div className="flex items-center gap-3"><div className={cn("w-2 h-2 rounded-full", isSelected ? "bg-[#E51636]" : "bg-slate-300")} /><span>{getEventLabel(type)}</span></div>
-                                {isSelected && <Check className="w-4 h-4 text-[#E51636]" />}
-                            </button>
-                        )
-                    })}
-                </div>
-            </SidebarAccordion>
+                {/* 3. DEPLOYMENT ZONE */}
+                <TacticalSidebarAccordion id="deployment" title="Deployment Zone" icon={ShieldCheck} isOpen={openSection === 'deployment'} onToggle={setOpenSection} activeCount={activeDepts.length} totalCount={2}>
+                    <div className="grid grid-cols-2 gap-2">
+                        {[{ id: "FOH", label: "Front House", icon: Coffee, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" }, { id: "BOH", label: "Back House", icon: Flame, color: "text-red-600", bg: "bg-red-50", border: "border-red-100" }].map(dept => {
+                            const isSelected = activeDepts.includes(dept.id as Department);
+                            return (
+                                <button key={dept.id} onClick={() => toggle(activeDepts, dept.id as Department, setActiveDepts)} className={cn("flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all h-24 justify-center relative overflow-hidden", isSelected ? "bg-white border-slate-200 shadow-md" : "bg-slate-50 border-transparent opacity-60 hover:opacity-100")}>
+                                    {isSelected && <div className={cn("absolute inset-0 opacity-10", dept.bg)} />}
+                                    <div className={cn("p-2 rounded-xl shadow-sm bg-white", dept.color)}><dept.icon className="w-4 h-4" /></div>
+                                    <span className={cn("text-[8px] font-black uppercase tracking-widest", isSelected ? "text-slate-900" : "text-slate-400")}>{dept.id}</span>
+                                    {isSelected && <div className={cn("absolute top-2 right-2 w-1.5 h-1.5 rounded-full", dept.bg.replace('bg-', 'bg-').replace('50', '500'))} />}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </TacticalSidebarAccordion>
 
-            {/* 2. DEPLOYMENT ZONE */}
-            <SidebarAccordion id="deployment" title="Deployment Zone" icon={ShieldCheck} isOpen={openSection === 'deployment'} onToggle={setOpenSection} activeCount={activeDepts.length} totalCount={2}>
-                <div className="grid grid-cols-2 gap-3">
-                    {[{ id: "FOH", label: "Front House", icon: Coffee, color: "text-blue-600", bg: "bg-blue-50" }, { id: "BOH", label: "Back House", icon: Flame, color: "text-red-600", bg: "bg-red-50" }].map(dept => {
-                        const isSelected = activeDepts.includes(dept.id as Department);
-                        return (
-                            <button key={dept.id} onClick={() => toggle(activeDepts, dept.id as Department, setActiveDepts)} className={cn("flex flex-col items-center gap-3 p-5 rounded-[32px] border transition-all h-28 justify-center", isSelected ? "bg-white border-slate-900 shadow-xl scale-105" : "bg-white/40 border-slate-100 opacity-50")}>
-                                <div className={cn("p-2.5 rounded-2xl shadow-sm", isSelected ? dept.bg : "bg-slate-100", isSelected ? dept.color : "text-slate-300")}><dept.icon className="w-4 h-4" /></div>
-                                <span className={cn("text-[8px] font-black uppercase tracking-widest", isSelected ? "text-slate-900" : "text-slate-400")}>{dept.id}</span>
-                            </button>
-                        )
-                    })}
-                </div>
-            </SidebarAccordion>
-
-            {/* 3. IMPACT PRIORITY */}
-            <SidebarAccordion id="priority" title="Impact Priority" icon={Zap} isOpen={openSection === 'priority'} onToggle={setOpenSection} activeCount={activePriorities.length} totalCount={PRIORITIES.length}>
-                <div className="grid grid-cols-1 gap-2">
-                    {PRIORITIES.map(p => {
-                        const isSelected = activePriorities.includes(p);
-                        return (
-                            <button key={p} onClick={() => toggle(activePriorities, p, setActivePriorities)} className={cn("w-full flex items-center justify-between py-3 px-5 rounded-[22px] text-[10px] font-black uppercase tracking-widest transition-all border", isSelected ? `bg-white border-slate-900 shadow-md` : "bg-white/40 border-slate-100 text-slate-300 opacity-60")}>
-                                <div className="flex items-center gap-3"><Flag className={cn("w-3 h-3", isSelected ? "text-[#E51636] fill-current" : "")} /><span>{p} Level</span></div>
-                                {isSelected && <Check className="w-4 h-4 text-[#E51636]" />}
-                            </button>
-                        )
-                    })}
-                </div>
-            </SidebarAccordion>
+                {/* 4. IMPACT PRIORITY */}
+                <TacticalSidebarAccordion id="priority" title="Impact Priority" icon={Zap} isOpen={openSection === 'priority'} onToggle={setOpenSection} activeCount={activePriorities.length} totalCount={PRIORITIES.length}>
+                    <div className="space-y-1.5">
+                        {PRIORITIES.map(p => {
+                            const isSelected = activePriorities.includes(p);
+                            return (
+                                <button key={p} onClick={() => toggle(activePriorities, p, setActivePriorities)} className={cn("w-full flex items-center justify-between py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border", isSelected ? `bg-white border-slate-200 text-slate-900 shadow-sm` : "bg-transparent border-transparent text-slate-400 hover:bg-slate-100")}>
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? (p === 'High' ? "bg-[#E51636]" : p === 'Medium' ? "bg-amber-500" : "bg-blue-500") : "bg-slate-300")} />
+                                        <span>{p} Priority</span>
+                                    </div>
+                                    {isSelected && <Check className="w-3 h-3 text-[#004F71]" />}
+                                </button>
+                            )
+                        })}
+                    </div>
+                </TacticalSidebarAccordion>
+            </LayoutGroup>
         </div>
-    </>
+    </div>
   );
 
   return (
