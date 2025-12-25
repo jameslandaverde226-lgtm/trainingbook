@@ -25,11 +25,11 @@ import { CalendarEvent, TeamMember, EventType, getEventLabel } from "../calendar
 import EventDetailSheet from "../calendar/_components/EventDetailSheet";
 import OneOnOneSessionModal from "../calendar/_components/OneOnOneSessionModal";
 import ClientPortal from "@/components/core/ClientPortal";
-import { TeamCard } from "../team/_components/TeamCard"; // Imported TeamCard
-import { MemberDetailSheet } from "../team/_components/MemberDetailSheet"; // Imported DetailSheet
+import { TeamCard } from "../team/_components/TeamCard"; 
+import { MemberDetailSheet } from "../team/_components/MemberDetailSheet"; 
+import StrategicVisionModal from "./_components/StrategicVisionModal"; // Ensure this file is created!
 
 // --- REUSABLE UI COMPONENTS ---
-
 const GlassCard = ({ children, className, onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
   <motion.div 
     whileHover={onClick ? { scale: 1.02, y: -2 } : {}}
@@ -55,7 +55,7 @@ const ActivityIcon = ({ type }: { type: EventType | 'System' }) => {
     }
 };
 
-// --- REDESIGNED KPI MODAL ---
+// --- KPI MODAL ---
 interface KPIModalProps {
     title: string;
     items: { id: string; title: string; subtitle: string; icon?: any; status?: string, rawEvent?: CalendarEvent }[];
@@ -83,7 +83,6 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                     transition={{ type: "spring", damping: 25, stiffness: 300 }}
                     className="bg-[#F8FAFC] w-full max-w-2xl rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] border border-white/40 ring-1 ring-black/5"
                 >
-                    {/* --- HEADER --- */}
                     <div className={cn("p-8 pt-10 text-white relative overflow-hidden shrink-0", color)}>
                         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/20 rounded-full blur-[80px] pointer-events-none" />
                         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay" />
@@ -111,14 +110,12 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                         </div>
                     </div>
                     
-                    {/* --- SEARCH BAR --- */}
                     <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center gap-3 sticky top-0 z-20">
                         <Search className="w-4 h-4 text-slate-400" />
                         <input type="text" placeholder={`Search ${title}...`} className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300" />
                         <div className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md">CMD+F</div>
                     </div>
 
-                    {/* --- LIST CONTENT --- */}
                     <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#F8FAFC]">
                         {items.length > 0 ? (
                             items.map((item, i) => (
@@ -176,7 +173,6 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                         )}
                     </div>
                     
-                    {/* --- FOOTER --- */}
                     <div className="p-4 bg-white border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest px-8">
                         <span>Synced: {new Date().toLocaleTimeString()}</span>
                         <span>v4.2.0</span>
@@ -188,7 +184,7 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
 };
 
 // --- STRATEGIC VISION BOARD ---
-const StrategicVisionBoard = () => {
+const StrategicVisionBoard = ({ data, onUpdate }: { data: any, onUpdate: () => void }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -214,49 +210,52 @@ const StrategicVisionBoard = () => {
                             </div>
                         </div>
                     </div>
-                    <button className="hidden md:flex group/btn relative px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/10 transition-all overflow-hidden items-center gap-2 hover:border-white/30 hover:scale-105 active:scale-95">
+                    <button onClick={onUpdate} className="hidden md:flex group/btn relative px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/10 transition-all overflow-hidden items-center gap-2 hover:border-white/30 hover:scale-105 active:scale-95">
                         <span className="relative z-10">Update Vision</span>
                         <ChevronRight className="w-3 h-3 relative z-10 group-hover/btn:translate-x-1 transition-transform" />
                     </button>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 md:gap-6">
+                    {/* 1. SOS CARD */}
                     <div className="relative bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-[24px] md:rounded-[32px] p-3 md:p-6 backdrop-blur-md hover:bg-white/15 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-lg hover:-translate-y-1">
                         <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-1 md:gap-0">
                             <div className="flex items-center gap-1.5 md:gap-2.5 text-cyan-300 bg-cyan-500/10 px-2 py-1 md:px-3 md:py-1.5 rounded-full border border-cyan-500/20">
                                 <Zap className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
                                 <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">Weekly</span>
                             </div>
-                            <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">65%</span>
+                            <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">{data.sos}%</span>
                         </div>
                         <div className="space-y-2 md:space-y-3 mt-1 md:mt-0 text-center md:text-left">
                             <h3 className="text-[9px] md:text-base font-bold leading-tight text-white/80 md:text-white/90 line-clamp-2 md:line-clamp-none">Speed of Service</h3>
                             <div className="h-1 md:h-1.5 w-full bg-black/30 rounded-full overflow-hidden p-[1px]">
-                                <motion.div initial={{ width: 0 }} animate={{ width: "65%" }} transition={{ duration: 1.5, delay: 0.2, ease: "circOut" }} className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full relative">
+                                <motion.div initial={{ width: 0 }} animate={{ width: `${data.sos}%` }} transition={{ duration: 1.5, delay: 0.2, ease: "circOut" }} className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full relative">
                                     <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]" />
                                 </motion.div>
                             </div>
                         </div>
                     </div>
 
+                    {/* 2. LEADERS CARD */}
                     <div className="relative bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-[24px] md:rounded-[32px] p-3 md:p-6 backdrop-blur-md hover:bg-white/15 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-lg hover:-translate-y-1">
                         <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-1 md:gap-0">
                             <div className="flex items-center gap-1.5 md:gap-2.5 text-emerald-300 bg-emerald-500/10 px-2 py-1 md:px-3 md:py-1.5 rounded-full border border-emerald-500/20">
                                 <Crosshair className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
                                 <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">Monthly</span>
                             </div>
-                            <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">3/5</span>
+                            <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">{data.leaders.current}/{data.leaders.target}</span>
                         </div>
                         <div className="space-y-2 md:space-y-3 mt-1 md:mt-0 text-center md:text-left">
                             <h3 className="text-[9px] md:text-base font-bold leading-tight text-white/80 md:text-white/90 line-clamp-2 md:line-clamp-none">New Leaders</h3>
                             <div className="h-1 md:h-1.5 w-full bg-black/30 rounded-full overflow-hidden p-[1px]">
-                                <motion.div initial={{ width: 0 }} animate={{ width: "60%" }} transition={{ duration: 1.5, delay: 0.4, ease: "circOut" }} className="h-full bg-gradient-to-r from-emerald-400 to-emerald-300 rounded-full relative">
+                                <motion.div initial={{ width: 0 }} animate={{ width: `${(data.leaders.current / data.leaders.target) * 100}%` }} transition={{ duration: 1.5, delay: 0.4, ease: "circOut" }} className="h-full bg-gradient-to-r from-emerald-400 to-emerald-300 rounded-full relative">
                                     <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]" />
                                 </motion.div>
                             </div>
                         </div>
                     </div>
 
+                    {/* 3. HOSPITALITY CARD */}
                     <div className="relative bg-gradient-to-br from-[#E51636]/30 to-black/20 border border-[#E51636]/40 rounded-[24px] md:rounded-[32px] p-3 md:p-6 backdrop-blur-xl hover:bg-[#E51636]/40 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-xl shadow-red-900/20 hover:-translate-y-1 overflow-hidden ring-1 ring-white/5">
                         <div className="absolute top-0 right-0 p-12 bg-gradient-to-br from-[#E51636] to-transparent opacity-20 blur-xl rounded-full translate-x-1/2 -translate-y-1/2 group-hover/card:opacity-30 transition-opacity" />
                         <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-1 md:gap-0 relative z-10">
@@ -264,12 +263,12 @@ const StrategicVisionBoard = () => {
                                 <Mountain className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
                                 <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">North Star</span>
                             </div>
-                            <span className="text-xl md:text-[10px] font-black text-[#ffcccc] md:bg-[#E51636]/30 md:px-2 md:py-1 rounded-lg md:border md:border-[#E51636]/20">15%</span>
+                            <span className="text-xl md:text-[10px] font-black text-[#ffcccc] md:bg-[#E51636]/30 md:px-2 md:py-1 rounded-lg md:border md:border-[#E51636]/20">{data.hospitality}%</span>
                         </div>
                         <div className="space-y-2 md:space-y-3 mt-1 md:mt-0 relative z-10 text-center md:text-left">
                             <h3 className="text-[9px] md:text-base font-bold leading-tight text-white/90 drop-shadow-sm line-clamp-2 md:line-clamp-none">Hospitality Score</h3>
                             <div className="h-1 md:h-1.5 w-full bg-black/40 rounded-full overflow-hidden p-[1px] shadow-inner">
-                                <motion.div initial={{ width: 0 }} animate={{ width: "85%" }} transition={{ duration: 1.5, delay: 0.6, ease: "circOut" }} className="h-full bg-gradient-to-r from-E51636 via-red-500 to-orange-500 rounded-full relative">
+                                <motion.div initial={{ width: 0 }} animate={{ width: `${data.hospitality}%` }} transition={{ duration: 1.5, delay: 0.6, ease: "circOut" }} className="h-full bg-gradient-to-r from-E51636 via-red-500 to-orange-500 rounded-full relative">
                                     <div className="absolute right-0 top-0 bottom-0 w-3 bg-white/60 blur-[3px] animate-pulse" />
                                 </motion.div>
                             </div>
@@ -292,9 +291,12 @@ export default function DashboardPage() {
   const [selected1on1, setSelected1on1] = useState<CalendarEvent | null>(null);
   const [activeKPI, setActiveKPI] = useState<{ title: string; items: any[]; color: string; icon: any } | null>(null);
   
+  // Vision State
+  const [visionData, setVisionData] = useState({ sos: 65, leaders: { current: 3, target: 5 }, hospitality: 15 });
+  const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
+
   // Member Detail State for Non-Admins
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-  // FIX: Added 'documents' to activeTab state
   const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
 
   // Tab State for Mobile Scroll
@@ -307,7 +309,15 @@ export default function DashboardPage() {
     const unsubEvents = subscribeEvents();
     const unsubTeam = subscribeTeam();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => { unsubEvents(); unsubTeam(); clearInterval(timer); };
+
+    // Subscribe to Vision Data
+    const unsubVision = onSnapshot(doc(db, "vision", "current"), (docSnap) => {
+        if (docSnap.exists()) {
+            setVisionData(docSnap.data() as any);
+        }
+    });
+
+    return () => { unsubEvents(); unsubTeam(); unsubVision(); clearInterval(timer); };
   }, [subscribeEvents, subscribeTeam]);
 
   // Scroll Observer for Tabs
@@ -348,7 +358,7 @@ export default function DashboardPage() {
     return (
         <div className="min-h-screen bg-[#F8FAFC] p-6 flex flex-col items-center justify-center">
             
-            <div className="text-center mb-8 animate-pulse">
+            <div className="text-center mb-8 animate-fade-in">
                 <h1 className="text-3xl font-[1000] text-slate-900 tracking-tighter mb-2">Welcome Back</h1>
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">TrainingBook Operative</p>
             </div>
@@ -451,7 +461,8 @@ export default function DashboardPage() {
           </motion.div>
         </div>
 
-        <StrategicVisionBoard />
+        {/* --- STRATEGIC VISION BOARD --- */}
+        <StrategicVisionBoard data={visionData} onUpdate={() => setIsVisionModalOpen(true)} />
 
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
            {kpis.map((kpi, idx) => (
@@ -580,6 +591,17 @@ export default function DashboardPage() {
       <AnimatePresence>{selectedEvent && <EventDetailSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />}</AnimatePresence>
       <AnimatePresence>{selected1on1 && <OneOnOneSessionModal event={selected1on1} onClose={() => setSelected1on1(null)} onUpdate={handleUpdate1on1} />}</AnimatePresence>
       <AnimatePresence>{activeKPI && <KPIModal title={activeKPI.title} items={activeKPI.items} color={activeKPI.color} icon={activeKPI.icon} onClose={() => setActiveKPI(null)} onItemClick={handleKPIItemClick} />}</AnimatePresence>
+      
+      {/* STRATEGIC VISION MODAL */}
+      <AnimatePresence>
+          {isVisionModalOpen && (
+              <StrategicVisionModal 
+                  isOpen={isVisionModalOpen} 
+                  onClose={() => setIsVisionModalOpen(false)} 
+                  currentData={visionData} 
+              />
+          )}
+      </AnimatePresence>
     </div>
   );
 }
