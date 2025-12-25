@@ -3,9 +3,10 @@
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { 
-  X, Target, Zap, Rocket, Mountain, Activity, 
-  Minus, Plus, Save, SlidersHorizontal, PenLine, 
-  Percent, Hash, Trophy, Gauge, Users, DollarSign, Check, Layers
+  X, Target, Zap, Rocket, Mountain, 
+  Gauge, Users, DollarSign, Trophy, PenLine, 
+  Minus, Plus, Save, SlidersHorizontal,
+  Activity, Percent, Hash, Layers, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ClientPortal from "@/components/core/ClientPortal";
@@ -57,12 +58,12 @@ const COLOR_MAP: any = {
 // --- HELPER: NUMBER STEPPER ---
 const NumberStepper = ({ value, onChange, label, unit }: { value: number | string, onChange: (val: number | string) => void, label: string, unit?: string }) => {
     return (
-        <div className="flex-1 bg-slate-50 hover:bg-white focus-within:bg-white focus-within:ring-2 focus-within:ring-[#004F71]/20 rounded-xl p-1 border border-slate-200 transition-all flex items-center justify-between group h-12">
+        <div className="flex-1 bg-slate-50 hover:bg-white focus-within:bg-white focus-within:ring-2 focus-within:ring-[#004F71]/20 rounded-xl p-1 border border-slate-200 transition-all flex items-center justify-between group h-14 md:h-12">
             <button 
                 onClick={() => onChange(Math.max(0, (Number(value) || 0) - 1))} 
-                className="w-8 h-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all flex items-center justify-center active:scale-90"
+                className="w-10 h-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all flex items-center justify-center active:scale-90"
             >
-                <Minus className="w-3 h-3" />
+                <Minus className="w-4 h-4" />
             </button>
             
             <div className="flex flex-col items-center justify-center flex-1 leading-none">
@@ -72,7 +73,7 @@ const NumberStepper = ({ value, onChange, label, unit }: { value: number | strin
                         type="number" 
                         value={value} 
                         onChange={(e) => onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                        className="bg-transparent text-center font-[1000] text-sm text-slate-900 outline-none w-10 appearance-none [&::-webkit-inner-spin-button]:appearance-none p-0"
+                        className="bg-transparent text-center font-[1000] text-base md:text-sm text-slate-900 outline-none w-12 appearance-none [&::-webkit-inner-spin-button]:appearance-none p-0"
                     />
                     {unit && <span className="text-[9px] font-bold text-slate-400">{unit}</span>}
                 </div>
@@ -80,9 +81,9 @@ const NumberStepper = ({ value, onChange, label, unit }: { value: number | strin
             
             <button 
                 onClick={() => onChange((Number(value) || 0) + 1)} 
-                className="w-8 h-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all flex items-center justify-center active:scale-90"
+                className="w-10 h-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all flex items-center justify-center active:scale-90"
             >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-4 h-4" />
             </button>
         </div>
     );
@@ -93,7 +94,6 @@ const VisionCardSmall = ({ pillar, onOpen, isHidden }: any) => {
     const { team, events } = useAppStore();
     const Icon = ICONS[pillar.icon] || Target;
     
-    // Live Value Logic
     const liveValue = useMemo(() => {
         if (pillar.source === 'manual') return pillar.current;
         switch (pillar.source) {
@@ -117,7 +117,7 @@ const VisionCardSmall = ({ pillar, onOpen, isHidden }: any) => {
             layoutId={`card-${pillar.id}`}
             onClick={onOpen}
             className={cn(
-                "relative flex flex-col rounded-[32px] overflow-hidden bg-white shadow-[0_4px_24px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.1)] border border-slate-100 hover:border-slate-200 h-[280px] cursor-pointer group transition-colors",
+                "relative flex flex-col rounded-[24px] md:rounded-[32px] overflow-hidden bg-white shadow-[0_4px_24px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_32px_-8px_rgba(0,0,0,0.1)] border border-slate-100 hover:border-slate-200 h-[240px] md:h-[280px] cursor-pointer group transition-colors",
                 isHidden && "opacity-0 pointer-events-none"
             )}
         >
@@ -127,20 +127,20 @@ const VisionCardSmall = ({ pillar, onOpen, isHidden }: any) => {
             </div>
 
             {/* Header */}
-            <div className="flex justify-between items-start p-6 relative z-10">
+            <div className="flex justify-between items-start p-5 md:p-6 relative z-10">
                 <div className="flex items-center gap-4">
                      <motion.div 
                         layoutId={`icon-box-${pillar.id}`}
-                        className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-lg"
+                        className="w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-white shadow-lg"
                         style={{ backgroundColor: activeColor }}
                      >
-                         <Icon className="w-7 h-7" />
+                         <Icon className="w-6 h-6 md:w-7 md:h-7" />
                      </motion.div>
                      <div>
-                         <motion.span layoutId={`subtitle-${pillar.id}`} className="inline-block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
+                         <motion.span layoutId={`subtitle-${pillar.id}`} className="inline-block text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
                             {pillar.subtitle || "METRIC"}
                          </motion.span>
-                         <motion.h3 layoutId={`title-${pillar.id}`} className="text-xl font-[1000] text-slate-900 leading-tight">
+                         <motion.h3 layoutId={`title-${pillar.id}`} className="text-lg md:text-xl font-[1000] text-slate-900 leading-tight">
                              {pillar.title}
                          </motion.h3>
                      </div>
@@ -153,17 +153,17 @@ const VisionCardSmall = ({ pillar, onOpen, isHidden }: any) => {
             {/* Metric */}
             <div className="relative z-10 text-center py-2 flex-1 flex flex-col justify-center">
                 <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-6xl font-[1000] tracking-tighter drop-shadow-sm" style={{ color: activeColor }}>
+                    <span className="text-5xl md:text-6xl font-[1000] tracking-tighter drop-shadow-sm" style={{ color: activeColor }}>
                         {liveValue}
                     </span>
-                    <span className="text-sm font-bold text-slate-400 uppercase">
+                    <span className="text-xs md:text-sm font-bold text-slate-400 uppercase">
                         / {target} {pillar.unit === '%' && '%'}
                     </span>
                 </div>
             </div>
 
             {/* Footer */}
-            <div className="relative z-10 p-6 pt-0">
+            <div className="relative z-10 p-5 md:p-6 pt-0">
                 <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                     <span>Progress</span>
                     <span>{Math.round(progress)}%</span>
@@ -176,11 +176,6 @@ const VisionCardSmall = ({ pillar, onOpen, isHidden }: any) => {
                         style={{ backgroundColor: activeColor }}
                     />
                 </div>
-                {pillar.source !== 'manual' && (
-                    <div className="mt-3 flex items-center justify-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider opacity-60">
-                        <Activity className="w-3 h-3" /> Auto-Synced
-                    </div>
-                )}
             </div>
         </motion.div>
     );
@@ -194,10 +189,10 @@ const VisionCardExpanded = ({ pillar, onUpdate, onClose }: any) => {
     return (
         <motion.div 
             layoutId={`card-${pillar.id}`}
-            className="w-full max-w-2xl bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] ring-1 ring-black/5"
+            className="w-full h-full md:h-auto md:max-w-2xl bg-white md:rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:max-h-[85vh] ring-1 ring-black/5"
         >
             {/* Header */}
-            <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-white z-10 relative">
+            <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-white z-10 relative shrink-0">
                  <div className="flex items-center gap-4">
                      <motion.div 
                         layoutId={`icon-box-${pillar.id}`}
@@ -220,7 +215,7 @@ const VisionCardExpanded = ({ pillar, onUpdate, onClose }: any) => {
                     onClick={onClose}
                     className="p-2 hover:bg-slate-100 text-slate-400 rounded-full transition-colors"
                  >
-                     <X className="w-5 h-5" />
+                     <X className="w-6 h-6" />
                  </motion.button>
             </div>
 
@@ -229,16 +224,16 @@ const VisionCardExpanded = ({ pillar, onUpdate, onClose }: any) => {
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1, transition: { delay: 0.2 } }}
                 exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-slate-50/50"
+                className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-slate-50/50 pb-32 md:pb-6"
             >
                 {/* 1. Identity */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest pl-1">Title</label>
                         <input 
                             value={pillar.title} 
                             onChange={e => onUpdate(pillar.id, 'title', e.target.value)} 
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-400 transition-colors shadow-sm"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-blue-400 transition-colors shadow-sm"
                         />
                     </div>
                     <div className="space-y-1.5">
@@ -246,7 +241,7 @@ const VisionCardExpanded = ({ pillar, onUpdate, onClose }: any) => {
                         <input 
                             value={pillar.subtitle} 
                             onChange={e => onUpdate(pillar.id, 'subtitle', e.target.value)} 
-                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-900 outline-none focus:border-blue-400 transition-colors shadow-sm"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-blue-400 transition-colors shadow-sm"
                         />
                     </div>
                 </div>
@@ -295,7 +290,7 @@ const VisionCardExpanded = ({ pillar, onUpdate, onClose }: any) => {
                             </div>
                         </div>
                         
-                        <div className="space-y-2">
+                        <div className="flex gap-2">
                             {pillar.source === 'manual' && (
                                 <NumberStepper label="Current Value" value={pillar.current} onChange={(v) => onUpdate(pillar.id, 'current', v)} unit={pillar.unit} />
                             )}
@@ -317,8 +312,8 @@ const VisionCardExpanded = ({ pillar, onUpdate, onClose }: any) => {
             </motion.div>
 
             {/* Footer */}
-            <div className="p-6 border-t border-slate-100 bg-white flex justify-end">
-                 <button onClick={onClose} className="px-8 py-3 bg-[#0F172A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-xl shadow-slate-900/20">
+            <div className="p-6 border-t border-slate-100 bg-white flex justify-end shrink-0 md:rounded-b-[32px]">
+                 <button onClick={onClose} className="w-full md:w-auto px-8 py-4 bg-[#0F172A] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-xl shadow-slate-900/20">
                      Apply Changes
                  </button>
             </div>
@@ -369,7 +364,6 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
           if (p.id !== id) return p;
           const updated = { ...p, [field]: value };
           
-          // INTELLIGENT DEFAULTS LOGIC
           if (field === 'source') {
              if (['system_leaders', 'system_1on1', 'system_active_goals'].includes(value)) {
                  updated.unit = 'Count';
@@ -388,38 +382,38 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
 
   return (
     <ClientPortal>
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-[#0F172A]/90 backdrop-blur-md flex items-center justify-center p-4 lg:p-8">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-[#0F172A]/90 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-8">
             <motion.div 
                 initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} 
-                className="w-full max-w-7xl h-[90vh] bg-[#F8FAFC] rounded-[48px] shadow-2xl flex flex-col overflow-hidden relative ring-8 ring-white/10"
+                className="w-full h-full md:max-w-7xl md:h-[90vh] bg-[#F8FAFC] md:rounded-[48px] shadow-2xl flex flex-col overflow-hidden relative ring-0 md:ring-8 ring-white/10"
             >
                 {/* --- HEADER --- */}
-                <div className="bg-white px-8 lg:px-12 py-8 border-b border-slate-200 flex justify-between items-start shrink-0 relative z-20">
-                     <div className="flex gap-6 items-center">
-                         <div className="w-16 h-16 rounded-[20px] bg-[#004F71] flex items-center justify-center text-white shadow-xl shadow-blue-900/20">
-                             <Rocket className="w-8 h-8" />
+                <div className="bg-white px-6 md:px-12 py-6 md:py-8 border-b border-slate-200 flex justify-between items-start shrink-0 relative z-20 pt-16 md:pt-8">
+                     <div className="flex gap-4 md:gap-6 items-center">
+                         <div className="w-12 h-12 md:w-16 md:h-16 rounded-[16px] md:rounded-[20px] bg-[#004F71] flex items-center justify-center text-white shadow-xl shadow-blue-900/20">
+                             <Rocket className="w-6 h-6 md:w-8 md:h-8" />
                          </div>
                          <div>
                              <div className="flex items-center gap-3 mb-1">
-                                 <span className="px-3 py-1 rounded-full bg-blue-50 text-[#004F71] text-[10px] font-black uppercase tracking-[0.25em] border border-blue-100">System Config</span>
+                                 <span className="px-3 py-1 rounded-full bg-blue-50 text-[#004F71] text-[9px] md:text-[10px] font-black uppercase tracking-[0.25em] border border-blue-100">System Config</span>
                                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                              </div>
-                             <h2 className="text-3xl lg:text-4xl font-[1000] text-slate-900 tracking-tighter uppercase leading-none">Command Directives</h2>
-                             <p className="text-slate-400 font-medium mt-1">Configure strategic pillars and link to live data sources.</p>
+                             <h2 className="text-2xl md:text-4xl font-[1000] text-slate-900 tracking-tighter uppercase leading-none">Directives</h2>
+                             <p className="text-slate-400 font-medium mt-1 text-xs md:text-sm">Configure strategic pillars.</p>
                          </div>
                      </div>
                      
                      <div className="flex items-center gap-3">
-                         <button onClick={onClose} className="p-4 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-2xl hover:bg-slate-100 transition-all border border-slate-200">
-                             <X className="w-6 h-6" />
+                         <button onClick={onClose} className="p-3 md:p-4 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-2xl hover:bg-slate-100 transition-all border border-slate-200">
+                             <X className="w-5 h-5 md:w-6 md:h-6" />
                          </button>
                      </div>
                 </div>
 
                 {/* --- SCROLLABLE GRID --- */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-8 lg:p-12 relative bg-slate-50/50">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-12 relative bg-slate-50/50 pb-32">
                      {pillars.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 pb-32">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                             <LayoutGroup>
                                  {pillars.map(pillar => (
                                      <VisionCardSmall 
@@ -432,13 +426,11 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
                             </LayoutGroup>
                         </div>
                      ) : (
-                         /* --- EMPTY STATE --- */
-                        <div className="flex flex-col items-center justify-center h-full min-h-[400px]">
+                        <div className="flex flex-col items-center justify-center h-full min-h-[300px]">
                             <div className="p-6 bg-white rounded-full shadow-lg mb-6">
                                 <Layers className="w-12 h-12 text-slate-300" />
                             </div>
                             <h3 className="text-2xl font-black text-slate-900 mb-2">Initialize Command Center</h3>
-                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-8">No directives found.</p>
                             <button 
                                 onClick={initPillarsIfNeeded}
                                 className="px-10 py-4 bg-[#004F71] text-white rounded-full font-black text-xs uppercase tracking-widest shadow-xl hover:scale-105 transition-transform"
@@ -449,18 +441,18 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
                      )}
                 </div>
 
-                {/* --- EXPANDED EDITOR OVERLAY --- */}
+                {/* --- EXPANDED EDITOR OVERLAY (Full Screen on Mobile) --- */}
                 <AnimatePresence>
                     {editingId && (
-                        <div className="absolute inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+                        <div className="absolute inset-0 z-50 flex items-end md:items-center justify-center md:p-4 pointer-events-none">
                             <motion.div 
                                 initial={{ opacity: 0 }} 
                                 animate={{ opacity: 1 }} 
                                 exit={{ opacity: 0 }} 
                                 onClick={() => setEditingId(null)}
-                                className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm pointer-events-auto" 
+                                className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm pointer-events-auto" 
                             />
-                            <div className="pointer-events-auto relative w-full flex justify-center">
+                            <div className="pointer-events-auto relative w-full h-full md:h-auto flex justify-center items-end md:items-center">
                                 <VisionCardExpanded 
                                     pillar={pillars.find(p => p.id === editingId)}
                                     onUpdate={updatePillar}
@@ -472,14 +464,14 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
                 </AnimatePresence>
 
                 {/* --- FOOTER --- */}
-                <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-white via-white/90 to-transparent z-30 flex justify-center pointer-events-none">
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 bg-gradient-to-t from-white via-white/90 to-transparent z-30 flex justify-center pointer-events-none">
                      <button 
                         onClick={handleSave} 
                         disabled={isSaving}
-                        className="pointer-events-auto px-12 py-5 bg-[#E51636] text-white rounded-full font-[900] text-sm uppercase tracking-[0.2em] shadow-[0_20px_50px_-12px_rgba(229,22,54,0.5)] hover:scale-105 active:scale-95 transition-all flex items-center gap-4 disabled:opacity-70 disabled:scale-100 hover:bg-red-600"
+                        className="pointer-events-auto w-full md:w-auto px-12 py-5 bg-[#E51636] text-white rounded-full font-[900] text-sm uppercase tracking-[0.2em] shadow-[0_20px_50px_-12px_rgba(229,22,54,0.5)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-70 disabled:scale-100 hover:bg-red-600"
                      >
                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                        {isSaving ? "Deploying..." : "Save & Deploy Configuration"}
+                        {isSaving ? "Deploying..." : "Save Configuration"}
                      </button>
                 </div>
             </motion.div>

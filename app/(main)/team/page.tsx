@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { AnimatePresence, motion, LayoutGroup, PanInfo } from "framer-motion";
 import { 
-  Users, Search, Zap,
-  LayoutGrid, GalleryHorizontal, ChevronDown 
+  Users, Search, Zap, Loader2,
+  LayoutGrid, GalleryHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -28,7 +28,6 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
-    // Hide Admin from promotion target list if desired
     const visibleStages = STAGES.filter(s => s.id !== "Admin");
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
@@ -46,7 +45,7 @@ function PromotionHUD({
                             <Zap className="w-4 h-4 fill-current" />
                          </div>
                          <div className="flex flex-col">
-                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Deploying Agent</span>
+                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Deploying Member</span>
                              <span className="text-xs font-bold text-slate-900">{draggingMember?.name}</span>
                          </div>
                     </div>
@@ -108,7 +107,11 @@ export default function TeamBoardPage() {
     const [activeFilter, setActiveFilter] = useState<"ALL" | "FOH" | "BOH">("ALL");
     const [viewMode, setViewMode] = useState<"grid" | "horizontal">("grid"); 
     const [searchQuery, setSearchQuery] = useState("");
+    
+    // Pagination / Infinite Scroll
     const [visibleCount, setVisibleCount] = useState(12);
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+
     const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
@@ -139,6 +142,33 @@ export default function TeamBoardPage() {
     const visibleMembers = useMemo(() => {
         return filteredMembers.slice(0, visibleCount);
     }, [filteredMembers, visibleCount]);
+
+    // --- INFINITE SCROLL OBSERVER ---
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && visibleCount < filteredMembers.length) {
+                    // Load more members when the sentinel comes into view
+                    setVisibleCount((prev) => prev + 12);
+                }
+            },
+            {
+                root: null, // viewport
+                rootMargin: "200px", // Trigger loading 200px before reaching the bottom
+                threshold: 0.1,
+            }
+        );
+
+        if (loadMoreRef.current) {
+            observer.observe(loadMoreRef.current);
+        }
+
+        return () => {
+            if (loadMoreRef.current) {
+                observer.unobserve(loadMoreRef.current);
+            }
+        };
+    }, [visibleCount, filteredMembers.length]);
 
     const handleOpenTrainerModal = (member: TeamMember) => {
         setIsTrainerPanelOpen(true);
@@ -239,7 +269,7 @@ export default function TeamBoardPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-40 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
+        <div className="min-h-screen bg-[#F8FAFC] pb-20 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
             <div className="absolute inset-0 pointer-events-none opacity-[0.4]" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
             {/* --- REPLACED: NEW DYNAMIC ISLAND COMPONENT --- */}
@@ -258,39 +288,43 @@ export default function TeamBoardPage() {
 
             <div className="mt-4 md:mt-8 relative z-10 px-0 md:px-8 max-w-[1400px] mx-auto">
                 {viewMode === "grid" ? (
-                    <LayoutGroup id="roster-grid">
-                        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-10 pb-40 px-4 md:px-0">
-                            <AnimatePresence mode="popLayout" initial={false}>
-                                {visibleMembers.length > 0 ? (
-                                    visibleMembers.map((member) => (
-                                        <motion.div key={member.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.2 }} data-team-card-id={member.id} className="relative">
-                                            <TeamCard 
-                                                member={member} 
-                                                onClick={setSelectedMember} 
-                                                onAssignClick={handleOpenTrainerModal} 
-                                                onDragStart={() => setMemberDraggingId(member.id)} 
-                                                onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
-                                                isDragging={memberDraggingId === member.id} 
-                                                isDropTarget={!!trainerDraggingId} 
-                                            />
+                    <>
+                        <LayoutGroup id="roster-grid">
+                            <motion.div layout className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-10 px-4 md:px-0">
+                                <AnimatePresence mode="popLayout" initial={false}>
+                                    {visibleMembers.length > 0 ? (
+                                        visibleMembers.map((member) => (
+                                            <motion.div key={member.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.2 }} data-team-card-id={member.id} className="relative">
+                                                <TeamCard 
+                                                    member={member} 
+                                                    onClick={setSelectedMember} 
+                                                    onAssignClick={handleOpenTrainerModal} 
+                                                    onDragStart={() => setMemberDraggingId(member.id)} 
+                                                    onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
+                                                    isDragging={memberDraggingId === member.id} 
+                                                    isDropTarget={!!trainerDraggingId} 
+                                                />
+                                            </motion.div>
+                                        ))
+                                    ) : (
+                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full h-64 flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-200 rounded-[32px] w-full bg-slate-50/50 mx-4 md:mx-0">
+                                            <Users className="w-12 h-12 mb-4 opacity-50" /><p className="text-xs font-black uppercase tracking-[0.2em]">No Team Members Found</p>
                                         </motion.div>
-                                    ))
-                                ) : (
-                                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full h-64 flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-200 rounded-[32px] w-full bg-slate-50/50 mx-4 md:mx-0">
-                                        <Users className="w-12 h-12 mb-4 opacity-50" /><p className="text-xs font-black uppercase tracking-[0.2em]">No Operatives Found</p>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </motion.div>
+                        </LayoutGroup>
+
+                        {/* Infinite Scroll Sentinel */}
                         {visibleCount < filteredMembers.length && (
-                             <div className="flex justify-center pb-20 -mt-20 relative z-20">
-                                 <button onClick={() => setVisibleCount(prev => prev + 12)} className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-500 font-bold py-3 px-8 rounded-full shadow-lg transition-all flex items-center gap-2 hover:scale-105 active:scale-95">
-                                    <span className="text-xs uppercase tracking-widest">Load More Agents</span>
-                                    <ChevronDown className="w-4 h-4" />
-                                 </button>
-                             </div>
+                            <div ref={loadMoreRef} className="py-12 flex justify-center w-full">
+                                <div className="flex items-center gap-2 text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-100 shadow-sm">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">Loading Roster...</span>
+                                </div>
+                            </div>
                         )}
-                    </LayoutGroup>
+                    </>
                 ) : (
                     <div className="w-full h-[600px] flex items-center justify-center text-slate-400">
                         <p className="text-xs uppercase font-bold tracking-widest">Horizontal Mode (Optimized)</p>
@@ -305,7 +339,7 @@ export default function TeamBoardPage() {
                     </button>
                     <div className="flex-1 flex items-center gap-2 px-3 bg-slate-50/80 rounded-full h-full border border-slate-100/50">
                         <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                        <input className="bg-transparent w-full text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400" placeholder="Find operative..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                        <input className="bg-transparent w-full text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400" placeholder="Find member..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                     </div>
                 </motion.div>
             </div>

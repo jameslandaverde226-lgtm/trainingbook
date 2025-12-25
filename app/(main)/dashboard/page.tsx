@@ -56,6 +56,66 @@ const ActivityIcon = ({ type }: { type: EventType | 'System' }) => {
     }
 };
 
+// --- NEW KPI CARD COMPONENT ---
+const KPICard = ({ kpi, onClick }: { kpi: any, onClick: () => void }) => {
+  return (
+      <motion.div 
+          whileHover={{ y: -4, scale: 1.01 }}
+          onClick={onClick}
+          className="relative flex flex-col rounded-[28px] md:rounded-[32px] overflow-hidden bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 h-[200px] md:h-[220px] cursor-pointer group"
+      >
+           {/* Background Watermark */}
+           <div className={cn("absolute top-[-20px] right-[-20px] p-6 opacity-[0.03] pointer-events-none transform rotate-12 transition-transform group-hover:scale-110 duration-700", kpi.color)}>
+              <kpi.icon className="w-32 h-32 md:w-48 md:h-48" />
+          </div>
+
+          {/* Header */}
+          <div className="flex justify-between items-start p-5 md:p-6 relative z-10">
+              <div className="flex items-center gap-4">
+                   <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-white shadow-lg", kpi.modalColor)}>
+                       <kpi.icon className="w-5 h-5 md:w-6 md:h-6" />
+                   </div>
+                   <div>
+                       <span className="inline-block text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
+                          {kpi.trend}
+                       </span>
+                       <h3 className="text-base md:text-lg font-[1000] text-slate-900 leading-none">
+                           {kpi.label}
+                       </h3>
+                   </div>
+              </div>
+              <div className="p-2 rounded-full bg-slate-50 text-slate-300 group-hover:bg-[#004F71] group-hover:text-white transition-colors">
+                   <ChevronRight className="w-4 h-4" />
+              </div>
+          </div>
+
+          {/* Metric */}
+          <div className="relative z-10 pl-5 md:pl-6 flex-1 flex flex-col justify-center">
+               <div className="flex items-baseline gap-1">
+                  <span className={cn("text-4xl md:text-5xl font-[1000] tracking-tighter", kpi.color)}>
+                      {kpi.value}
+                  </span>
+              </div>
+          </div>
+
+          {/* Footer / Status Bar */}
+          <div className="relative z-10 px-5 md:px-6 pb-5 md:pb-6">
+               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }} 
+                      animate={{ width: "65%" }} 
+                      transition={{ duration: 1.5, ease: "circOut" }}
+                      className={cn("h-full rounded-full", kpi.modalColor)} 
+                    />
+               </div>
+               <div className="flex justify-between mt-2">
+                   <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Activity className="w-3 h-3" /> Live System Data</span>
+               </div>
+          </div>
+      </motion.div>
+  )
+}
+
 // --- KPI MODAL ---
 interface KPIModalProps {
     title: string;
@@ -69,7 +129,7 @@ interface KPIModalProps {
 const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPIModalProps) => {
     return (
         <ClientPortal>
-            <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-4">
+            <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4">
                 <motion.div 
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }} 
@@ -78,46 +138,45 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                     onClick={onClose} 
                 />
                 <motion.div 
-                    initial={{ scale: 0.9, opacity: 0, y: 50 }} 
+                    initial={{ scale: 0.95, opacity: 0, y: 100 }} 
                     animate={{ scale: 1, opacity: 1, y: 0 }} 
-                    exit={{ scale: 0.9, opacity: 0, y: 50 }}
+                    exit={{ scale: 0.95, opacity: 0, y: 100 }}
                     transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className="bg-[#F8FAFC] w-full max-w-2xl rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh] border border-white/40 ring-1 ring-black/5"
+                    className="bg-[#F8FAFC] w-full md:w-[95%] max-w-2xl rounded-t-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col h-[85vh] md:max-h-[85vh] border border-white/40 ring-1 ring-black/5"
                 >
-                    <div className={cn("p-8 pt-10 text-white relative overflow-hidden shrink-0", color)}>
+                    <div className={cn("p-6 md:p-8 pt-8 md:pt-10 text-white relative overflow-hidden shrink-0", color)}>
                         <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/20 rounded-full blur-[80px] pointer-events-none" />
                         <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay" />
                         
                         <div className="relative z-10 flex items-start justify-between">
-                            <div className="flex items-center gap-5">
-                                <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center">
-                                    <Icon className="w-8 h-8 text-white drop-shadow-md" />
+                            <div className="flex items-center gap-4 md:gap-5">
+                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white/10 border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center">
+                                    <Icon className="w-6 h-6 md:w-8 md:h-8 text-white drop-shadow-md" />
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
                                         <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/80">System Record</span>
+                                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-white/80">System Record</span>
                                     </div>
-                                    <h2 className="text-3xl font-[1000] tracking-tighter leading-none">{title}</h2>
-                                    <p className="text-white/60 font-medium text-sm mt-1">{items.length} Active Entries</p>
+                                    <h2 className="text-2xl md:text-3xl font-[1000] tracking-tighter leading-none">{title}</h2>
+                                    <p className="text-white/60 font-medium text-xs md:text-sm mt-1">{items.length} Active Entries</p>
                                 </div>
                             </div>
                             <button 
                                 onClick={onClose} 
-                                className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white border border-white/10 active:scale-90"
+                                className="p-2 md:p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white border border-white/10 active:scale-90"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                     </div>
                     
-                    <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center gap-3 sticky top-0 z-20">
+                    <div className="px-4 md:px-6 py-4 bg-white border-b border-slate-100 flex items-center gap-3 sticky top-0 z-20">
                         <Search className="w-4 h-4 text-slate-400" />
                         <input type="text" placeholder={`Search ${title}...`} className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300" />
-                        <div className="text-[9px] font-black bg-slate-100 text-slate-400 px-2 py-1 rounded-md">CMD+F</div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 space-y-3 bg-[#F8FAFC]">
+                    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 bg-[#F8FAFC]">
                         {items.length > 0 ? (
                             items.map((item, i) => (
                                 <motion.div 
@@ -127,16 +186,16 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                                     key={item.id} 
                                     onClick={() => onItemClick && onItemClick(item)}
                                     className={cn(
-                                        "group bg-white p-4 rounded-[20px] border border-slate-100 shadow-sm flex items-center gap-5 hover:shadow-xl hover:border-slate-200 transition-all relative overflow-hidden",
-                                        onItemClick && "cursor-pointer"
+                                        "group bg-white p-4 rounded-[20px] border border-slate-100 shadow-sm flex items-center gap-4 md:gap-5 hover:shadow-xl hover:border-slate-200 transition-all relative overflow-hidden",
+                                        onItemClick && "cursor-pointer active:scale-[0.98]"
                                     )}
                                 >
                                     <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", color)} />
 
-                                    <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner shrink-0 transition-transform group-hover:scale-110", color.replace('bg-', 'bg-').replace('600', '50').replace('#', ''))}>
+                                    <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center font-black text-base md:text-lg shadow-inner shrink-0 transition-transform group-hover:scale-110", color.replace('bg-', 'bg-').replace('600', '50').replace('#', ''))}>
                                         <div className={cn("opacity-10 absolute inset-0", color)} />
                                         <span className={cn("relative z-10", color.replace('bg-', 'text-'))}>
-                                            {item.icon ? <item.icon className="w-6 h-6" /> : item.title.charAt(0)}
+                                            {item.icon ? <item.icon className="w-5 h-5 md:w-6 md:h-6" /> : item.title.charAt(0)}
                                         </span>
                                     </div>
 
@@ -145,7 +204,7 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                                             <p className="text-sm font-[800] text-slate-900 truncate group-hover:text-[#E51636] transition-colors">{item.title}</p>
                                             {item.status && (
                                                 <span className={cn(
-                                                    "px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border",
+                                                    "px-2 py-0.5 rounded-md text-[7px] md:text-[8px] font-black uppercase tracking-wider border",
                                                     item.status === 'High' || item.status === 'FOH' 
                                                         ? "bg-blue-50 text-[#004F71] border-blue-100" 
                                                         : "bg-slate-50 text-slate-500 border-slate-100"
@@ -154,13 +213,13 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="text-[11px] font-bold text-slate-400 truncate uppercase tracking-wide flex items-center gap-1.5">
+                                        <p className="text-[10px] md:text-[11px] font-bold text-slate-400 truncate uppercase tracking-wide flex items-center gap-1.5">
                                             {item.subtitle}
                                         </p>
                                     </div>
 
                                     {onItemClick && (
-                                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#E51636] group-hover:text-white transition-colors shadow-sm">
+                                        <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#E51636] group-hover:text-white transition-colors shadow-sm">
                                             <ChevronRight className="w-4 h-4" />
                                         </div>
                                     )}
@@ -174,7 +233,7 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                         )}
                     </div>
                     
-                    <div className="p-4 bg-white border-t border-slate-100 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest px-8">
+                    <div className="p-4 bg-white border-t border-slate-100 flex justify-between items-center text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 md:px-8">
                         <span>Synced: {new Date().toLocaleTimeString()}</span>
                         <span>v4.2.0</span>
                     </div>
@@ -217,93 +276,75 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
                             <Rocket className="w-6 h-6 text-white drop-shadow-md" />
                         </div>
                         <div className="space-y-1">
-                            <h2 className="text-3xl font-[1000] tracking-tighter leading-none text-white drop-shadow-sm">Strategic Vision</h2>
+                            <h2 className="text-2xl md:text-3xl font-[1000] tracking-tighter leading-none text-white drop-shadow-sm">Strategic Vision</h2>
                             <div className="flex items-center gap-2">
                                 <div className="w-8 h-0.5 bg-gradient-to-r from-[#E51636] to-transparent rounded-full" />
                                 <p className="text-[10px] font-bold text-blue-100 uppercase tracking-[0.3em]">Command Directives</p>
                             </div>
                         </div>
                     </div>
-                    <button onClick={onUpdate} className="hidden md:flex group/btn relative px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/10 transition-all overflow-hidden items-center gap-2 hover:border-white/30 hover:scale-105 active:scale-95">
-                        <span className="relative z-10">{pillars.length > 0 ? "Update Vision" : "Initialize Vision"}</span>
+                    <button onClick={onUpdate} className="flex group/btn relative px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/10 transition-all overflow-hidden items-center gap-2 hover:border-white/30 hover:scale-105 active:scale-95">
+                        <span className="relative z-10">{pillars.length > 0 ? "Update Vision" : "Initialize"}</span>
                         <ChevronRight className="w-3 h-3 relative z-10 group-hover/btn:translate-x-1 transition-transform" />
                     </button>
                 </div>
 
                 {pillars.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <LayoutGroup>
-                            {pillars.map(pillar => {
-                                const style = getColors(pillar.color);
-                                const Icon = ICONS[pillar.icon] || Target;
-                                const target = pillar.target || 100;
-                                const progress = Math.min(100, Math.max(0, (pillar.current / target) * 100));
-                                const isAuto = pillar.source && pillar.source !== 'manual';
+                        {pillars.map(pillar => {
+                            const style = getColors(pillar.color);
+                            const Icon = ICONS[pillar.icon] || Target;
+                            const target = pillar.target || 100;
+                            const progress = Math.min(100, Math.max(0, (pillar.current / target) * 100));
+                            const isAuto = pillar.source && pillar.source !== 'manual';
 
-                                return (
-                                    <motion.div 
-                                        layoutId={`card-${pillar.id}`}
-                                        key={pillar.id} 
-                                        className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden backdrop-blur-sm hover:bg-white/10 transition-colors group/card h-[220px]"
-                                    >
-                                        {/* Content */}
-                                        <div className="absolute inset-0 p-6 flex flex-col justify-between">
-                                             {/* Header */}
-                                            <div className="flex justify-between items-start">
-                                                <div className="flex items-center gap-4">
-                                                    <motion.div 
-                                                        layoutId={`icon-box-${pillar.id}`}
-                                                        className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg", style.bg, style.border)}
-                                                        style={{ color: "white" }} 
-                                                    >
-                                                        <Icon className="w-6 h-6 fill-current" />
-                                                    </motion.div>
-                                                    <div>
-                                                        <motion.span layoutId={`subtitle-${pillar.id}`} className="inline-block text-[9px] font-black uppercase tracking-widest text-blue-200 mb-0.5">
-                                                            {pillar.subtitle || "METRIC"}
-                                                        </motion.span>
-                                                        <motion.h3 layoutId={`title-${pillar.id}`} className="text-lg font-[1000] text-white leading-tight">
-                                                            {pillar.title}
-                                                        </motion.h3>
-                                                    </div>
+                            return (
+                                <motion.div 
+                                    key={pillar.id} 
+                                    className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden backdrop-blur-sm hover:bg-white/10 transition-colors group/card h-[220px]"
+                                >
+                                    <div className="absolute inset-0 p-6 flex flex-col justify-between">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex items-center gap-4">
+                                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg", style.bg, style.border)}>
+                                                    <Icon className="w-6 h-6 fill-current" />
                                                 </div>
-                                            </div>
-
-                                            {/* Metric */}
-                                            <div className="text-center">
-                                                <div className="flex items-baseline justify-center gap-1">
-                                                    <motion.span 
-                                                        layoutId={`value-${pillar.id}`}
-                                                        className="text-5xl font-[1000] tracking-tighter drop-shadow-sm text-white"
-                                                    >
-                                                        {pillar.current}
-                                                    </motion.span>
-                                                    <span className="text-xs font-bold text-blue-200 uppercase">
-                                                        / {target} {pillar.unit === '%' && '%'}
+                                                <div>
+                                                    <span className="inline-block text-[9px] font-black uppercase tracking-widest text-blue-200 mb-0.5">
+                                                        {pillar.subtitle || "METRIC"}
                                                     </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Progress Bar */}
-                                            <div>
-                                                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                                    <motion.div 
-                                                        layoutId={`bar-${pillar.id}`}
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${progress}%` }}
-                                                        transition={{ duration: 1.5, ease: "circOut" }}
-                                                        className={cn("h-full rounded-full relative bg-gradient-to-r", style.bar)}
-                                                    />
+                                                    <h3 className="text-lg font-[1000] text-white leading-tight">
+                                                        {pillar.title}
+                                                    </h3>
                                                 </div>
                                             </div>
                                         </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </LayoutGroup>
+                                        <div className="text-center">
+                                            <div className="flex items-baseline justify-center gap-1">
+                                                <span className="text-5xl font-[1000] tracking-tighter drop-shadow-sm text-white">
+                                                    {pillar.current}
+                                                </span>
+                                                <span className="text-xs font-bold text-blue-200 uppercase">
+                                                    / {target} {pillar.unit === '%' && '%'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                                <motion.div 
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${progress}%` }}
+                                                    transition={{ duration: 1.5, ease: "circOut" }}
+                                                    className={cn("h-full rounded-full relative bg-gradient-to-r", style.bar)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
                     </div>
                 ) : (
-                    /* --- EMPTY STATE --- */
                     <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-white/10 rounded-[32px] bg-white/5">
                         <div className="p-4 bg-white/10 rounded-full mb-4 shadow-lg animate-pulse">
                             <Layers className="w-8 h-8 text-white" />
@@ -367,46 +408,39 @@ export default function DashboardPage() {
   }, [subscribeEvents, subscribeTeam]);
 
   // --- CALCULATE LIVE METRICS ---
-  // This is the "Smart" part. We calculate real numbers from the store.
   const calculatedPillars = useMemo(() => {
     const currentMonth1on1s = events.filter(e => e.type === "OneOnOne" && e.status === "Done" && isSameMonth(e.startDate, new Date())).length;
     const activeGoalsCount = events.filter(e => e.type === "Goal" && e.status !== "Done").length;
     const leaderCount = team.filter(m => m.status === "Team Leader" || m.status === "Director" || m.status === "Assistant Director").length;
-    
-    // Calculate Average Training Progress
     const totalProgress = team.reduce((acc, curr) => acc + (curr.progress || 0), 0);
     const avgTraining = team.length > 0 ? Math.round(totalProgress / team.length) : 0;
 
     return visionPillars.map(p => {
         let liveVal = p.current;
-        
         if (p.source === 'system_1on1') liveVal = currentMonth1on1s;
         if (p.source === 'system_active_goals') liveVal = activeGoalsCount;
         if (p.source === 'system_leaders') liveVal = leaderCount;
         if (p.source === 'system_training_avg') liveVal = avgTraining;
-        
-        // NEW: Track Individual Member Progress
         if (p.source === 'system_member_progress' && p.linkedMemberId) {
             const member = team.find(m => m.id === p.linkedMemberId);
             if (member) liveVal = member.progress || 0;
         }
-        
         return { ...p, current: liveVal };
     });
   }, [visionPillars, events, team]);
 
 
-  // ... (KPIs, Feed, NextSession Logic same as before) ...
+  // --- KPIS (Refined) ---
   const kpis = useMemo(() => {
     const certifiedLeaders = team.filter(m => m.status === "Director" || m.status === "Assistant Director");
     const monthlyOneOnOnes = events.filter(e => e.type === "OneOnOne" && isSameMonth(e.startDate, new Date()));
     const activeGoals = events.filter(e => e.type === "Goal" && e.status !== "Done");
 
     return [
-      { id: "leaders", label: "Certified Leaders", value: certifiedLeaders.length.toString(), icon: GraduationCap, color: "bg-[#004F71]", modalColor: "bg-[#004F71]", trend: "Live Count", data: certifiedLeaders.map(l => ({ id: l.id, title: l.name, subtitle: l.role, icon: User, status: l.dept })) },
-      { id: "1on1s", label: "1-on-1s (MTD)", value: monthlyOneOnOnes.length.toString(), icon: Users, color: "text-purple-600", bg: "bg-purple-50", modalColor: "bg-purple-600", trend: "Monthly Cadence", data: monthlyOneOnOnes.map(e => ({ id: e.id, title: e.title, subtitle: `with ${e.teamMemberName}`, icon: MessageSquare, status: e.status, rawEvent: e })) },
-      { id: "goals", label: "Active Goals", value: activeGoals.length.toString(), icon: Target, color: "text-[#E51636]", bg: "bg-[#E51636]/5", modalColor: "bg-[#E51636]", trend: "Strategic Focus", data: activeGoals.map(g => ({ id: g.id, title: g.title, subtitle: `Assigned to ${g.assigneeName}`, icon: Target, status: g.priority, rawEvent: g })) },
-      { id: "roster", label: "Total Roster", value: team.length.toString(), icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50", modalColor: "bg-emerald-600", trend: "Headcount", data: team.map(t => ({ id: t.id, title: t.name, subtitle: t.role, icon: User, status: t.dept })) },
+      { id: "leaders", label: "Certified Leaders", value: certifiedLeaders.length.toString(), icon: GraduationCap, color: "text-[#004F71]", modalColor: "bg-[#004F71]", trend: "Live Count", data: certifiedLeaders.map(l => ({ id: l.id, title: l.name, subtitle: l.role, icon: User, status: l.dept })) },
+      { id: "1on1s", label: "1-on-1s (MTD)", value: monthlyOneOnOnes.length.toString(), icon: Users, color: "text-purple-600", modalColor: "bg-purple-600", trend: "Monthly Cadence", data: monthlyOneOnOnes.map(e => ({ id: e.id, title: e.title, subtitle: `with ${e.teamMemberName}`, icon: MessageSquare, status: e.status, rawEvent: e })) },
+      { id: "goals", label: "Active Goals", value: activeGoals.length.toString(), icon: Target, color: "text-[#E51636]", modalColor: "bg-[#E51636]", trend: "Strategic Focus", data: activeGoals.map(g => ({ id: g.id, title: g.title, subtitle: `Assigned to ${g.assigneeName}`, icon: Target, status: g.priority, rawEvent: g })) },
+      { id: "roster", label: "Total Roster", value: team.length.toString(), icon: Activity, color: "text-emerald-600", modalColor: "bg-emerald-600", trend: "Headcount", data: team.map(t => ({ id: t.id, title: t.name, subtitle: t.role, icon: User, status: t.dept })) },
     ];
   }, [team, events]);
   
@@ -429,7 +463,7 @@ export default function DashboardPage() {
   const handleUpdate1on1 = async (updatedEvent: CalendarEvent) => { const loadToast = toast.loading("Updating Session..."); try { await updateDoc(doc(db, "events", updatedEvent.id), { description: updatedEvent.description, subtasks: updatedEvent.subtasks, status: updatedEvent.status, updatedAt: serverTimestamp() }); toast.success("Session Updated", { id: loadToast }); setSelected1on1(null); } catch (e) { toast.error("Error", { id: loadToast }); } };
   const handleKPIItemClick = (item: any) => { if (item.rawEvent) { if (item.rawEvent.type === "OneOnOne") { setSelected1on1(item.rawEvent); } else { setSelectedEvent(item.rawEvent); } } };
   
-  // Handlers (same as before)
+  // Handlers
   const scrollToSection = (section: 'live' | 'next') => {
       if (!scrollRef.current) return;
       if (section === 'live') {
@@ -439,21 +473,18 @@ export default function DashboardPage() {
       }
   };
 
-  // Find the logged-in user's data card
   const myProfile = useMemo(() => {
     return team.find(m => m.id === currentUser?.uid);
   }, [team, currentUser]);
 
-  // --- RENDER LOGIC FOR TEAM MEMBERS ---
+  // --- RENDER LOGIC ---
   if (currentUser?.role === "Team Member") {
     return (
         <div className="min-h-screen bg-[#F8FAFC] p-6 flex flex-col items-center justify-center">
-            
             <div className="text-center mb-8 animate-fade-in">
                 <h1 className="text-3xl font-[1000] text-slate-900 tracking-tighter mb-2">Welcome Back</h1>
                 <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">TrainingBook Operative</p>
             </div>
-
             {myProfile ? (
                  <div className="w-full max-w-sm perspective-1000">
                      <TeamCard 
@@ -471,7 +502,6 @@ export default function DashboardPage() {
                     <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Profile Synchronizing...</p>
                 </div>
             )}
-            
             <AnimatePresence>
                 {selectedMember && (
                     <MemberDetailSheet 
@@ -489,7 +519,7 @@ export default function DashboardPage() {
   if (loading && team.length === 0) return <div className="h-screen flex flex-col items-center justify-center bg-[#F8FAFC] gap-4"><Loader2 className="w-10 h-10 animate-spin text-[#E51636]" /><p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Synchronizing Operations...</p></div>;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-6 pb-20 font-sans text-slate-900 relative overflow-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-6 pb-32 font-sans text-slate-900 relative overflow-hidden">
         {/* Background Blurs */}
         <div className="fixed inset-0 pointer-events-none">
             <div className="absolute top-[-20%] left-[-10%] w-[800px] md:w-[1400px] h-[800px] md:h-[1400px] bg-gradient-to-br from-blue-50/40 via-purple-50/20 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
@@ -521,20 +551,14 @@ export default function DashboardPage() {
             <StrategicVisionBoard pillars={calculatedPillars} onUpdate={() => setIsVisionModalOpen(true)} />
 
             {/* KPIs */}
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {kpis.map((kpi, idx) => (
-                <GlassCard key={idx} onClick={() => setActiveKPI({ title: kpi.label, items: kpi.data, color: kpi.modalColor, icon: kpi.icon })} className="p-4 md:p-5 flex flex-col justify-between h-28 md:h-32 group hover:-translate-y-1 hover:shadow-lg transition-all duration-500">
-                    <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2 md:gap-3">
-                        <div className={cn("p-1.5 md:p-2 rounded-xl transition-transform group-hover:scale-110 duration-500 shadow-sm", kpi.bg || "bg-slate-100", kpi.color)}><kpi.icon className="w-3.5 h-3.5 md:w-4 md:h-4" /></div>
-                        <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 hidden md:block">{kpi.label}</span>
-                        <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 md:hidden">{kpi.label.split(' ')[0]}</span>
-                    </div>
-                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
-                    </div>
-                    <div><div className="text-3xl md:text-4xl font-[1000] text-slate-900 tracking-tighter">{kpi.value}</div><div className="mt-1 text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><div className="w-3 h-px bg-slate-200" /> <span className="truncate">{kpi.trend}</span></div></div>
-                </GlassCard>
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {kpis.map((kpi, idx) => (
+                    <KPICard 
+                        key={idx} 
+                        kpi={kpi} 
+                        onClick={() => setActiveKPI({ title: kpi.label, items: kpi.data, color: kpi.modalColor, icon: kpi.icon })} 
+                    />
+                ))}
             </div>
 
             {/* --- MOBILE TABS HEADER --- */}
@@ -655,7 +679,7 @@ export default function DashboardPage() {
                 <StrategicVisionModal 
                     isOpen={isVisionModalOpen} 
                     onClose={() => setIsVisionModalOpen(false)} 
-                    currentPillars={visionPillars} // Use state from page, not calculated
+                    currentPillars={visionPillars} 
                 />
             )}
         </AnimatePresence>
