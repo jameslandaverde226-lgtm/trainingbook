@@ -83,51 +83,52 @@ export function MemberProfileHeader({ member }: Props) {
       if (member.email) {
           navigator.clipboard.writeText(member.email);
           setCopied(true);
-          toast.success("Email copied to clipboard");
+          toast.success("Email copied");
           setTimeout(() => setCopied(false), 2000);
       }
   };
 
   return (
-    <div className="w-full lg:w-[340px] bg-white lg:bg-slate-50 border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto no-scrollbar relative z-30">
+    <div className="w-full lg:w-[340px] bg-white lg:bg-slate-50 border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto no-scrollbar relative z-30 transition-all duration-300">
         
-        <div className="p-5 lg:p-8 flex flex-col items-center w-full">
+        <div className="p-4 lg:p-8 flex flex-col items-center w-full">
             
             {/* TOP ROW: AVATAR + NAME + PROGRESS */}
-            <div className="flex lg:flex-col items-center gap-5 w-full">
+            <div className="flex lg:flex-col items-center gap-4 lg:gap-5 w-full">
                 
-                {/* 1. AVATAR */}
+                {/* 1. AVATAR - Compact on Mobile */}
                 <div className="relative group/avatar cursor-pointer shrink-0 lg:mb-6" onClick={() => fileInputRef.current?.click()}>
                     <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
                     
                     <div className={cn(
-                        "w-20 h-20 lg:w-32 lg:h-32 rounded-[24px] lg:rounded-[32px] p-1.5 shadow-md border border-slate-100 lg:rotate-[-3deg] transition-transform group-hover/avatar:rotate-0 group-hover/avatar:scale-105 bg-white",
+                        "w-14 h-14 lg:w-32 lg:h-32 rounded-[18px] lg:rounded-[32px] p-1 shadow-sm lg:shadow-md border border-slate-100 lg:rotate-[-3deg] transition-transform group-hover/avatar:rotate-0 group-hover/avatar:scale-105 bg-white",
                     )}>
-                        <div className="w-full h-full rounded-[18px] lg:rounded-[24px] overflow-hidden flex items-center justify-center bg-slate-50 relative">
+                        <div className="w-full h-full rounded-[14px] lg:rounded-[24px] overflow-hidden flex items-center justify-center bg-slate-50 relative">
                             {hasValidImage ? (
                                 <img src={member.image} className="w-full h-full object-cover" alt="" />
                             ) : (
-                                <span className={cn("text-2xl lg:text-4xl font-black", brandText)}>{initials}</span>
+                                <span className={cn("text-lg lg:text-4xl font-black", brandText)}>{initials}</span>
                             )}
                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                                {isUploading ? <Loader2 className="w-6 h-6 text-white animate-spin" /> : <Camera className="w-6 h-6 text-white" />}
+                                {isUploading ? <Loader2 className="w-5 h-5 lg:w-8 lg:h-8 text-white animate-spin" /> : <Camera className="w-5 h-5 lg:w-8 lg:h-8 text-white" />}
                             </div>
                         </div>
                     </div>
                 </div>
 
                 {/* 2. IDENTITY (Name & Role) */}
-                <div className="flex-1 min-w-0 flex flex-col lg:items-center">
-                    <h2 className="text-xl lg:text-3xl font-[900] text-slate-900 tracking-tight lg:text-center leading-none mb-1.5 truncate w-full">{member.name}</h2>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] lg:mb-2 truncate">{member.role}</span>
+                <div className="flex-1 min-w-0 flex flex-col lg:items-center justify-center">
+                    <h2 className="text-lg lg:text-3xl font-[900] text-slate-900 tracking-tight lg:text-center leading-none mb-1 lg:mb-1.5 truncate w-full">{member.name}</h2>
                     
-                    {/* Mobile Progress Pill */}
-                    <div className="lg:hidden flex items-center gap-2 mt-2">
-                        <div className="h-1.5 w-16 bg-slate-100 rounded-full overflow-hidden">
-                            <div className={cn("h-full rounded-full", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} style={{ width: `${member.progress}%` }} />
-                        </div>
-                        <span className={cn("text-xs font-[1000]", brandText)}>{member.progress}%</span>
+                    {/* Mobile Role + Progress Row */}
+                    <div className="flex items-center gap-2 lg:hidden">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[120px]">{member.role}</span>
+                        <div className="w-1 h-1 rounded-full bg-slate-300" />
+                        <span className={cn("text-[9px] font-[1000]", brandText)}>{member.progress}%</span>
                     </div>
+
+                    {/* Desktop Role */}
+                    <span className="hidden lg:block text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] lg:mb-2 truncate">{member.role}</span>
                 </div>
 
                 {/* 3. PROGRESS RING (Desktop Only) */}
@@ -152,12 +153,13 @@ export function MemberProfileHeader({ member }: Props) {
             </div>
 
             {/* SECOND ROW: METADATA & ACTIONS */}
-            <div className="w-full mt-6 lg:mt-8 space-y-3">
-                {/* Unit Button */}
+            <div className="w-full mt-4 lg:mt-8 grid grid-cols-2 gap-2 lg:gap-3">
+                
+                {/* Unit Button - Full width on Desktop, Col-2 on Mobile to match Grid */}
                 <button 
                     onClick={toggleDepartment}
                     className={cn(
-                        "w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition-all shadow-sm active:scale-95 group",
+                        "col-span-2 flex items-center justify-between px-4 py-2 lg:py-3 rounded-xl lg:rounded-2xl border transition-all shadow-sm active:scale-95 group",
                         isFOH 
                             ? "bg-blue-50/50 border-blue-100 text-[#004F71]" 
                             : isBOH 
@@ -165,49 +167,37 @@ export function MemberProfileHeader({ member }: Props) {
                                 : "bg-slate-50 border-slate-200 text-slate-500"
                     )}
                 >
-                    <div className="flex items-center gap-3">
-                        <div className={cn("w-2 h-2 rounded-full", isFOH ? "bg-[#004F71]" : isBOH ? "bg-[#E51636]" : "bg-slate-400")} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                            {isUnassigned ? "Unassigned Unit" : `${member.dept} Unit`}
+                    <div className="flex items-center gap-2 lg:gap-3">
+                        <div className={cn("w-1.5 h-1.5 lg:w-2 lg:h-2 rounded-full", isFOH ? "bg-[#004F71]" : isBOH ? "bg-[#E51636]" : "bg-slate-400")} />
+                        <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-widest">
+                            {isUnassigned ? "Unassigned" : `${member.dept} Unit`}
                         </span>
                     </div>
-                    <ArrowLeftRight className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    <ArrowLeftRight className="w-3 h-3 lg:w-3.5 lg:h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
                 </button>
 
-                {/* Info Grid - IMPROVED LAYOUT */}
-                <div className="grid grid-cols-2 gap-3 w-full">
-                    
-                    {/* EMAIL BLOCK (Full Width) */}
-                    <button 
-                        onClick={copyEmail}
-                        className="col-span-2 flex flex-col items-start p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl transition-colors group text-left relative overflow-hidden"
-                    >
-                        <div className="flex items-center justify-between w-full mb-1">
-                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Email Address</span>
-                            {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-slate-300 group-hover:text-[#004F71]" />}
-                        </div>
-                        <div className="flex items-center gap-2.5 w-full">
-                            <div className="p-1.5 bg-white rounded-md shadow-sm border border-slate-100 shrink-0">
-                                <Mail className="w-3.5 h-3.5 text-slate-400" />
-                            </div>
-                            <span className="text-[11px] font-bold text-slate-700 break-all leading-tight">
-                                {member.email || "No Email"}
-                            </span>
-                        </div>
-                    </button>
-
-                    {/* JOINED BLOCK */}
-                    <div className="col-span-2 flex flex-col p-3.5 bg-slate-50 border border-slate-100 rounded-2xl">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Joined Team</span>
-                        <div className="flex items-center gap-2.5">
-                            <div className="p-1.5 bg-white rounded-md shadow-sm border border-slate-100">
-                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            </div>
-                            <span className="text-[11px] font-bold text-slate-700">
-                                {member.joined ? format(new Date(member.joined), "MMMM do, yyyy") : "N/A"}
-                            </span>
-                        </div>
+                {/* EMAIL BLOCK - Span 1 on Mobile, Span 2 on Desktop */}
+                <button 
+                    onClick={copyEmail}
+                    className="col-span-1 lg:col-span-2 flex flex-col items-start p-2.5 lg:p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-xl lg:rounded-2xl transition-colors group text-left relative overflow-hidden h-full justify-between"
+                >
+                    <div className="flex items-center justify-between w-full mb-1">
+                        <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                            Email
+                        </span>
+                        {copied ? <Check className="w-2.5 h-2.5 text-emerald-500" /> : <Copy className="w-2.5 h-2.5 text-slate-300 group-hover:text-[#004F71] opacity-0 group-hover:opacity-100 transition-opacity" />}
                     </div>
+                    <span className="text-[9px] lg:text-[11px] font-bold text-slate-700 truncate w-full block" title={member.email}>
+                        {member.email || "No Email"}
+                    </span>
+                </button>
+
+                {/* JOINED BLOCK - Span 1 on Mobile, Span 2 on Desktop */}
+                <div className="col-span-1 lg:col-span-2 flex flex-col p-2.5 lg:p-3.5 bg-slate-50 border border-slate-100 rounded-xl lg:rounded-2xl h-full justify-between">
+                    <span className="text-[7px] lg:text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Joined</span>
+                    <span className="text-[9px] lg:text-[11px] font-bold text-slate-700 truncate">
+                        {member.joined ? format(new Date(member.joined), "MMM d, yyyy") : "N/A"}
+                    </span>
                 </div>
             </div>
 
