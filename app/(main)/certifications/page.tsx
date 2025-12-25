@@ -289,7 +289,7 @@ const MemberAwardsSheet = ({
 
 // --- PAGE CONTROLLER ---
 export default function CertificationsPage() {
-  const { team, loading, subscribeTeam, updateMemberLocal } = useAppStore();
+  const { team, loading, subscribeTeam, updateMemberLocal, currentUser } = useAppStore();
   
   const [activeView, setActiveView] = useState<"armory" | "eotm">("armory");
   const [isArmoryExpanded, setIsArmoryExpanded] = useState(false);
@@ -347,13 +347,35 @@ export default function CertificationsPage() {
         };
 
         const updatedBadges = [...currentBadges, newBadgeEntry];
+        
+        // 1. Optimistic Update
         updateMemberLocal(targetId, { badges: updatedBadges });
 
+        // 2. Profile Write
         const memberRef = doc(db, "profileOverrides", targetId); 
         await setDoc(memberRef, {
             badges: arrayUnion(newBadgeEntry), 
             updatedAt: serverTimestamp() 
         }, { merge: true });
+
+        // 3. INTELLIGENT EVENT LOGGING (Event Sourcing)
+        // Automatically creates a "System Log" event in the live feed
+        await addDoc(collection(db, "events"), {
+            title: `Awarded: ${badge.label}`,
+            type: "Award",
+            status: "Done",
+            priority: "Medium",
+            startDate: new Date(),
+            endDate: new Date(),
+            assignee: currentUser?.uid || "System",
+            assigneeName: currentUser?.name || "Admin",
+            teamMemberId: member.id,
+            teamMemberName: member.name,
+            description: `[SYSTEM LOG: CERTIFICATION]\nOfficial recognition granted: ${badge.desc || "Operational Excellence"}.\n\nModule ID: ${badge.iconId}`,
+            createdAt: serverTimestamp(),
+            // Metadata used by Dashboard to color code this without re-fetching
+            metadata: { hex: badge.hex, iconId: badge.iconId }
+        });
         
         toast.success(`${badge.label} Awarded`, { id: loadingToast });
       } catch (e) {

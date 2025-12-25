@@ -17,7 +17,8 @@ import {
 
 // --- 1. SHARED BASE TYPES ---
 
-export type EventType = "Training" | "Goal" | "Deadline" | "Operation" | "OneOnOne";
+// UPDATED: Added 'Award' and 'Vote'
+export type EventType = "Training" | "Goal" | "Deadline" | "Operation" | "OneOnOne" | "Award" | "Vote";
 export type Priority = "Low" | "Medium" | "High";
 export type StickerType = "star" | "alert" | "fire" | "party" | "check";
 export type Department = "FOH" | "BOH" | "Unassigned";
@@ -121,7 +122,8 @@ export interface LayoutItem {
 
 // --- 4. DOMAIN CONSTANTS ---
 
-export const EVENT_TYPES: EventType[] = ["Training", "Goal", "Deadline", "Operation", "OneOnOne"];
+// UPDATED LIST
+export const EVENT_TYPES: EventType[] = ["Training", "Goal", "Deadline", "Operation", "OneOnOne", "Award", "Vote"];
 export const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
 
 export const STICKERS: { id: StickerType; icon: string; label: string; color: string }[] = [
@@ -151,6 +153,8 @@ export const getEventLabel = (type: EventType) => {
     case "Deadline": return "Hard Deadline";
     case "Operation": return "Unit Operation";
     case "OneOnOne": return "1-on-1 Session";
+    case "Award": return "Certification"; // New
+    case "Vote": return "Community Ballot"; // New
     default: return type;
   }
 };
@@ -165,6 +169,8 @@ export const getTypeColor = (type: EventType, isGhost: boolean = false) => {
     case "Deadline": return "bg-red-50 text-red-700 border-red-100";
     case "Operation": return "bg-slate-100 text-slate-700 border-slate-200";
     case "OneOnOne": return "bg-purple-50 text-purple-700 border-purple-100";
+    case "Award": return "bg-amber-50 text-amber-700 border-amber-100"; // Gold/Amber for Awards
+    case "Vote": return "bg-gray-50 text-gray-500 border-gray-200"; // Subtle for Votes
     default: return "bg-gray-50 text-gray-700 border-gray-200";
   }
 };

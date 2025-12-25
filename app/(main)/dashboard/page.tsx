@@ -10,7 +10,7 @@ import {
   ArrowRight, GraduationCap,
   BookOpen, Sparkles, User, Plus, Edit3, Trash2, FileText, CheckCircle2, Loader2,
   Zap, Shield, MessageSquare, Flag, Mountain, Rocket, Crosshair, LayoutList, Search,
-  Gauge, DollarSign, Percent, Hash, Layers
+  Gauge, DollarSign, Percent, Hash, Layers, Award, Vote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isSameMonth, formatDistanceToNow, isFuture } from "date-fns";
@@ -46,12 +46,18 @@ const GlassCard = ({ children, className, onClick }: { children: React.ReactNode
   </motion.div>
 );
 
+// UPDATED: Added Award & Vote Icons
 const ActivityIcon = ({ type }: { type: EventType | 'System' }) => {
     switch (type) {
         case "Training": return <div className="w-8 h-8 rounded-xl bg-[#004F71]/10 flex items-center justify-center text-[#004F71] shadow-sm relative z-10 ring-4 ring-white"><Shield className="w-4 h-4" /></div>;
         case "Goal": return <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm relative z-10 ring-4 ring-white"><Target className="w-4 h-4" /></div>;
         case "Deadline": return <div className="w-8 h-8 rounded-xl bg-[#E51636]/10 flex items-center justify-center text-[#E51636] shadow-sm relative z-10 ring-4 ring-white"><Zap className="w-4 h-4" /></div>;
         case "OneOnOne": return <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 shadow-sm relative z-10 ring-4 ring-white"><MessageSquare className="w-4 h-4" /></div>;
+        
+        // --- NEW TYPES ---
+        case "Award": return <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shadow-sm relative z-10 ring-4 ring-white"><Trophy className="w-4 h-4 fill-current" /></div>;
+        case "Vote": return <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shadow-sm relative z-10 ring-4 ring-white"><Vote className="w-4 h-4" /></div>;
+
         default: return <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shadow-sm relative z-10 ring-4 ring-white"><Activity className="w-4 h-4" /></div>;
     }
 };

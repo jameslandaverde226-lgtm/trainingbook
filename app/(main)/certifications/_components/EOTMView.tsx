@@ -94,7 +94,24 @@ export default function EOTMView() {
                 finalizedAt: serverTimestamp()
             };
 
+            // 1. Commit to History
             await setDoc(doc(db, "eotm_winners", currentMonthKey), historyData);
+
+            // 2. INTELLIGENT EVENT LOGGING (High Priority Announcement)
+            // This pushes a prominent "Award" card to the live feed
+            await addDoc(collection(db, "events"), {
+                title: `EOTM Winners: ${format(new Date(), "MMM")}`,
+                type: "Award",
+                status: "Done",
+                priority: "High", // High priority highlights it red/gold in feed
+                startDate: new Date(),
+                endDate: new Date(),
+                assignee: "System",
+                assigneeName: "Command",
+                description: `[OFFICIAL ANNOUNCEMENT]\nThe voting cycle for ${format(new Date(), "MMMM")} is complete.\n\n🏆 FOH Winner: ${fohWinner.name}\n🏆 BOH Winner: ${bohWinner.name}\n\nTotal engagement: ${votes.length} votes cast.`,
+                createdAt: serverTimestamp()
+            });
+
             toast.success("Cycle Finalized & Published", { id: loadToast });
         } catch (e) {
             console.error(e);
@@ -128,6 +145,7 @@ export default function EOTMView() {
 
         const loadToast = toast.loading("Casting Vote...");
         try {
+            // 1. Record the Vote
             await addDoc(collection(db, "eotm_votes"), {
                 voterId: currentUser?.uid || "anon",
                 candidateId,
@@ -136,6 +154,25 @@ export default function EOTMView() {
                 month: currentMonthKey,
                 timestamp: serverTimestamp()
             });
+
+            // 2. INTELLIGENT EVENT LOGGING (Low Priority)
+            // This creates background "chatter" in the live feed showing activity
+            await addDoc(collection(db, "events"), {
+                title: `${dept} Vote Cast`,
+                type: "Vote",
+                status: "Done",
+                priority: "Low", // Low priority keeps it subtle
+                startDate: new Date(),
+                endDate: new Date(),
+                assignee: "System",
+                assigneeName: "Anonymous",
+                // Linking teamMemberId allows this to show up on the Candidate's profile feed too!
+                teamMemberId: candidateId,
+                teamMemberName: candidateName,
+                description: `A vote was cast for ${candidateName} in the ${format(new Date(), 'MMMM')} EOTM cycle.`,
+                createdAt: serverTimestamp()
+            });
+
             toast.success("Vote Recorded", { id: loadToast });
             setVotingDept(null);
         } catch (e) {
