@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { 
   Users, Clock, AlertCircle, 
   Target, CheckSquare, X,
@@ -10,7 +10,7 @@ import {
   ArrowRight, GraduationCap,
   BookOpen, Sparkles, User, Plus, Edit3, Trash2, FileText, CheckCircle2, Loader2,
   Zap, Shield, MessageSquare, Flag, Mountain, Rocket, Crosshair, LayoutList, Search,
-  Gauge, DollarSign
+  Gauge, DollarSign, Percent, Hash, Layers
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isSameMonth, formatDistanceToNow, isFuture } from "date-fns";
@@ -205,75 +205,128 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
-            className="bg-[#004F71] rounded-[32px] md:rounded-[40px] p-5 md:p-8 text-white shadow-2xl relative overflow-hidden group isolate"
+            className="bg-[#004F71] rounded-[32px] md:rounded-[40px] p-6 md:p-8 text-white shadow-2xl relative overflow-hidden group isolate"
         >
             <div className="absolute -top-[150px] -right-[150px] w-[400px] md:w-[600px] h-[400px] md:h-[600px] bg-gradient-to-b from-[#E51636] via-[#E51636]/40 to-transparent opacity-30 blur-[100px] md:blur-[120px] rounded-full pointer-events-none mix-blend-screen animate-pulse duration-[5000ms]" />
             <div className="absolute -bottom-[200px] -left-[100px] w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-[#06b6d4] opacity-10 blur-[80px] md:blur-[100px] rounded-full pointer-events-none mix-blend-screen" />
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.07] mix-blend-overlay pointer-events-none" />
             
-            <div className="relative z-10 flex flex-col h-full justify-between">
-                <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-10 gap-4">
+            <div className="relative z-10 flex flex-col h-full justify-between space-y-8">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="p-2.5 md:p-3 bg-white/10 rounded-2xl border border-white/20 backdrop-blur-md shadow-[0_0_20px_rgba(255,255,255,0.1)] flex items-center justify-center shrink-0">
-                            <Rocket className="w-5 h-5 md:w-6 md:h-6 text-white drop-shadow-md" />
+                        <div className="p-3 bg-white/10 rounded-2xl border border-white/20 backdrop-blur-md shadow-[0_0_20px_rgba(255,255,255,0.1)] flex items-center justify-center shrink-0">
+                            <Rocket className="w-6 h-6 text-white drop-shadow-md" />
                         </div>
-                        <div className="space-y-0.5 md:space-y-1">
-                            <h2 className="text-xl md:text-3xl font-[1000] tracking-tighter leading-none text-white drop-shadow-sm">Strategic Vision</h2>
+                        <div className="space-y-1">
+                            <h2 className="text-3xl font-[1000] tracking-tighter leading-none text-white drop-shadow-sm">Strategic Vision</h2>
                             <div className="flex items-center gap-2">
-                                <div className="w-6 md:w-8 h-0.5 bg-gradient-to-r from-[#E51636] to-transparent rounded-full" />
-                                <p className="text-[8px] md:text-[10px] font-bold text-blue-100 uppercase tracking-[0.3em]">Command Directives</p>
+                                <div className="w-8 h-0.5 bg-gradient-to-r from-[#E51636] to-transparent rounded-full" />
+                                <p className="text-[10px] font-bold text-blue-100 uppercase tracking-[0.3em]">Command Directives</p>
                             </div>
                         </div>
                     </div>
                     <button onClick={onUpdate} className="hidden md:flex group/btn relative px-6 py-2.5 bg-white/10 hover:bg-white/20 rounded-full text-[9px] font-black uppercase tracking-widest border border-white/10 transition-all overflow-hidden items-center gap-2 hover:border-white/30 hover:scale-105 active:scale-95">
-                        <span className="relative z-10">Update Vision</span>
+                        <span className="relative z-10">{pillars.length > 0 ? "Update Vision" : "Initialize Vision"}</span>
                         <ChevronRight className="w-3 h-3 relative z-10 group-hover/btn:translate-x-1 transition-transform" />
                     </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-                    {pillars.map(pillar => {
-                        const style = getColors(pillar.color);
-                        const Icon = ICONS[pillar.icon as keyof typeof ICONS] || Target;
-                        // Safe Calculation
-                        const percentage = pillar.target > 0 ? Math.min(100, (pillar.current / pillar.target) * 100) : 0;
-                        const isAuto = pillar.source && pillar.source !== 'manual';
+                {pillars.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <LayoutGroup>
+                            {pillars.map(pillar => {
+                                const style = getColors(pillar.color);
+                                const Icon = ICONS[pillar.icon] || Target;
+                                const target = pillar.target || 100;
+                                const progress = Math.min(100, Math.max(0, (pillar.current / target) * 100));
+                                const isAuto = pillar.source && pillar.source !== 'manual';
 
-                        return (
-                            <div key={pillar.id} className="relative bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-[24px] md:rounded-[32px] p-4 md:p-6 backdrop-blur-md hover:bg-white/15 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-lg hover:-translate-y-1">
-                                <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-1 md:gap-0">
-                                    <div className={cn("flex items-center gap-1.5 md:gap-2.5 px-2 py-1 md:px-3 md:py-1.5 rounded-full border", style.text, style.bg, style.border)}>
-                                        <Icon className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
-                                        <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">{pillar.subtitle}</span>
-                                        {isAuto && <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse ml-1" title="Live System Data" />}
-                                    </div>
-                                    <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">
-                                        {pillar.current}{pillar.unit === '%' ? '%' : ''} / {pillar.target}{pillar.unit === '%' ? '%' : ''}
-                                    </span>
-                                </div>
-                                <div className="space-y-2 md:space-y-3 mt-2 md:mt-0 text-center md:text-left">
-                                    <h3 className="text-[10px] md:text-base font-bold leading-tight text-white/90 line-clamp-1">{pillar.title}</h3>
-                                    <div className="h-1.5 w-full bg-black/30 rounded-full overflow-hidden p-[1px]">
-                                        <motion.div 
-                                            initial={{ width: 0 }} 
-                                            animate={{ width: `${percentage}%` }} 
-                                            transition={{ duration: 1.5, ease: "circOut" }} 
-                                            className={cn("h-full rounded-full relative bg-gradient-to-r", style.bar)}
-                                        >
-                                            <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]" />
-                                        </motion.div>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                                return (
+                                    <motion.div 
+                                        layoutId={`card-${pillar.id}`}
+                                        key={pillar.id} 
+                                        className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden backdrop-blur-sm hover:bg-white/10 transition-colors group/card h-[220px]"
+                                    >
+                                        {/* Content */}
+                                        <div className="absolute inset-0 p-6 flex flex-col justify-between">
+                                             {/* Header */}
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex items-center gap-4">
+                                                    <motion.div 
+                                                        layoutId={`icon-box-${pillar.id}`}
+                                                        className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg", style.bg, style.border)}
+                                                        style={{ color: "white" }} 
+                                                    >
+                                                        <Icon className="w-6 h-6 fill-current" />
+                                                    </motion.div>
+                                                    <div>
+                                                        <motion.span layoutId={`subtitle-${pillar.id}`} className="inline-block text-[9px] font-black uppercase tracking-widest text-blue-200 mb-0.5">
+                                                            {pillar.subtitle || "METRIC"}
+                                                        </motion.span>
+                                                        <motion.h3 layoutId={`title-${pillar.id}`} className="text-lg font-[1000] text-white leading-tight">
+                                                            {pillar.title}
+                                                        </motion.h3>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Metric */}
+                                            <div className="text-center">
+                                                <div className="flex items-baseline justify-center gap-1">
+                                                    <motion.span 
+                                                        layoutId={`value-${pillar.id}`}
+                                                        className="text-5xl font-[1000] tracking-tighter drop-shadow-sm text-white"
+                                                    >
+                                                        {pillar.current}
+                                                    </motion.span>
+                                                    <span className="text-xs font-bold text-blue-200 uppercase">
+                                                        / {target} {pillar.unit === '%' && '%'}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Progress Bar */}
+                                            <div>
+                                                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                                    <motion.div 
+                                                        layoutId={`bar-${pillar.id}`}
+                                                        initial={{ width: 0 }}
+                                                        animate={{ width: `${progress}%` }}
+                                                        transition={{ duration: 1.5, ease: "circOut" }}
+                                                        className={cn("h-full rounded-full relative bg-gradient-to-r", style.bar)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </LayoutGroup>
+                    </div>
+                ) : (
+                    /* --- EMPTY STATE --- */
+                    <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-white/10 rounded-[32px] bg-white/5">
+                        <div className="p-4 bg-white/10 rounded-full mb-4 shadow-lg animate-pulse">
+                            <Layers className="w-8 h-8 text-white" />
+                        </div>
+                        <h3 className="text-xl font-black text-white mb-2">No Active Directives</h3>
+                        <p className="text-blue-200 text-xs font-bold uppercase tracking-widest mb-6 text-center max-w-xs">
+                            System is currently awaiting strategic configuration.
+                        </p>
+                        <button 
+                            onClick={onUpdate}
+                            className="px-8 py-3 bg-white text-[#004F71] rounded-full font-black text-[10px] uppercase tracking-[0.2em] hover:scale-105 transition-transform shadow-xl"
+                        >
+                            Initialize System
+                        </button>
+                    </div>
+                )}
             </div>
         </motion.div>
     );
 };
 
 // --- MAIN PAGE ---
+
 export default function DashboardPage() {
   const { events, team, loading, subscribeEvents, subscribeTeam, currentUser } = useAppStore();
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -306,12 +359,7 @@ export default function DashboardPage() {
             const data = docSnap.data();
             if (data.pillars) setVisionPillars(data.pillars);
         } else {
-             // Defaults
-             setVisionPillars([
-                 { id: "1", title: "Speed of Service", subtitle: "Weekly", current: 65, target: 80, unit: "%", icon: "Zap", color: "cyan", source: "manual" },
-                 { id: "2", title: "New Leaders", subtitle: "Monthly", current: 3, target: 5, unit: "Count", icon: "Target", color: "emerald", source: "system_leaders" },
-                 { id: "3", title: "Hospitality Score", subtitle: "North Star", current: 15, target: 20, unit: "%", icon: "Mountain", color: "red", source: "manual" }
-             ]);
+             setVisionPillars([]); // EMPTY STATE ON FRESH LOAD
         }
     });
 
@@ -331,14 +379,22 @@ export default function DashboardPage() {
 
     return visionPillars.map(p => {
         let liveVal = p.current;
+        
         if (p.source === 'system_1on1') liveVal = currentMonth1on1s;
         if (p.source === 'system_active_goals') liveVal = activeGoalsCount;
         if (p.source === 'system_leaders') liveVal = leaderCount;
         if (p.source === 'system_training_avg') liveVal = avgTraining;
         
+        // NEW: Track Individual Member Progress
+        if (p.source === 'system_member_progress' && p.linkedMemberId) {
+            const member = team.find(m => m.id === p.linkedMemberId);
+            if (member) liveVal = member.progress || 0;
+        }
+        
         return { ...p, current: liveVal };
     });
   }, [visionPillars, events, team]);
+
 
   // ... (KPIs, Feed, NextSession Logic same as before) ...
   const kpis = useMemo(() => {
@@ -599,7 +655,7 @@ export default function DashboardPage() {
                 <StrategicVisionModal 
                     isOpen={isVisionModalOpen} 
                     onClose={() => setIsVisionModalOpen(false)} 
-                    currentPillars={visionPillars} 
+                    currentPillars={visionPillars} // Use state from page, not calculated
                 />
             )}
         </AnimatePresence>
