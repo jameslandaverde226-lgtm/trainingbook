@@ -121,6 +121,9 @@ export default function TeamBoardPage() {
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
     const [trainerDraggingId, setTrainerDraggingId] = useState<string | null>(null);
     const [isTrainerPanelOpen, setIsTrainerPanelOpen] = useState(false);
+    
+    // NEW: Processing Lock
+    const [isProcessing, setIsProcessing] = useState(false);
 
     // Derived active member (Reactive!)
     const selectedMember = useMemo(() => 
@@ -198,8 +201,9 @@ export default function TeamBoardPage() {
     };
 
     const handleUnitAssign = async (dept: "FOH" | "BOH") => {
-        if (!assignmentMember) return;
+        if (!assignmentMember || isProcessing) return;
         
+        setIsProcessing(true);
         updateMemberLocal(assignmentMember.id, { dept });
 
         const loadToast = toast.loading(`Initializing ${dept} Profile...`);
@@ -229,6 +233,8 @@ export default function TeamBoardPage() {
             setAssignmentMember(null);
         } catch (e) {
             toast.error("Assignment Failed", { id: loadToast });
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -239,6 +245,9 @@ export default function TeamBoardPage() {
     const handleTrainerDragStart = (trainerId: string) => setTrainerDraggingId(trainerId);
 
     const handleAssignTrainer = async (trainer: TeamMember, memberId: string) => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+
         const member = team.find(m => m.id === memberId);
         if (member) {
             const loadToast = toast.loading("Establishing Link...");
@@ -273,7 +282,11 @@ export default function TeamBoardPage() {
             } catch (err) {
                 console.error(err);
                 toast.error("Failed to assign mentor", { id: loadToast });
+            } finally {
+                setIsProcessing(false);
             }
+        } else {
+             setIsProcessing(false);
         }
     };
 
@@ -295,13 +308,21 @@ export default function TeamBoardPage() {
         }
     };
 
-    // --- PROMOTION LOGIC (UPDATED WITH EVENT LOGGING) ---
+    // --- PROMOTION LOGIC (UPDATED WITH EVENT LOGGING & DEBOUNCE) ---
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
+        if (isProcessing) return;
+        
+        const member = team.find(m => m.id === memberId);
+        if(!member || member.status === newRole) {
+            setMemberDraggingId(null);
+            return;
+        }
+
+        setIsProcessing(true);
         setMemberDraggingId(null); 
         
         const toastId = toast.loading(`Promoting to ${newRole}...`);
         const today = new Date().toISOString();
-        const member = team.find(m => m.id === memberId);
         
         // Optimistic Update
         updateMemberLocal(memberId, { status: newRole, role: newRole });
@@ -347,6 +368,10 @@ export default function TeamBoardPage() {
         } catch (error) {
             console.error("Promotion failed:", error);
             toast.error("Deployment Failed", { id: toastId });
+            // Revert optimistic update
+            updateMemberLocal(memberId, { status: member.status, role: member.role });
+        } finally {
+            setIsProcessing(false);
         }
     };
 
