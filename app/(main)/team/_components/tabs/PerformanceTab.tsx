@@ -1,16 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatDistanceToNow, format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { 
   ShieldCheck, MessageSquare, Link2, Medal, Zap, Target, Activity, 
-  FileText, CheckCircle2, AlertTriangle, BookOpen, Star, StickyNote, File 
+  FileText, CheckCircle2, AlertTriangle, BookOpen, Star, StickyNote, File, Trophy, Vote
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember, CalendarEvent } from "../../../calendar/_components/types";
 import OneOnOneSessionModal from "../../../calendar/_components/OneOnOneSessionModal";
 import { useAppStore } from "@/lib/store/useStore";
-import { TACTICAL_ICONS } from "@/lib/icon-library";
 import { AnimatePresence, motion } from "framer-motion";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -26,16 +25,19 @@ const getActivityConfig = (type: string) => {
         // Operational
         case 'GOAL': return { icon: Target, color: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', accent: 'border-l-emerald-500' };
         case '1-ON-1': return { icon: MessageSquare, color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', accent: 'border-l-purple-500' };
+        // New System Types
+        case 'AWARD': return { icon: Trophy, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500' };
+        case 'VOTE': return { icon: Vote, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', accent: 'border-l-slate-400' };
+        
         // Documents
         case 'INCIDENT': return { icon: AlertTriangle, color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', accent: 'border-l-red-500' };
         case 'COMMENDATION': return { icon: Star, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500' };
         case 'REVIEW': return { icon: FileText, color: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', accent: 'border-l-blue-500' };
         case 'NOTE': return { icon: StickyNote, color: 'bg-slate-500', text: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', accent: 'border-l-slate-400' };
         case 'DOCUMENT': return { icon: File, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', accent: 'border-l-slate-300' };
+        
         // System
         case 'MODULE': return { icon: BookOpen, color: 'bg-indigo-500', text: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', accent: 'border-l-indigo-500' };
-        case 'AWARD': return { icon: Medal, color: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', accent: 'border-l-orange-500' };
-        // Default
         default: return { icon: Activity, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', accent: 'border-l-slate-300' };
     }
 };
@@ -62,23 +64,30 @@ export function PerformanceTab({ member }: Props) {
         if (desc.startsWith("[DOCUMENT LOG:")) {
              const match = desc.match(/\[DOCUMENT LOG: (.*?)\]/);
              const docType = match ? match[1] : 'Note';
-             
              if (docType.includes("Incident")) category = 'INCIDENT';
              else if (docType.includes("Commendation")) category = 'COMMENDATION';
              else if (docType.includes("Review")) category = 'REVIEW';
              else if (docType.includes("Note")) category = 'NOTE';
              else category = 'DOCUMENT';
-
-             // Clean up description for display
+             
+             // Strip headers for clean display
              desc = desc.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
         }
         else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
+        else if (e.type === 'Award') category = 'AWARD';
+        else if (e.type === 'Vote') category = 'VOTE';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
+
+        // Clean System Logs (e.g. Awards/EOTM)
+        if (desc.startsWith("[SYSTEM LOG:") || desc.startsWith("[OFFICIAL")) {
+             // Removes the bracketed header line to show only the message body
+             desc = desc.replace(/\[.*?\]\n/, "").trim();
+        }
 
         history.push({ 
             id: e.id, 
-            date: e.createdAt?.toDate ? e.createdAt.toDate() : e.startDate, // Prefer creation date for feed
+            date: e.createdAt?.toDate ? e.createdAt.toDate() : e.startDate, // Prefer creation date for feed accuracy
             title, 
             category, 
             rawEvent: e, 
@@ -86,20 +95,10 @@ export function PerformanceTab({ member }: Props) {
         });
     });
 
-    // 2. BADGES (CERTIFICATIONS)
-    if(member.badges) {
-        member.badges.forEach((b: any) => history.push({ 
-            id: b.awardedId || b.id, 
-            date: b.timestamp ? new Date(b.timestamp) : new Date(), 
-            title: `Certification Earned: ${b.label}`, 
-            category: 'AWARD', 
-            description: "Official Certification added to profile.",
-            hex: b.hex, 
-            iconId: b.iconId 
-        }));
-    }
+    // NOTE: We REMOVED manual badge injection here to prevent duplicates.
+    // Awards are now standard events in the 'events' collection.
 
-    // 3. CURRICULUM MODULES
+    // 2. CURRICULUM MODULES (Virtual Events)
     if (member.completedTaskIds && member.completedTaskIds.length > 0) {
         let completedNames: string[] = [];
         curriculum.forEach(section => {
@@ -107,7 +106,6 @@ export function PerformanceTab({ member }: Props) {
                  if (member.completedTaskIds?.includes(t.id)) completedNames.push(t.title);
              });
         });
-
         if (completedNames.length > 0) {
              history.push({
                  id: 'module-summary',
