@@ -1,4 +1,3 @@
-// --- FILE: ./app/(main)/team/_components/MemberDetailSheet.tsx ---
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -13,7 +12,8 @@ import {
   ArrowUpRight, Save, ChevronLeft, ChevronDown, 
   Command, TrendingUp, Lightbulb, Minimize2, ExternalLink, 
   GripHorizontal, Users, Link2, FileWarning,
-  Mail, Calendar, Camera, FileText, ShieldAlert
+  Mail, Calendar, Camera, FileText, ShieldAlert,
+  ArrowLeftRight // Added Icon
 } from "lucide-react";
 import { 
     formatDistanceToNow, parseISO, startOfWeek, startOfMonth, endOfWeek, endOfMonth, 
@@ -44,6 +44,12 @@ function ClientPortal({ children }: { children: React.ReactNode }) {
   }, []);
   return mounted ? createPortal(children, document.body) : null;
 }
+
+// ... (ManualViewerModal, IntegratedRangePicker, WebAppDropdown remain exactly the same as previous) ...
+// For brevity, I am keeping the large helper components collapsed in this thought process 
+// but ensure you keep them in your file. 
+// If you are copy-pasting, ensure you have the helper components from the previous version.
+// I will include them below to be safe.
 
 function ManualViewerModal({ url, title, pages, onClose, color }: { url: string, title: string, pages: string, onClose: () => void, color: string }) {
     const [loading, setLoading] = useState(true);
@@ -209,11 +215,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
   [team, initialMember.id]);
 
   const member = liveMember || initialMember;
-
-  // --- PROBATION LOGIC ---
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
-
-  // --- UPLOAD STATE ---
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -250,7 +252,20 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
   const brandText = isFOH ? 'text-[#004F71]' : 'text-[#E51636]';
   const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
-  // --- IMAGE UPLOAD HANDLER ---
+  // --- ACTIONS ---
+
+  // 1. Toggle Department (Manual Correction)
+  const toggleDepartment = async () => {
+      const newDept = member.dept === "FOH" ? "BOH" : "FOH";
+      const loadToast = toast.loading(`Transferring to ${newDept}...`);
+      try {
+          await setDoc(doc(db, "profileOverrides", member.id), { dept: newDept }, { merge: true });
+          toast.success(`Unit Updated: ${newDept}`, { id: loadToast });
+      } catch(e) {
+          toast.error("Transfer Failed", { id: loadToast });
+      }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setIsUploading(true);
@@ -259,15 +274,9 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
       try {
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
-        
-        await setDoc(doc(db, "profileOverrides", member.id), {
-          image: url,
-          updatedAt: serverTimestamp()
-        }, { merge: true });
-
+        await setDoc(doc(db, "profileOverrides", member.id), { image: url, updatedAt: serverTimestamp() }, { merge: true });
         toast.success("Identity Updated");
       } catch (error) {
-        console.error(error);
         toast.error("Upload Failed");
       } finally {
         setIsUploading(false);
@@ -276,7 +285,6 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
   };
 
   const hasValidImage = member.image && !member.image.includes('ui-avatars.com');
-
   const filteredCurriculum = useMemo(() => curriculum.filter(s => s.dept === member.dept), [curriculum, member.dept]);
   const activeSection = useMemo(() => filteredCurriculum.find(s => s.id === selectedSectionId), [filteredCurriculum, selectedSectionId]);
   const assignedEvents = useMemo(() => events.filter(e => e.teamMemberId === member.id || e.assignee === member.id), [events, member.id]);
@@ -285,15 +293,11 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
     const history: any[] = [];
     assignedEvents.forEach(e => {
         let category = 'MISSION';
-        
-        // --- NEW LOGIC START ---
         if (e.description?.startsWith("[DOCUMENT LOG:")) {
             const match = e.description.match(/\[DOCUMENT LOG: (.*?)\]/);
             category = match ? match[1].toUpperCase() : 'DOCUMENT';
             e.description = e.description.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
         } 
-        // --- NEW LOGIC END ---
-
         else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
@@ -309,20 +313,10 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
         }
 
         history.push({ 
-            id: e.id, 
-            date: e.startDate, 
-            title: e.title, 
-            type: e.type, 
-            category,
-            status: e.status,
-            goal,    
-            summary, 
-            description: e.description, // Ensure cleaned description is passed
-            rawEvent: e,
-            mentorName: e.assigneeName 
+            id: e.id, date: e.startDate, title: e.title, type: e.type, 
+            category, status: e.status, goal, summary, description: e.description, rawEvent: e, mentorName: e.assigneeName 
         });
     });
-
     if(member.badges) {
         member.badges.forEach((b: any) => history.push({ id: b.awardedId || b.id, date: b.timestamp ? parseISO(b.timestamp) : new Date(), title: b.label, category: 'AWARD', hex: b.hex, iconId: b.iconId, description: `Identity module successfully validated.` }));
     }
@@ -405,7 +399,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                         </div>
                     </div>
 
-                    {/* --- PROBATION BADGE (Replacing simple New Hire badge) --- */}
+                    {/* --- PROBATION BADGE --- */}
                     {probation && probation.isActive && (
                         <motion.div 
                             initial={{ scale: 0, rotate: -45 }}
@@ -422,7 +416,15 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
                 <div>
                     <h2 className="text-2xl lg:text-3xl font-bold text-slate-900 mb-1 tracking-tight leading-none">{member.name}</h2>
                     <div className="flex flex-row lg:flex-col items-center justify-center gap-2 lg:gap-3 mt-2 lg:mt-4">
-                        <Badge color={isFOH ? 'blue' : 'red'} className="border-2 shadow-sm font-black">{member.dept} UNIT</Badge>
+                        
+                        {/* --- CLICKABLE UNIT BADGE --- */}
+                        <div onClick={toggleDepartment} className="cursor-pointer hover:scale-105 transition-transform group/unit" title="Tap to switch unit">
+                            <Badge color={isFOH ? 'blue' : 'red'} className="border-2 shadow-sm font-black flex items-center gap-2">
+                                {member.dept} UNIT
+                                <ArrowLeftRight className="w-3 h-3 opacity-0 group-hover/unit:opacity-100 transition-opacity" />
+                            </Badge>
+                        </div>
+                        
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{member.role}</span>
                     </div>
 

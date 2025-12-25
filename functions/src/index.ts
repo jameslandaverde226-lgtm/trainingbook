@@ -14,184 +14,167 @@ export const syncTeamRoster = onSchedule(
   {
     schedule: "0 6 * * *",
     timeZone: "America/New_York",
-    timeoutSeconds: 300,
-    memory: "2GiB",
+    timeoutSeconds: 300, 
+    memory: "2GiB",      
     secrets: [lifelenzEmail, lifelenzPassword],
   },
   async (event) => {
-    console.log("🚀 Starting LifeLenz Scraper Sync V2 (Serverless Mode)...");
+    console.log("🚀 Starting LifeLenz Scraper V6 (Manual Dept Control)...");
 
     let browser = null;
-    let extractedTeam: any[] = [];
+    let scrapedData: any[] = [];
 
     try {
-      // 1. Configure Chromium for Cloud Functions
-      // Removed 'ignoreHTTPSErrors' to satisfy strict TS check
+      console.log("1. Configuring Chromium...");
+      chromium.setGraphicsMode = false;
+      
+      console.log("2. Launching Browser...");
       browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: { width: 1920, height: 1080 },
+        args: [
+            ...chromium.args,
+            "--disable-gpu",
+            "--disable-dev-shm-usage",
+            "--disable-setuid-sandbox",
+            "--no-sandbox",
+            "--no-zygote"
+        ],
+        defaultViewport: {
+            width: 1920,
+            height: 1080
+        },
         executablePath: await chromium.executablePath(),
-        headless: true,
+        headless: true, 
       });
 
       const page = await browser.newPage();
+      
+      await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.127 Safari/537.36');
 
-      // --- LOGIN SEQUENCE ---
-      console.log("🔑 Navigating to Login...");
-      await page.goto("https://admin.lifelenz.com/us01/auth/login", {
-        waitUntil: "networkidle2",
+      console.log("4. Navigating to Login Page...");
+      await page.goto("https://admin.lifelenz.com/us01/auth/login", { 
+          waitUntil: "networkidle2",
+          timeout: 60000 
       });
 
-      console.log("✍️ Entering Credentials...");
+      console.log("5. Waiting for Email Input...");
+      await page.waitForSelector('#email', { timeout: 10000 });
+
+      console.log("6. Typing Credentials...");
       await page.type("#email", lifelenzEmail.value());
       await page.type("#password", lifelenzPassword.value());
 
-      console.log("Cd Clicking Login...");
-      await page.click('button[type="submit"]');
+      console.log("7. Clicking Submit...");
+      await Promise.all([
+          page.waitForNavigation({ waitUntil: "networkidle2", timeout: 60000 }),
+          page.click('button[type="submit"]'),
+      ]);
+      
+      console.log("8. Login Successful.");
 
-      await page.waitForNavigation({ waitUntil: "networkidle2" });
-      console.log("✅ Login Successful.");
-
-      // --- SETUP INTERCEPTOR ---
+      // --- LISTENER SETUP ---
       page.on("response", async (response) => {
         const url = response.url();
+        
+        if (url.includes("manager/graphql")) {
+            try {
+                const json = await response.json();
+                
+                if (json.data?.employmentsInScheduleTimeRange?.edges) {
+                    console.log("🎯 TARGET DATA STREAM DETECTED!");
+                    
+                    const newRows = json.data.employmentsInScheduleTimeRange.edges
+                        .map((edge: any) => {
+                            const node = edge.node;
+                            
+                            if (node.currentStatus && node.currentStatus.toLowerCase().includes("terminated")) {
+                                return null;
+                            }
 
-        if (
-          url.includes("manager/graphql") &&
-          url.includes("GetSchedulableEmploymentsForPeriod")
-        ) {
-          console.log("📥 Intercepted Employee Data Stream.");
-          try {
-            const json = await response.json();
-            if (
-              json.data &&
-              json.data.employmentsInScheduleTimeRange &&
-              json.data.employmentsInScheduleTimeRange.edges
-            ) {
-              const rawEmployees = json.data.employmentsInScheduleTimeRange.edges;
-
-              extractedTeam = rawEmployees
-                .map((edge: any) => {
-                  const node = edge.node;
-
-                  const activeRate =
-                    node.employmentRates.find((r: any) => r.status === "active") ||
-                    node.employmentRates[0];
-
-                  const jobTitle = activeRate?.jobTitle?.name || "Team Member";
-                  const jobCode = activeRate?.jobTitle?.code || "";
-
-                  let dept = "FOH";
-                  const lowerTitle = jobTitle.toLowerCase();
-                  if (
-                    lowerTitle.includes("kitchen") ||
-                    lowerTitle.includes("cook") ||
-                    jobCode.includes("KD")
-                  ) {
-                    dept = "BOH";
-                  }
-
-                  let role = "Team Member";
-                  let status = "Team Member";
-
-                  if (jobTitle.includes("Director")) {
-                    role = "Director";
-                    status = "Director";
-                  } else if (jobTitle.includes("Manager")) {
-                    role = "Assistant Director";
-                    status = "Assistant Director";
-                  } else if (
-                    jobTitle.includes("Leader") ||
-                    jobTitle.includes("Shift")
-                  ) {
-                    role = "Team Leader";
-                    status = "Team Leader";
-                  }
-
-                  if (
-                    node.currentStatus &&
-                    node.currentStatus.includes("terminated")
-                  ) {
-                    return null;
-                  }
-
-                  return {
-                    id: node.userId || node.id,
-                    name: node.computedName,
-                    email: node.email || "",
-                    role: role,
-                    dept: dept,
-                    status: status,
-                    joined: node.duringFrom,
-                    image:
-                      node.image ||
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                        node.computedName
-                      )}&background=random`,
-                    progress: 0,
-                    stats: {
-                      speed: 50,
-                      accuracy: 50,
-                      hospitality: 50,
-                      knowledge: 50,
-                      leadership: 50,
-                    },
-                  };
-                })
-                .filter((e: any) => e !== null);
+                            return {
+                                id: node.userId || node.id,
+                                name: node.computedName,
+                                email: node.email || "",
+                                // Default values for NEW users only
+                                role: "Team Member",
+                                status: "Onboarding", 
+                                // We default to FOH as a placeholder, but we NEVER update this later.
+                                // You will change this manually in the app.
+                                dept: "FOH", 
+                                joined: node.duringFrom,
+                                image: node.image || "",
+                                stats: { speed: 50, accuracy: 50, hospitality: 50, knowledge: 50, leadership: 50 },
+                                progress: 0
+                            };
+                        })
+                        .filter((e: any) => e !== null);
+                        
+                    scrapedData = [...scrapedData, ...newRows];
+                }
+            } catch (err) {
+                // Ignore JSON parse errors
             }
-          } catch (err) {
-            console.error("Error parsing JSON response", err);
-          }
         }
       });
 
-      // --- NAVIGATE TO SCHEDULE ---
-      console.log("📅 Navigating to Schedule Page...");
-      const targetUrl =
-        "https://admin.lifelenz.com/us02/timekeeping/week/f3f058e6-5679-40a7-aed1-6b192897d683/1583007f-55ff-4e69-abc2-b4a053a728ca/";
+      console.log("9. Navigating to Specific Schedule View...");
+      const targetUrl = "https://admin.lifelenz.com/us02/schedule/week/f3f058e6-5679-40a7-aed1-6b192897d683/1583007f-55ff-4e69-abc2-b4a053a728ca";
+      
+      await page.goto(targetUrl, { waitUntil: "networkidle2", timeout: 60000 });
+      
+      console.log("10. Waiting for Data Stream (15 seconds)...");
+      await new Promise((resolve) => setTimeout(resolve, 15000));
 
-      await page.goto(targetUrl, { waitUntil: "networkidle2" });
-
-      await new Promise((resolve) => setTimeout(resolve, 10000));
     } catch (error) {
-      console.error("❌ Scraper Error:", error);
+      console.error("❌ CRITICAL SCRAPER ERROR:", error);
     } finally {
       if (browser) await browser.close();
     }
 
-    // --- SYNC TO FIRESTORE ---
-    if (extractedTeam.length > 0) {
-      console.log(`📦 Syncing ${extractedTeam.length} members to Firestore...`);
+    // --- SYNC ---
+    if (scrapedData.length > 0) {
+      console.log(`📦 Processing ${scrapedData.length} users for Firestore...`);
+      
+      const snapshot = await db.collection("teamMembers").get();
+      const existingIds = new Set(snapshot.docs.map(doc => doc.id));
+      console.log(`ℹ️ Found ${existingIds.size} existing users in DB.`);
 
       const batch = db.batch();
       let count = 0;
 
-      for (const member of extractedTeam) {
+      for (const member of scrapedData) {
         if (!member.email) continue;
-
         const docRef = db.collection("teamMembers").doc(member.id);
 
-        batch.set(
-          docRef,
-          {
-            ...member,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
-
-        count++;
-        if (count >= 400) {
-          await batch.commit();
-          count = 0;
+        if (existingIds.has(member.id)) {
+            // EXISTING USER:
+            // Only update immutable profile data (Name, Email, Join Date)
+            // DO NOT update 'dept', 'role', or 'status' - these are managed manually now.
+            batch.set(docRef, {
+                name: member.name,
+                email: member.email,
+                joined: member.joined,
+                ...(member.image ? { image: member.image } : {}),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        } else {
+            // NEW USER: 
+            // Create with defaults (Onboarding / FOH placeholder)
+            // You will move them and assign the correct Dept in the UI.
+            console.log(`✨ New Hire Detected: ${member.name}`);
+            batch.set(docRef, {
+                ...member,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
         }
+        
+        count++;
+        if (count >= 400) { await batch.commit(); count = 0; }
       }
-
+      
       if (count > 0) await batch.commit();
-      console.log("🎉 Sync Complete.");
+      console.log("✅ Sync Complete.");
     } else {
-      console.log("⚠️ No data extracted. Check login or API path.");
+        console.warn("⚠️ No data was extracted.");
     }
   }
 );
