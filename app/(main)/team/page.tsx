@@ -12,7 +12,6 @@ import toast from "react-hot-toast";
 // Firebase Imports
 import { useAppStore } from "@/lib/store/useStore";
 import { db } from "@/lib/firebase";
-// ADDED: writeBatch to imports
 import { doc, setDoc, serverTimestamp, collection, addDoc, updateDoc, writeBatch } from "firebase/firestore";
 
 import { Status, STAGES, TeamMember } from "../calendar/_components/types";
@@ -103,7 +102,7 @@ function PromotionHUD({
 
 // --- MAIN PAGE ---
 export default function TeamBoardPage() {
-    const { team, subscribeTeam, subscribeEvents, updateMemberLocal } = useAppStore(); 
+    const { team, subscribeTeam, subscribeEvents, subscribeCurriculum, updateMemberLocal } = useAppStore(); 
     
     // Filters
     const [activeStage, setActiveStage] = useState<Status>("Team Member");
@@ -127,8 +126,14 @@ export default function TeamBoardPage() {
     useEffect(() => {
         const unsubTeam = subscribeTeam();
         const unsubEvents = subscribeEvents(); 
-        return () => { unsubTeam(); unsubEvents(); };
-    }, [subscribeTeam, subscribeEvents]);
+        const unsubCurriculum = subscribeCurriculum(); // Added Curriculum Subscription
+        
+        return () => { 
+            unsubTeam(); 
+            unsubEvents(); 
+            unsubCurriculum();
+        };
+    }, [subscribeTeam, subscribeEvents, subscribeCurriculum]);
 
     // Reset pagination when filters change
     useEffect(() => {

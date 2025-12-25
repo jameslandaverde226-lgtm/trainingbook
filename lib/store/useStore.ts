@@ -46,13 +46,11 @@ export const useAppStore = create<AppState>((set) => ({
   authLoading: true,
 
   subscribeEvents: () => {
-    // Basic event subscription
     const q = query(collection(db, "events"));
     return onSnapshot(q, (snapshot) => {
       const eventsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        // Convert Timestamps to Dates safely
         startDate: doc.data().startDate?.toDate ? doc.data().startDate.toDate() : new Date(),
         endDate: doc.data().endDate?.toDate ? doc.data().endDate.toDate() : new Date(),
       })) as CalendarEvent[];
@@ -61,7 +59,6 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   subscribeTeam: () => {
-    // Query the main team collection
     const q = query(collection(db, "teamMembers")); 
     
     return onSnapshot(q, async (snapshot) => {
@@ -113,7 +110,19 @@ export const useAppStore = create<AppState>((set) => ({
     });
   },
 
-  subscribeCurriculum: () => { return () => {}; },
+  // --- UPDATED: Implemented Subscription ---
+  subscribeCurriculum: () => {
+    const q = query(collection(db, "curriculum"));
+    return onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      // Sort by 'order' field to ensure correct sequence
+      data.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+      set({ curriculum: data });
+    });
+  },
 
   login: async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -139,7 +148,6 @@ export const useAppStore = create<AppState>((set) => ({
     });
   },
 
-  // NEW: Optimistic Update Implementation
   updateMemberLocal: (id, updates) => {
     set((state) => ({
       team: state.team.map((m) => (m.id === id ? { ...m, ...updates } : m)),
