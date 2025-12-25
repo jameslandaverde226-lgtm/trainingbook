@@ -12,13 +12,14 @@ import toast from "react-hot-toast";
 // Firebase Imports
 import { useAppStore } from "@/lib/store/useStore";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp, collection, addDoc } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, collection, addDoc, updateDoc } from "firebase/firestore";
 
 import { Status, STAGES, TeamMember } from "../calendar/_components/types";
 import { TeamCard } from "./_components/TeamCard";
 import { MemberDetailSheet } from "./_components/MemberDetailSheet";
 import TrainerRecruitmentModal from "./_components/TrainerRecruitmentModal";
 import TeamDynamicIsland from "./_components/TeamDynamicIsland";
+import UnitAssignmentModal from "./_components/UnitAssignmentModal"; // IMPORTED
 
 // --- PROMOTION HUD (Drop Target for Role Changes) ---
 function PromotionHUD({ 
@@ -117,6 +118,7 @@ export default function TeamBoardPage() {
 
     // Interaction State
     const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
+    const [assignmentMember, setAssignmentMember] = useState<TeamMember | null>(null); // NEW STATE FOR ASSIGNMENT
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
     const [trainerDraggingId, setTrainerDraggingId] = useState<string | null>(null);
@@ -182,6 +184,35 @@ export default function TeamBoardPage() {
     }, [visibleCount, filteredMembers.length]);
 
     // --- HANDLERS ---
+
+    // NEW: Handle clicking a card
+    const handleMemberClick = (member: TeamMember) => {
+        if (member.dept === "Unassigned") {
+            setAssignmentMember(member);
+        } else {
+            setSelectedMember(member);
+        }
+    };
+
+    // NEW: Handle Unit Assignment
+    const handleUnitAssign = async (dept: "FOH" | "BOH") => {
+        if (!assignmentMember) return;
+        
+        const loadToast = toast.loading(`Initializing ${dept} Profile...`);
+        try {
+            await updateDoc(doc(db, "teamMembers", assignmentMember.id), { 
+                dept: dept,
+                updatedAt: serverTimestamp()
+            });
+            toast.success("Unit Assigned", { id: loadToast });
+            setAssignmentMember(null);
+            
+            // Optionally open the sheet immediately after assignment
+            // setSelectedMember({ ...assignmentMember, dept }); 
+        } catch (e) {
+            toast.error("Assignment Failed", { id: loadToast });
+        }
+    };
 
     const handleOpenTrainerModal = (member: TeamMember) => {
         setIsTrainerPanelOpen(true);
@@ -322,7 +353,7 @@ export default function TeamBoardPage() {
                                             >
                                                 <TeamCard 
                                                     member={member} 
-                                                    onClick={setSelectedMember} 
+                                                    onClick={handleMemberClick} // UPDATED: Use new handler
                                                     onAssignClick={handleOpenTrainerModal} 
                                                     onDragStart={() => setMemberDraggingId(member.id)} 
                                                     onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
@@ -372,6 +403,18 @@ export default function TeamBoardPage() {
 
             {/* MODALS & OVERLAYS */}
             <TrainerRecruitmentModal isOpen={isTrainerPanelOpen} onClose={() => setIsTrainerPanelOpen(false)} onDragStart={handleTrainerDragStart} onDragEnd={handleTrainerDragEnd} draggingId={trainerDraggingId} />
+            
+            {/* ASSIGNMENT MODAL (NEW) */}
+            <AnimatePresence>
+                {assignmentMember && (
+                    <UnitAssignmentModal 
+                        member={assignmentMember}
+                        onAssign={handleUnitAssign}
+                        onClose={() => setAssignmentMember(null)}
+                    />
+                )}
+            </AnimatePresence>
+
             <AnimatePresence>{memberDraggingId && <PromotionHUD draggingMember={team.find(m => m.id === memberDraggingId)} onPromote={handlePromoteMember} />}</AnimatePresence>
             <AnimatePresence>{selectedMember && <MemberDetailSheet member={selectedMember} activeTab={activeTab} setActiveTab={setActiveTab} onClose={() => setSelectedMember(null)} />}</AnimatePresence>
         </div>

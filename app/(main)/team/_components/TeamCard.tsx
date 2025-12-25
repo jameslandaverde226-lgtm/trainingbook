@@ -60,6 +60,10 @@ const TiltWrapper = ({ children, disabled, className, ...props }: any) => {
 
 const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDragEnd, isDragging, isDropTarget }: Props) => {
   const isFOH = member.dept === "FOH";
+  const isBOH = member.dept === "BOH";
+  // If neither, it's Unassigned
+  const isUnassigned = !isFOH && !isBOH;
+
   const hasImage = member.image && !member.image.includes('ui-avatars.com');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -119,7 +123,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
         {/* AMBIENT GLOW (Only on Hover) */}
         <div className={cn(
           "absolute -inset-2 rounded-[32px] blur-2xl transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-40",
-          isFOH ? "bg-[#004F71]" : "bg-[#E51636]",
+          isFOH ? "bg-[#004F71]" : isBOH ? "bg-[#E51636]" : "bg-slate-500",
           isDropTarget && "opacity-80 bg-emerald-400 duration-200"
         )} />
 
@@ -130,7 +134,9 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
             ? "bg-[#0F172A] border-white/10 shadow-2xl" 
             : isFOH 
                 ? "bg-[#004F71] border-[#004F71] shadow-xl"
-                : "bg-[#E51636] border-[#E51636] shadow-xl",
+                : isBOH 
+                    ? "bg-[#E51636] border-[#E51636] shadow-xl"
+                    : "bg-slate-800 border-slate-700 shadow-xl", // Unassigned fallback
           isDragging && "ring-4 ring-white/50 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] scale-105",
           isDropTarget && "ring-4 ring-emerald-400 scale-[1.02] border-emerald-400"
         )}>
@@ -147,7 +153,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                     loading="lazy" 
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/40 to-transparent opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90" />
               </>
             ) : (
                 <>
@@ -167,8 +173,11 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
             {/* TOP BAR: BADGES */}
             <div className="flex justify-between items-start">
               <div className="flex flex-wrap gap-2">
-                  <div className="px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 text-[8px] font-black uppercase tracking-[0.2em] text-white/90 shadow-sm">
-                    {member.dept}
+                  <div className={cn(
+                      "px-2.5 py-1 rounded-lg backdrop-blur-md border text-[8px] font-black uppercase tracking-[0.2em] shadow-sm",
+                      isUnassigned ? "bg-slate-500/20 border-slate-500/30 text-slate-300" : "bg-white/10 border-white/10 text-white/90"
+                  )}>
+                    {member.dept === "Unassigned" ? "NO UNIT" : member.dept}
                   </div>
 
                   {/* PROBATION GAUGE */}
