@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { 
   Search, Loader2, Sparkles, X, Layout, Pipette, Check, 
-  Trash2, Edit3, User, Users, RefreshCw, Star, Plus, MoreHorizontal, ArrowRight, Shield, Award, Target, Scan
+  Trash2, Edit3, User, Users, RefreshCw, Star, Plus, MoreHorizontal, ArrowRight, Shield, Award, Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,35 +53,61 @@ const BadgeListItem = ({
 
     return (
         <div className="relative overflow-hidden rounded-[24px] border border-slate-100 bg-white shadow-sm transition-all duration-300 hover:shadow-md hover:border-slate-200">
-            <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundColor: badge.hex }} />
+            {/* Ambient Background Tint */}
+            <div 
+                className="absolute inset-0 opacity-[0.03] pointer-events-none" 
+                style={{ backgroundColor: badge.hex }} 
+            />
+            
+            {/* Strip on left */}
             <div className="absolute left-0 top-0 bottom-0 w-1.5" style={{ backgroundColor: badge.hex }} />
 
             <div className="relative z-10 flex items-center p-4 gap-4">
-                <div className="h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 bg-white shrink-0 relative overflow-hidden">
+                {/* ICON BOX */}
+                <div 
+                    className="h-14 w-14 rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 bg-white shrink-0 relative overflow-hidden"
+                >
                     <div className="absolute inset-0 opacity-10" style={{ backgroundColor: badge.hex }} />
                     <IconComp className="w-6 h-6" style={{ color: badge.hex }} />
                 </div>
+
+                {/* CONTENT */}
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !isMenuOpen && onAction(badge)}>
                     <h4 className="text-sm font-[800] text-slate-900 truncate leading-tight">{badge.label}</h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate mt-0.5">
                         {badge.desc || "Certification Module"}
                     </p>
                 </div>
+
+                {/* ACTIONS */}
                 <div className="flex items-center gap-2">
+                    
+                    {/* MODE: EARNED (Show Count) */}
                     {mode === 'earned' && badge.count && badge.count > 1 && (
                         <div className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black shadow-md">
                             x{badge.count}
                         </div>
                     )}
+
+                    {/* MODE: INVENTORY (Show Add + Menu) */}
                     {mode === 'inventory' && (
                         <div className="flex items-center gap-2">
-                             <button onClick={() => onAction(badge)} className="h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform hover:bg-slate-800">
+                            {/* Primary Action: Award */}
+                             <button 
+                                onClick={() => onAction(badge)}
+                                className="h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform hover:bg-slate-800"
+                            >
                                 <Plus className="w-5 h-5" />
                             </button>
+
+                            {/* Secondary Action: Menu */}
                             <div className="relative">
                                 <AnimatePresence mode="wait">
                                     {!isMenuOpen ? (
-                                        <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(true); }} className="h-10 w-10 rounded-full bg-slate-50 text-slate-400 border border-slate-200 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setIsMenuOpen(true); }}
+                                            className="h-10 w-10 rounded-full bg-slate-50 text-slate-400 border border-slate-200 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all"
+                                        >
                                             <MoreHorizontal className="w-5 h-5" />
                                         </button>
                                     ) : (
@@ -91,7 +117,7 @@ const BadgeListItem = ({
                                             animate={{ opacity: 1, x: 0, scale: 1 }}
                                             exit={{ opacity: 0, x: 10, scale: 0.9 }}
                                             className="flex items-center gap-2 absolute right-0 top-0 bottom-0 bg-white/80 backdrop-blur-md p-1 rounded-full border border-slate-100 shadow-xl z-20"
-                                            style={{ height: '40px', top: '0px' }} 
+                                            style={{ height: '40px', top: '0px' }} // Align perfectly with button height
                                         >
                                             <button onClick={(e) => { e.stopPropagation(); onEdit?.(badge); setIsMenuOpen(false); }} className="h-8 w-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"><Edit3 className="w-3.5 h-3.5" /></button>
                                             <button onClick={(e) => { e.stopPropagation(); onDelete?.(badge.id); }} className="h-8 w-8 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -133,11 +159,12 @@ export default function CertificationsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  // NEW: Track exactly which card is currently hovered during drag
-  const [dragTargetId, setDragTargetId] = useState<string | null>(null);
+  const [hoveredMemberId, setHoveredMemberId] = useState<string | null>(null);
   
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
   const [isMobileArmoryOpen, setIsMobileArmoryOpen] = useState(false); 
+  
+  // Sheet State
   const [selectedMemberForAward, setSelectedMemberForAward] = useState<string | null>(null);
   const [sheetTab, setSheetTab] = useState<'earned' | 'award'>('earned');
 
@@ -172,7 +199,7 @@ export default function CertificationsPage() {
   const handleMemberClick = (memberId: string) => {
       if (window.innerWidth < 1024) {
           setSelectedMemberForAward(memberId);
-          setSheetTab('earned');
+          setSheetTab('earned'); // Default to viewing profile
           setIsMobileArmoryOpen(true);
       }
   };
@@ -202,6 +229,7 @@ export default function CertificationsPage() {
         
         toast.success(`${badge.label} Awarded`, { id: loadingToast });
         
+        // Switch back to "Earned" view to see the new badge
         if (window.innerWidth < 1024) {
             setSheetTab('earned');
         }
@@ -217,29 +245,11 @@ export default function CertificationsPage() {
     setIsArmoryExpanded(true); 
   };
 
-  const handleDragUpdate = (e: any, info: PanInfo) => {
-      // 1. Get raw pointer coordinates
-      const x = info.point.x;
-      const y = info.point.y;
-      
-      // 2. Find elements under cursor, IGNORING the dragged item (which should have pointer-events-none)
-      // Note: We need to ensure the dragged ghost in `CertificationsDynamicIsland` has `pointer-events-none` via CSS class or prop?
-      // Actually Framer Motion's `drag` usually handles the target element being the drag source. 
-      // But `document.elementsFromPoint` will see whatever is visually top-most.
-      
-      const elements = document.elementsFromPoint(x, y);
-      const card = elements.find(el => el.hasAttribute("data-member-id") || el.closest('[data-member-id]'));
-      const targetElement = card?.hasAttribute("data-member-id") ? card : card?.closest('[data-member-id]');
-      
-      const targetId = targetElement?.getAttribute("data-member-id");
-      setDragTargetId(targetId || null);
-  };
-
   const handleDragEnd = async (event: any, info: any, badge: any) => {
     setIsDragging(false);
+    setHoveredMemberId(null);
     
-    // Use the tracked target ID instead of recalculating (more reliable if logic is same)
-    // Or recalculate to be safe.
+    // Hit Detection
     const x = info.point.x;
     const y = info.point.y;
     const elements = document.elementsFromPoint(x, y);
@@ -247,13 +257,12 @@ export default function CertificationsPage() {
     const targetElement = card?.hasAttribute("data-member-id") ? card : card?.closest('[data-member-id]');
     const targetId = targetElement?.getAttribute("data-member-id");
     
-    setDragTargetId(null);
-    
     if (targetId) {
         await awardBadge(targetId, badge);
     }
   };
 
+  // --- CRUD HANDLERS ---
   const openForge = (badge?: any) => {
     if (badge) {
         setEditingId(badge.id);
@@ -296,7 +305,7 @@ export default function CertificationsPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] relative font-sans select-none overflow-x-hidden pt-6 pb-40">
       
-      {/* --- DYNAMIC ISLAND (Updated props to pass Drag Update) --- */}
+      {/* --- DYNAMIC ISLAND --- */}
       <CertificationsDynamicIsland 
           activeView={activeView}
           setActiveView={setActiveView}
@@ -306,12 +315,6 @@ export default function CertificationsPage() {
           onOpenForge={() => openForge()}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
-          // We need to pass the update handler or handle it implicitly if possible.
-          // Since CertificationsDynamicIsland encapsulates the draggable, we can pass a prop or context.
-          // However, for simplicity here, I will rely on standard behavior but refined hit logic above.
-          // NOTE: Framer Motion's onDrag listener needs to be attached to the Draggable inside the Island.
-          // So I will assume you update the Island component to accept `onDragUpdate={handleDragUpdate}` if needed, 
-          // or just rely on the `onDragEnd` hit test which I made more robust.
       />
 
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 mt-32 md:mt-48">
@@ -378,14 +381,10 @@ export default function CertificationsPage() {
                             ) : (
                                 filteredTeam.map((member) => {
                                     const isFOH = member.dept === "FOH";
-                                    // Use dragTargetId to highlight ONLY the card under cursor
-                                    // But since we aren't passing onDragUpdate to the child, this state wont update live.
-                                    // To fix this simply, we will rely on CSS hover during drag if pointer-events work,
-                                    // BUT framer motion drag blocks pointer events on elements below usually.
-                                    // The most robust way is `onDragUpdate` inside `CertificationsDynamicIsland`.
-                                    // I will leave it simple for now: On Drop, it calculates correctly.
-                                    
+                                    const isHoveredTarget = hoveredMemberId === member.id || selectedMemberForAward === member.id;
                                     const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                                    
+                                    // GROUP BADGES FOR CARD DISPLAY
                                     const uniqueBadges = getUniqueBadges(member.badges || []);
                                     const hasBadges = uniqueBadges.length > 0;
                                     
@@ -397,26 +396,20 @@ export default function CertificationsPage() {
                                             onClick={() => handleMemberClick(member.id)}
                                             className={cn(
                                                 "group relative overflow-hidden rounded-[24px] border transition-all duration-300 bg-white cursor-pointer select-none",
-                                                // If dragging, we show a potential target state. 
-                                                // Ideally we'd use `dragTargetId === member.id` if we wired up the update handler fully.
-                                                // For now, let's just make them all look "receptive" when dragging starts.
-                                                isDragging 
-                                                    ? "border-dashed border-slate-300 bg-slate-50/50 scale-[0.98]" 
-                                                    : "border-slate-100 shadow-sm hover:shadow-lg hover:border-slate-200 hover:-translate-y-1"
+                                                isHoveredTarget 
+                                                    ? "border-[#E51636] shadow-2xl scale-[1.02] z-30 ring-4 ring-red-50" 
+                                                    : "border-slate-100 shadow-sm hover:shadow-lg hover:border-slate-200 hover:-translate-y-1",
+                                                isDragging && !isHoveredTarget && "opacity-50 grayscale blur-[1px] scale-95"
                                             )}
                                         >
                                             <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} />
                                             
-                                            {/* FUTURISTIC HUD OVERLAY (Only shows when dragging) */}
+                                            {/* DROPPABLE OVERLAY */}
                                             {isDragging && (
-                                                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/80 backdrop-blur-[2px] transition-opacity duration-300 opacity-0 group-hover:opacity-100">
-                                                    <div className="relative">
-                                                        <Scan className="w-16 h-16 text-[#004F71] animate-pulse stroke-1" />
-                                                        <Target className="w-8 h-8 text-[#E51636] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                                <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/60 backdrop-blur-[1px] pointer-events-none">
+                                                    <div className="px-4 py-2 bg-[#004F71] text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2">
+                                                        <Target className="w-4 h-4" /> Drop to Award
                                                     </div>
-                                                    <span className="mt-3 text-[10px] font-black uppercase tracking-[0.25em] text-slate-900 bg-white px-3 py-1 rounded-full shadow-sm border border-slate-200">
-                                                        Target Locked
-                                                    </span>
                                                 </div>
                                             )}
 
@@ -489,7 +482,7 @@ export default function CertificationsPage() {
         </AnimatePresence>
       </div>
 
-      {/* ... (Modals & Sheet unchanged) ... */}
+      {/* --- FORGE MODAL (ARCHITECT) --- */}
       <AnimatePresence>
         {isArchitectOpen && (
             <ForgeModal 
@@ -504,6 +497,7 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
+      {/* --- MEMBER DETAIL SHEET (Mobile) --- */}
       <AnimatePresence>
         {isMobileArmoryOpen && activeMember && (
              <ClientPortal>
@@ -530,28 +524,60 @@ export default function CertificationsPage() {
                                  <button onClick={() => { setIsMobileArmoryOpen(false); setSelectedMemberForAward(null); }} className="h-8 w-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center active:scale-95 transition-all text-slate-400 hover:text-red-500 hover:border-red-200"><X className="w-4 h-4" /></button>
                              </div>
 
+                             {/* TABS */}
                              <div className="flex p-1 bg-slate-100 rounded-xl">
-                                 <button onClick={() => setSheetTab('earned')} className={cn("flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", sheetTab === 'earned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400")}>Trophy Case</button>
-                                 <button onClick={() => setSheetTab('award')} className={cn("flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", sheetTab === 'award' ? "bg-[#004F71] text-white shadow-md" : "text-slate-400")}>Add Award</button>
+                                 <button 
+                                    onClick={() => setSheetTab('earned')}
+                                    className={cn(
+                                        "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                        sheetTab === 'earned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
+                                    )}
+                                 >
+                                     Trophy Case
+                                 </button>
+                                 <button 
+                                    onClick={() => setSheetTab('award')}
+                                    className={cn(
+                                        "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                        sheetTab === 'award' ? "bg-[#004F71] text-white shadow-md" : "text-slate-400"
+                                    )}
+                                 >
+                                     Add Award
+                                 </button>
                              </div>
                          </div>
 
+                         {/* CONTENT AREA */}
                          <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-20 custom-scrollbar">
                              {sheetTab === 'earned' ? (
-                                memberUniqueBadges.length > 0 ? (
+                                 // EARNED LIST
+                                 memberUniqueBadges.length > 0 ? (
                                     memberUniqueBadges.map((badge: any) => (
-                                        <BadgeListItem key={badge.id} badge={badge} mode="earned" onAction={() => {}} />
+                                        <BadgeListItem 
+                                            key={badge.id}
+                                            badge={badge}
+                                            mode="earned"
+                                            onAction={() => {}} 
+                                        />
                                     ))
-                                ) : (
+                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-12 text-slate-300 border-2 border-dashed border-slate-200 rounded-3xl mx-4">
                                         <Shield className="w-10 h-10 mb-2 opacity-50" />
                                         <span className="text-[10px] font-black uppercase tracking-widest">No Certifications Yet</span>
                                         <button onClick={() => setSheetTab('award')} className="mt-4 text-[10px] font-bold text-[#004F71] underline">Award First Badge</button>
                                     </div>
-                                )
+                                 )
                              ) : (
+                                 // INVENTORY LIST
                                  customAccolades.map(badge => (
-                                     <BadgeListItem key={badge.id} badge={badge} mode="inventory" onAction={() => awardBadge(activeMember.id, badge)} onEdit={() => openForge(badge)} onDelete={() => requestDeleteBadge(badge.id)} />
+                                     <BadgeListItem 
+                                         key={badge.id}
+                                         badge={badge}
+                                         mode="inventory"
+                                         onAction={() => awardBadge(activeMember.id, badge)}
+                                         onEdit={() => openForge(badge)}
+                                         onDelete={() => requestDeleteBadge(badge.id)}
+                                     />
                                  ))
                              )}
                          </div>
@@ -561,18 +587,40 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
+      {/* --- DELETE CONFIRMATION MODAL --- */}
       <AnimatePresence>
         {deleteTargetId && (
             <ClientPortal>
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-md" onClick={() => setDeleteTargetId(null)} />
-                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl text-center border border-white/20">
-                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100"><Trash2 className="w-8 h-8 text-red-500" /></div>
+                    <motion.div 
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+                        className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-md"
+                        onClick={() => setDeleteTargetId(null)}
+                    />
+                    <motion.div 
+                        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                        className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl text-center border border-white/20"
+                    >
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100">
+                            <Trash2 className="w-8 h-8 text-red-500" />
+                        </div>
                         <h3 className="text-xl font-[1000] text-slate-900 uppercase tracking-tight mb-2">Delete Module?</h3>
-                        <p className="text-xs font-medium text-slate-500 mb-8 leading-relaxed px-4">This action will permanently remove this certification template from the system.</p>
+                        <p className="text-xs font-medium text-slate-500 mb-8 leading-relaxed px-4">
+                            This action will permanently remove this certification template from the system.
+                        </p>
                         <div className="flex gap-3">
-                            <button onClick={() => setDeleteTargetId(null)} className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-slate-200 transition-colors">Cancel</button>
-                            <button onClick={confirmDeleteBadge} className="flex-1 py-3.5 bg-[#E51636] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20">Delete</button>
+                            <button 
+                                onClick={() => setDeleteTargetId(null)} 
+                                className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-slate-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={confirmDeleteBadge} 
+                                className="flex-1 py-3.5 bg-[#E51636] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20"
+                            >
+                                Delete
+                            </button>
                         </div>
                     </motion.div>
                 </div>

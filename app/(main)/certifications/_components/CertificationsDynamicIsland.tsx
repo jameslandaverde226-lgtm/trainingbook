@@ -28,7 +28,8 @@ const DraggableInventoryBadge = ({ badge, onDragStart, onDragEnd }: any) => {
             dragSnapToOrigin
             dragElastic={0.1}
             whileHover={{ scale: 1.05, y: -2 }}
-            whileDrag={{ scale: 1.2, zIndex: 999, cursor: "grabbing" }}
+            // PointerEvents: none allows the drop target BELOW the dragged item to be detected
+            whileDrag={{ scale: 1.2, zIndex: 9999, cursor: "grabbing", pointerEvents: "none" }}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             className="group relative flex flex-col items-center gap-2 cursor-grab touch-none shrink-0"
