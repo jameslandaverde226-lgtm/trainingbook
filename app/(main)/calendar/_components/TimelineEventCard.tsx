@@ -1,17 +1,17 @@
 "use client";
 
-import { useRef, memo } from "react"; 
-import { motion } from "framer-motion";
+import { useRef, memo, useState } from "react"; 
+import { motion, AnimatePresence } from "framer-motion";
 import { CalendarEvent, STICKERS } from "./types";
 import { cn } from "@/lib/utils";
-import { differenceInCalendarDays, isValid, format, isSameDay, isSameMonth, max, min } from "date-fns";
+import { differenceInCalendarDays, isValid, format, isSameDay, isSameMonth, max } from "date-fns";
 import { Link2, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { useAppStore } from "@/lib/store/useStore";
 
 interface Props {
   event: CalendarEvent;
   timelineStart: Date;
-  timelineEnd: Date; 
+  timelineEnd: Date;
   dayWidth: number;
   isStamping: boolean;
   isLinking: boolean;
@@ -25,7 +25,7 @@ interface Props {
 
 const TerminalNode = ({ type }: { type: 'input' | 'output' }) => (
   <div className={cn(
-    "absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-[2px] border-white shadow-md z-30 flex items-center justify-center bg-[#004F71]",
+    "absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-[2px] border-white shadow-md z-30 flex items-center justify-center bg-[#004F71] transition-transform scale-0 group-hover/card:scale-100",
     type === 'input' ? "-left-1.5" : "-right-1.5" 
   )} />
 );
@@ -34,10 +34,13 @@ const TimelineEventCard = ({
   event, timelineStart, timelineEnd, dayWidth, isStamping, isLinking, isSource, isTarget, onDragEnd, onClick, onDragStart, onDragComplete
 }: Props) => {
   const { team } = useAppStore();
+  const cardRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
+  const [isLocalDragging, setIsLocalDragging] = useState(false);
 
   if (!isValid(event.startDate) || !isValid(event.endDate) || !isValid(timelineStart)) return null;
 
+  // Visual Bounds Logic
   const visualStart = max([event.startDate, timelineStart]);
   const isContinuesLeft = event.startDate < timelineStart;
   const isContinuesRight = event.endDate > timelineEnd;
@@ -47,7 +50,6 @@ const TimelineEventCard = ({
   
   const leftPos = (startDiff * dayWidth);
   const width = Math.max(duration * dayWidth - 8, dayWidth - 8); 
-  
   const isCompact = width < 60;
   
   const leader = team.find(u => u.id === event.assignee);
@@ -72,7 +74,6 @@ const TimelineEventCard = ({
   };
   const styles = getStyles(event.type);
 
-   // --- PRIORITY COLOR LOGIC ---
   const getPriorityColor = (p: string) => {
       switch(p) {
           case 'High': return "text-[#E51636]";
@@ -88,28 +89,45 @@ const TimelineEventCard = ({
       style={{ left: leftPos, width: width }}
     >
       <motion.div
+        ref={cardRef}
         drag={!isLinking && !isStamping ? "x" : false}
         dragMomentum={false}
+        dragElastic={0.05} // Consistent with grid
         dragSnapToOrigin={true}
-        onDragStart={() => { isDraggingRef.current = true; if (onDragStart) onDragStart(); }}
+        onDragStart={() => { 
+            isDraggingRef.current = true; 
+            setIsLocalDragging(true);
+            if (onDragStart) onDragStart(); 
+        }}
         onDragEnd={(_, info) => {
           if (onDragComplete) onDragComplete(); 
           const movedSlots = Math.round(info.offset.x / dayWidth);
           if (movedSlots !== 0) onDragEnd(event.id, movedSlots);
+          
+          setIsLocalDragging(false);
           setTimeout(() => { isDraggingRef.current = false; }, 150);
         }}
         onClick={(e) => { e.stopPropagation(); if (isDraggingRef.current) return; onClick(); }}
-        whileHover={{ y: -1, scale: 1.01, zIndex: 100 }}
-        whileDrag={{ scale: 1.05, opacity: 0.95, cursor: "grabbing", zIndex: 100 }}
+        
+        whileHover={{ y: -2, scale: 1.02, zIndex: 50 }}
+        whileDrag={{ 
+            scale: 1.05, 
+            opacity: 0.95, 
+            zIndex: 100,
+            cursor: "grabbing",
+            boxShadow: "0 20px 40px -10px rgba(0,0,0,0.15)"
+        }}
+        
         className={cn(
-            "w-full h-full border overflow-hidden transition-all relative select-none shadow-[0_2px_4px_rgba(0,0,0,0.03)]",
+            "w-full h-full border overflow-hidden transition-all relative select-none shadow-sm",
             styles.bg,
             isLinking ? "cursor-alias border-dashed border-[#004F71]" : "cursor-grab border-slate-200/80",
             (isSource || isTarget) && "border-[#004F71]/30 shadow-md ring-2 ring-[#004F71]/5",
             isStamping && "cursor-crosshair opacity-80",
             isCompact ? "p-1" : "px-2 md:px-3 flex flex-col justify-center",
-            isContinuesLeft ? "rounded-l-none border-l-0" : "rounded-l-[10px]",
-            isContinuesRight ? "rounded-r-none border-r-0" : "rounded-r-[10px]"
+            isContinuesLeft ? "rounded-l-none border-l-0" : "rounded-l-[12px]",
+            isContinuesRight ? "rounded-r-none border-r-0" : "rounded-r-[12px]",
+            isLocalDragging && "border-[#004F71] ring-2 ring-[#004F71]/10"
         )}
       >
         {isTarget && <TerminalNode type="input" />}
@@ -133,10 +151,7 @@ const TimelineEventCard = ({
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <div className="flex items-center gap-1.5">
                         {isSource && !isLinking && <Link2 className="w-2.5 h-2.5 text-slate-400" />}
-                        
-                        {/* PRIORITY ICON */}
                         <Flag className={cn("w-2.5 h-2.5 fill-current shrink-0", getPriorityColor(event.priority))} />
-
                         <span className={cn("text-[9px] md:text-[10px] font-black truncate tracking-tight leading-tight", styles.text)}>{event.title}</span>
                         {event.stickers?.slice(0, 3).map(s => {
                             const st = STICKERS.find(x => x.id === s);
@@ -154,6 +169,18 @@ const TimelineEventCard = ({
                 </div>
             </div>
         )}
+
+        {/* Drag Ghost Overlay */}
+        <AnimatePresence>
+            {isLocalDragging && (
+                <motion.div 
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-white/50 backdrop-blur-[1px] pointer-events-none z-50 flex items-center justify-center"
+                >
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#004F71] animate-pulse" />
+                </motion.div>
+            )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );
