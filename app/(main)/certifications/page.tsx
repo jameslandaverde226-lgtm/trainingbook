@@ -146,6 +146,21 @@ const BadgeListItem = ({
     );
 }
 
+// --- HELPER: GROUP BADGES ---
+const getUniqueBadges = (badges: any[]) => {
+    if (!badges || badges.length === 0) return [];
+    const groups = new Map();
+    badges.forEach((b: any) => {
+        const key = b.id || b.label; 
+        if (!groups.has(key)) {
+            // Keep the first instance found, initialize count
+            groups.set(key, { ...b, count: 0 });
+        }
+        groups.get(key).count += 1;
+    });
+    return Array.from(groups.values());
+};
+
 // --- RESPONSIVE SHEET FOR MANAGING BADGES ---
 const MemberAwardsSheet = ({ 
     member, 
@@ -161,10 +176,10 @@ const MemberAwardsSheet = ({
     onRemove: (badgeId: string) => void
 }) => {
     const [tab, setTab] = useState<'earned' | 'award'>('earned');
+    
+    // UPDATED: Use helper to group duplicates into counts
     const memberUniqueBadges = useMemo(() => {
-        // Just return raw list for now to allow individual deletion, 
-        // or grouped if you want count. Let's use raw list for full control.
-        return member.badges || [];
+        return getUniqueBadges(member.badges || []);
     }, [member.badges]);
 
     return (
@@ -240,7 +255,7 @@ const MemberAwardsSheet = ({
                             memberUniqueBadges.length > 0 ? (
                                 memberUniqueBadges.map((badge: any, i: number) => (
                                     <BadgeListItem 
-                                        key={i} // using index as key because IDs might repeat if not unique instance
+                                        key={i} 
                                         badge={badge}
                                         mode="earned"
                                         onAction={() => {}} 
@@ -270,20 +285,6 @@ const MemberAwardsSheet = ({
             </div>
         </ClientPortal>
     );
-};
-
-// --- HELPER: GROUP BADGES ---
-const getUniqueBadges = (badges: any[]) => {
-    if (!badges || badges.length === 0) return [];
-    const groups = new Map();
-    badges.forEach((b: any) => {
-        const key = b.id || b.label; 
-        if (!groups.has(key)) {
-            groups.set(key, { ...b, count: 0 });
-        }
-        groups.get(key).count += 1;
-    });
-    return Array.from(groups.values());
 };
 
 // --- PAGE CONTROLLER ---
@@ -364,17 +365,15 @@ export default function CertificationsPage() {
   const removeBadge = async (badgeId: string) => {
       if(!activeMember) return;
       
+      // If we are deleting a GROUPED badge, 'badgeId' is the ID of the first instance in that group.
+      // So this logic works for deleting one instance of a duplicate stack too.
       const badgeToRemove = activeMember.badges?.find((b: any) => (b.awardedId === badgeId || b.id === badgeId));
       if (!badgeToRemove) return;
 
       const loadToast = toast.loading("Revoking Certification...");
       
       try {
-          // FireStore arrayRemove needs the EXACT object match. 
-          // Since timestamps vary, finding the exact object in the array is safer via logic, 
-          // but for atomic update we need the object. 
-          // Here we filter locally and set the new array to avoid complexity.
-          const updatedBadges = activeMember.badges?.filter((b: any) => (b.awardedId !== badgeId && b.id !== badgeId)) || [];
+          const updatedBadges = activeMember.badges?.filter((b: any) => b !== badgeToRemove) || [];
           
           updateMemberLocal(activeMember.id, { badges: updatedBadges });
 
@@ -393,9 +392,7 @@ export default function CertificationsPage() {
     setIsArmoryExpanded(true); 
   };
 
-  // NEW: Handle Drag for Mobile Hover Calculation
   const handleDrag = (event: any, info: PanInfo) => {
-      // Prioritize touch points
       let clientX, clientY;
       if (event.changedTouches && event.changedTouches.length > 0) {
           clientX = event.changedTouches[0].clientX;
@@ -492,7 +489,7 @@ export default function CertificationsPage() {
           badges={customAccolades}
           onOpenForge={() => openForge()}
           onDragStart={handleDragStart}
-          onDrag={handleDrag} // Connect new drag handler
+          onDrag={handleDrag} 
           onDragEnd={handleDragEnd}
       />
 
@@ -578,8 +575,6 @@ export default function CertificationsPage() {
                                                 isHoveredTarget 
                                                     ? "border-[#E51636] shadow-2xl scale-[1.02] z-30 ring-4 ring-red-50" 
                                                     : "border-slate-100 shadow-sm hover:shadow-lg hover:border-slate-200 hover:-translate-y-1",
-                                                
-                                                // FIXED: Removed scale-95 to make target larger
                                                 isDragging && !isHoveredTarget && "opacity-40"
                                             )}
                                         >
@@ -681,7 +676,7 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
-      {/* --- MEMBER AWARDS SHEET (Responsive: Bottom on Mobile, Side on Desktop) --- */}
+      {/* --- MEMBER AWARDS SHEET (Responsive) --- */}
       <AnimatePresence>
         {activeMember && (
             <MemberAwardsSheet 
@@ -694,7 +689,7 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
-      {/* --- DELETE MODULE CONFIRMATION --- */}
+      {/* --- DELETE CONFIRMATION MODAL --- */}
       <AnimatePresence>
         {deleteTargetId && (
             <ClientPortal>
