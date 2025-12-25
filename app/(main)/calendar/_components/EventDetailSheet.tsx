@@ -66,7 +66,6 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
   const participant = team.find(m => m.id === event.teamMemberId);
 
   // --- STYLE RESOLVER ---
-  // FIXED: Renamed to PascalCase (HeaderIcon) so JSX accepts it
   let brandBg = 'bg-[#004F71]';
   let HeaderIcon = Terminal; 
   let headerPattern = "[radial-gradient(#fff_1px,transparent_1px)]";
@@ -85,7 +84,13 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
 
   if (isSystemLog) {
       logTitle = event.description?.split(']')[0].replace('[SYSTEM LOG: ', '').replace('[', '') || "System Event";
-      cleanDescription = event.description?.split(']').slice(1).join(']').trim() || "";
+      
+      // Extract body
+      let rawBody = event.description?.split(']').slice(1).join(']').trim() || "";
+      
+      // Clean out "Module ID: ..." for display
+      cleanDescription = rawBody.replace(/Module ID:.*$/gm, "").trim();
+
   } else if (isDocLog) {
       logTitle = event.description?.split(']')[0].replace('[DOCUMENT LOG: ', '').replace(']', '') || "Document";
       cleanDescription = event.description?.split(']').slice(1).join(']').trim() || "";
@@ -117,7 +122,6 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
             <div className={cn("absolute inset-0 opacity-10", headerPattern)} style={{ backgroundSize: '20px 20px' }} />
             <div className="absolute -top-10 -right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
             
-            {/* FIXED: Using PascalCase Component Variable */}
             <HeaderIcon className="absolute top-6 right-6 w-32 h-32 opacity-10 rotate-12 pointer-events-none" />
             
             <div className="relative z-10 space-y-6">
@@ -178,7 +182,14 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
                     {STICKERS.map(sticker => {
                         const isActive = event.stickers?.includes(sticker.id);
                         return (
-                            <button key={sticker.id} onClick={() => toggleSticker(sticker.id)} className={cn("flex flex-col items-center justify-center gap-1 min-w-[64px] h-16 rounded-2xl transition-all border-2 active:scale-95", isActive ? "bg-white border-[#E51636] shadow-md scale-105" : "bg-slate-50 border-transparent opacity-50 grayscale hover:grayscale-0 hover:opacity-100")}>
+                            <button
+                                key={sticker.id}
+                                onClick={() => toggleSticker(sticker.id)}
+                                className={cn(
+                                    "flex flex-col items-center justify-center gap-1 min-w-[64px] h-16 rounded-2xl transition-all border-2 active:scale-95",
+                                    isActive ? "bg-white border-[#E51636] shadow-md scale-105" : "bg-slate-50 border-transparent opacity-50 grayscale hover:grayscale-0 hover:opacity-100"
+                                )}
+                            >
                                 <span className="text-xl drop-shadow-sm">{sticker.icon}</span>
                                 <span className="text-[7px] font-black uppercase text-slate-500">{sticker.label}</span>
                             </button>
@@ -219,7 +230,7 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
 
         {/* --- FOOTER ACTIONS --- */}
         <div className="p-6 md:p-10 border-t border-slate-100 bg-white flex items-center justify-between gap-4 shrink-0 pb-10 md:pb-10">
-             {/* FIXED: Corrected state variable name to isConfirmOpen */}
+             {/* FIXED: Using correct state setter */}
              <button onClick={() => setIsConfirmOpen(true)} className="flex items-center gap-2 px-4 py-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95">
                 <Trash2 className="w-5 h-5" />
                 <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Decommission</span>

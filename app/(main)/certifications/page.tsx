@@ -360,6 +360,7 @@ export default function CertificationsPage() {
 
         // 3. INTELLIGENT EVENT LOGGING (Event Sourcing)
         // Automatically creates a "System Log" event in the live feed
+        // FIXED: Removed the "Module ID: ..." line from description
         await addDoc(collection(db, "events"), {
             title: `Awarded: ${badge.label}`,
             type: "Award",
@@ -371,9 +372,8 @@ export default function CertificationsPage() {
             assigneeName: currentUser?.name || "Admin",
             teamMemberId: member.id,
             teamMemberName: member.name,
-            description: `[SYSTEM LOG: CERTIFICATION]\nOfficial recognition granted: ${badge.desc || "Operational Excellence"}.\n\nModule ID: ${badge.iconId}`,
+            description: `[SYSTEM LOG: CERTIFICATION]\nOfficial recognition granted: ${badge.desc || "Operational Excellence"}.`,
             createdAt: serverTimestamp(),
-            // Metadata used by Dashboard to color code this without re-fetching
             metadata: { hex: badge.hex, iconId: badge.iconId }
         });
         
