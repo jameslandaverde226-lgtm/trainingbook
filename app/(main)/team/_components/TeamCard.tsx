@@ -1,4 +1,3 @@
-// --- FILE: ./app/(main)/team/_components/TeamCard.tsx ---
 "use client";
 
 import { useState, useRef, memo, useEffect, useMemo } from "react";
@@ -8,9 +7,10 @@ import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { storage, db } from "@/lib/firebase"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+// CHANGED: Imported setDoc instead of updateDoc
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
-import { TACTICAL_ICONS } from "@/lib/icon-library"; // Added Import
+import { TACTICAL_ICONS } from "@/lib/icon-library";
 
 interface Props {
   member: TeamMember;
@@ -90,12 +90,16 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
         
-        await updateDoc(doc(db, "profileOverrides", member.id), {
+        // FIX: Use setDoc with merge: true. 
+        // This creates the 'profileOverrides' document if it doesn't exist yet.
+        await setDoc(doc(db, "profileOverrides", member.id), {
           image: url,
           updatedAt: serverTimestamp()
-        });
+        }, { merge: true });
+
         toast.success("Identity Updated");
       } catch (error) {
+        console.error("Upload failed", error);
         toast.error("Upload Failed");
       } finally {
         setIsUploading(false);
@@ -105,20 +109,20 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
 
   return (
     <TiltWrapper 
-      disabled={isMobile || isDragging} // Disable tilt while dragging for performance
+      disabled={isMobile || isDragging} 
       className={cn(
-        "relative group w-full aspect-[3/4] perspective-1000 cursor-pointer select-none touch-none", // Added touch-none
+        "relative group w-full aspect-[3/4] perspective-1000 cursor-pointer select-none touch-none", 
         isDropTarget && !isDragging && "z-50 scale-105"
       )}
       onClick={() => !isDragging && onClick(member)}
     >
        <motion.div
-         drag={!isMobile} // Disable drag on mobile if desired, or keep it.
-         dragSnapToOrigin // Snaps back if not dropped on a target
+         drag={!isMobile} 
+         dragSnapToOrigin 
          dragElastic={0.1}
          onDragStart={onDragStart}
          onDragEnd={onDragEnd}
-         whileDrag={{ scale: 1.05, zIndex: 100, cursor: "grabbing" }} // Visual feedback during drag
+         whileDrag={{ scale: 1.05, zIndex: 100, cursor: "grabbing" }} 
          style={{ filter: isDragging ? 'brightness(1.1)' : 'none', zIndex: isDragging ? 100 : 1 }}
          className="h-full w-full"
        >
@@ -138,8 +142,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                 ? "bg-[#004F71] border-[#004F71] shadow-xl"
                 : isBOH 
                     ? "bg-[#E51636] border-[#E51636] shadow-xl"
-                    : "bg-slate-800 border-slate-700 shadow-xl", // Unassigned fallback
-          // Enhanced Drag Visuals
+                    : "bg-slate-800 border-slate-700 shadow-xl", 
           isDragging && "ring-4 ring-white/50 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] scale-105 rotate-2",
           isDropTarget && "ring-4 ring-emerald-400 scale-[1.02] border-emerald-400"
         )}>
@@ -233,7 +236,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                       <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">{member.progress}% Complete</span>
                   </div>
 
-                  {/* UPDATED: BADGE ROW */}
+                  {/* BADGE ROW */}
                   <div className="flex flex-wrap gap-1.5 mb-2 min-h-[24px]">
                      {member.badges && member.badges.length > 0 ? (
                          member.badges.slice(0, 5).map((badge: any, idx: number) => {
@@ -245,7 +248,6 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                                     title={badge.label}
                                  >
                                      <Icon className="w-3 h-3" style={{ color: badge.hex }} />
-                                     {/* Show label only for the first badge to save space, otherwise just icon */}
                                      {idx === 0 && <span className="text-[8px] font-bold text-white/90 uppercase tracking-wider">{badge.label}</span>}
                                  </div>
                              )
