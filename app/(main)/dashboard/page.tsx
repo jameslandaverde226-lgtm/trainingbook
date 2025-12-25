@@ -9,7 +9,7 @@ import {
   Activity, CalendarDays,
   ArrowRight, GraduationCap,
   BookOpen, Sparkles, User, Plus, Edit3, Trash2, FileText, CheckCircle2, Loader2,
-  Zap, Shield, MessageSquare, Flag, Mountain, Rocket, Crosshair, LayoutList, Search
+  Zap, Shield, MessageSquare, Flag, Mountain, Rocket, Crosshair, LayoutList, Search, Gauge, DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isSameMonth, formatDistanceToNow, isFuture } from "date-fns";
@@ -27,7 +27,7 @@ import OneOnOneSessionModal from "../calendar/_components/OneOnOneSessionModal";
 import ClientPortal from "@/components/core/ClientPortal";
 import { TeamCard } from "../team/_components/TeamCard"; 
 import { MemberDetailSheet } from "../team/_components/MemberDetailSheet"; 
-import StrategicVisionModal from "./_components/StrategicVisionModal"; // Ensure this file is created!
+import StrategicVisionModal, { VisionPillar } from "./_components/StrategicVisionModal"; 
 
 // --- REUSABLE UI COMPONENTS ---
 const GlassCard = ({ children, className, onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
@@ -183,8 +183,22 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
     );
 };
 
-// --- STRATEGIC VISION BOARD ---
-const StrategicVisionBoard = ({ data, onUpdate }: { data: any, onUpdate: () => void }) => {
+// --- DYNAMIC STRATEGIC VISION BOARD ---
+const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], onUpdate: () => void }) => {
+    const ICONS = { Zap, Mountain, Target, Gauge, Users, DollarSign, Trophy };
+    
+    const getColors = (color: string) => {
+        const map: any = {
+            cyan: { text: "text-cyan-300", bg: "bg-cyan-500/10", border: "border-cyan-500/20", bar: "from-cyan-400 to-blue-500" },
+            emerald: { text: "text-emerald-300", bg: "bg-emerald-500/10", border: "border-emerald-500/20", bar: "from-emerald-400 to-emerald-600" },
+            red: { text: "text-red-300", bg: "bg-red-500/10", border: "border-red-500/20", bar: "from-red-500 to-orange-500" },
+            amber: { text: "text-amber-300", bg: "bg-amber-500/10", border: "border-amber-500/20", bar: "from-amber-400 to-yellow-500" },
+            violet: { text: "text-violet-300", bg: "bg-violet-500/10", border: "border-violet-500/20", bar: "from-violet-400 to-fuchsia-500" },
+            rose: { text: "text-rose-300", bg: "bg-rose-500/10", border: "border-rose-500/20", bar: "from-rose-400 to-pink-500" },
+        };
+        return map[color] || map.cyan;
+    };
+
     return (
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
@@ -216,69 +230,44 @@ const StrategicVisionBoard = ({ data, onUpdate }: { data: any, onUpdate: () => v
                     </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 md:gap-6">
-                    {/* 1. SOS CARD */}
-                    <div className="relative bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-[24px] md:rounded-[32px] p-3 md:p-6 backdrop-blur-md hover:bg-white/15 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-lg hover:-translate-y-1">
-                        <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-1 md:gap-0">
-                            <div className="flex items-center gap-1.5 md:gap-2.5 text-cyan-300 bg-cyan-500/10 px-2 py-1 md:px-3 md:py-1.5 rounded-full border border-cyan-500/20">
-                                <Zap className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
-                                <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">Weekly</span>
-                            </div>
-                            <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">{data.sos}%</span>
-                        </div>
-                        <div className="space-y-2 md:space-y-3 mt-1 md:mt-0 text-center md:text-left">
-                            <h3 className="text-[9px] md:text-base font-bold leading-tight text-white/80 md:text-white/90 line-clamp-2 md:line-clamp-none">Speed of Service</h3>
-                            <div className="h-1 md:h-1.5 w-full bg-black/30 rounded-full overflow-hidden p-[1px]">
-                                <motion.div initial={{ width: 0 }} animate={{ width: `${data.sos}%` }} transition={{ duration: 1.5, delay: 0.2, ease: "circOut" }} className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full relative">
-                                    <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]" />
-                                </motion.div>
-                            </div>
-                        </div>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
+                    {pillars.map(pillar => {
+                        const style = getColors(pillar.color);
+                        const Icon = ICONS[pillar.icon as keyof typeof ICONS] || Target;
+                        const percentage = Math.min(100, (pillar.current / pillar.target) * 100);
 
-                    {/* 2. LEADERS CARD */}
-                    <div className="relative bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-[24px] md:rounded-[32px] p-3 md:p-6 backdrop-blur-md hover:bg-white/15 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-lg hover:-translate-y-1">
-                        <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-1 md:gap-0">
-                            <div className="flex items-center gap-1.5 md:gap-2.5 text-emerald-300 bg-emerald-500/10 px-2 py-1 md:px-3 md:py-1.5 rounded-full border border-emerald-500/20">
-                                <Crosshair className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
-                                <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">Monthly</span>
+                        return (
+                            <div key={pillar.id} className="relative bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-[24px] md:rounded-[32px] p-4 md:p-6 backdrop-blur-md hover:bg-white/15 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-lg hover:-translate-y-1">
+                                <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-1 md:gap-0">
+                                    <div className={cn("flex items-center gap-1.5 md:gap-2.5 px-2 py-1 md:px-3 md:py-1.5 rounded-full border", style.text, style.bg, style.border)}>
+                                        <Icon className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
+                                        <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">{pillar.subtitle}</span>
+                                    </div>
+                                    <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">
+                                        {pillar.current}{pillar.unit === '%' ? '%' : ''} / {pillar.target}{pillar.unit === '%' ? '%' : ''}
+                                    </span>
+                                </div>
+                                <div className="space-y-2 md:space-y-3 mt-2 md:mt-0 text-center md:text-left">
+                                    <h3 className="text-[10px] md:text-base font-bold leading-tight text-white/90 line-clamp-1">{pillar.title}</h3>
+                                    <div className="h-1.5 w-full bg-black/30 rounded-full overflow-hidden p-[1px]">
+                                        <motion.div 
+                                            initial={{ width: 0 }} 
+                                            animate={{ width: `${percentage}%` }} 
+                                            transition={{ duration: 1.5, ease: "circOut" }} 
+                                            className={cn("h-full rounded-full relative bg-gradient-to-r", style.bar)}
+                                        >
+                                            <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]" />
+                                        </motion.div>
+                                    </div>
+                                </div>
                             </div>
-                            <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">{data.leaders.current}/{data.leaders.target}</span>
-                        </div>
-                        <div className="space-y-2 md:space-y-3 mt-1 md:mt-0 text-center md:text-left">
-                            <h3 className="text-[9px] md:text-base font-bold leading-tight text-white/80 md:text-white/90 line-clamp-2 md:line-clamp-none">New Leaders</h3>
-                            <div className="h-1 md:h-1.5 w-full bg-black/30 rounded-full overflow-hidden p-[1px]">
-                                <motion.div initial={{ width: 0 }} animate={{ width: `${(data.leaders.current / data.leaders.target) * 100}%` }} transition={{ duration: 1.5, delay: 0.4, ease: "circOut" }} className="h-full bg-gradient-to-r from-emerald-400 to-emerald-300 rounded-full relative">
-                                    <div className="absolute right-0 top-0 bottom-0 w-2 bg-white/50 blur-[2px]" />
-                                </motion.div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 3. HOSPITALITY CARD */}
-                    <div className="relative bg-gradient-to-br from-[#E51636]/30 to-black/20 border border-[#E51636]/40 rounded-[24px] md:rounded-[32px] p-3 md:p-6 backdrop-blur-xl hover:bg-[#E51636]/40 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-xl shadow-red-900/20 hover:-translate-y-1 overflow-hidden ring-1 ring-white/5">
-                        <div className="absolute top-0 right-0 p-12 bg-gradient-to-br from-[#E51636] to-transparent opacity-20 blur-xl rounded-full translate-x-1/2 -translate-y-1/2 group-hover/card:opacity-30 transition-opacity" />
-                        <div className="flex flex-col md:flex-row md:justify-between items-center md:items-start gap-1 md:gap-0 relative z-10">
-                            <div className="flex items-center gap-1.5 md:gap-2.5 text-red-100 bg-[#E51636]/20 px-2 py-1 md:px-3 md:py-1.5 rounded-full border border-[#E51636]/30 shadow-inner">
-                                <Mountain className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
-                                <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">North Star</span>
-                            </div>
-                            <span className="text-xl md:text-[10px] font-black text-[#ffcccc] md:bg-[#E51636]/30 md:px-2 md:py-1 rounded-lg md:border md:border-[#E51636]/20">{data.hospitality}%</span>
-                        </div>
-                        <div className="space-y-2 md:space-y-3 mt-1 md:mt-0 relative z-10 text-center md:text-left">
-                            <h3 className="text-[9px] md:text-base font-bold leading-tight text-white/90 drop-shadow-sm line-clamp-2 md:line-clamp-none">Hospitality Score</h3>
-                            <div className="h-1 md:h-1.5 w-full bg-black/40 rounded-full overflow-hidden p-[1px] shadow-inner">
-                                <motion.div initial={{ width: 0 }} animate={{ width: `${data.hospitality}%` }} transition={{ duration: 1.5, delay: 0.6, ease: "circOut" }} className="h-full bg-gradient-to-r from-E51636 via-red-500 to-orange-500 rounded-full relative">
-                                    <div className="absolute right-0 top-0 bottom-0 w-3 bg-white/60 blur-[3px] animate-pulse" />
-                                </motion.div>
-                            </div>
-                        </div>
-                    </div>
+                        );
+                    })}
                 </div>
             </div>
         </motion.div>
     );
-}
+};
 
 // --- MAIN PAGE ---
 
@@ -292,7 +281,7 @@ export default function DashboardPage() {
   const [activeKPI, setActiveKPI] = useState<{ title: string; items: any[]; color: string; icon: any } | null>(null);
   
   // Vision State
-  const [visionData, setVisionData] = useState({ sos: 65, leaders: { current: 3, target: 5 }, hospitality: 15 });
+  const [visionPillars, setVisionPillars] = useState<VisionPillar[]>([]);
   const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
 
   // Member Detail State for Non-Admins
@@ -310,10 +299,20 @@ export default function DashboardPage() {
     const unsubTeam = subscribeTeam();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
 
-    // Subscribe to Vision Data
+    // Subscribe to Vision Data (Dynamic Array)
     const unsubVision = onSnapshot(doc(db, "vision", "current"), (docSnap) => {
         if (docSnap.exists()) {
-            setVisionData(docSnap.data() as any);
+            const data = docSnap.data();
+            if (data.pillars) {
+                setVisionPillars(data.pillars);
+            }
+        } else {
+             // Fallback for new system
+             setVisionPillars([
+                 { id: "1", title: "Speed of Service", subtitle: "Weekly", current: 65, target: 80, unit: "%", icon: "Zap", color: "cyan" },
+                 { id: "2", title: "New Leaders", subtitle: "Monthly", current: 3, target: 5, unit: "Count", icon: "Target", color: "emerald" },
+                 { id: "3", title: "Hospitality Score", subtitle: "North Star", current: 15, target: 20, unit: "%", icon: "Mountain", color: "red" }
+             ]);
         }
     });
 
@@ -461,8 +460,8 @@ export default function DashboardPage() {
           </motion.div>
         </div>
 
-        {/* --- STRATEGIC VISION BOARD --- */}
-        <StrategicVisionBoard data={visionData} onUpdate={() => setIsVisionModalOpen(true)} />
+        {/* --- DYNAMIC VISION BOARD --- */}
+        <StrategicVisionBoard pillars={visionPillars} onUpdate={() => setIsVisionModalOpen(true)} />
 
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
            {kpis.map((kpi, idx) => (
@@ -598,7 +597,7 @@ export default function DashboardPage() {
               <StrategicVisionModal 
                   isOpen={isVisionModalOpen} 
                   onClose={() => setIsVisionModalOpen(false)} 
-                  currentData={visionData} 
+                  currentPillars={visionPillars} 
               />
           )}
       </AnimatePresence>
