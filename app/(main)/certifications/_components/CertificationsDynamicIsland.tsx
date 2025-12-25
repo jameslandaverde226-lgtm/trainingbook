@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, AnimatePresence, useDragControls, Transition } from "framer-motion";
+import { motion, AnimatePresence, useDragControls, Transition, PanInfo } from "framer-motion";
 import { 
   Award, Trophy, ChevronDown, ChevronUp, Plus, Star 
 } from "lucide-react";
@@ -16,7 +16,7 @@ const SPRING_TRANSITION: Transition = {
 };
 
 // --- LOCAL DRAGGABLE BADGE COMPONENT ---
-const DraggableInventoryBadge = ({ badge, onDragStart, onDragEnd }: any) => {
+const DraggableInventoryBadge = ({ badge, onDragStart, onDrag, onDragEnd }: any) => {
     const IconComp = TACTICAL_ICONS.find(i => i.id === badge.iconId)?.icon || Star;
     const controls = useDragControls();
 
@@ -28,11 +28,10 @@ const DraggableInventoryBadge = ({ badge, onDragStart, onDragEnd }: any) => {
             dragSnapToOrigin
             dragElastic={0.1}
             whileHover={{ scale: 1.05, y: -2 }}
-            // CRITICAL FIX: pointerEvents: 'none' ensures the raycast sees the card BELOW the badge, not the badge itself.
             whileDrag={{ scale: 1.2, zIndex: 9999, cursor: "grabbing", pointerEvents: "none" }}
             onDragStart={onDragStart}
+            onDrag={onDrag} // Pass drag event up
             onDragEnd={onDragEnd}
-            // CRITICAL FIX: touch-none prevents the browser from scrolling while dragging on mobile
             className="group relative flex flex-col items-center gap-2 cursor-grab touch-none shrink-0"
         >
             <div 
@@ -57,12 +56,13 @@ interface Props {
     badges: any[];
     onOpenForge: () => void;
     onDragStart: (id?: string) => void;
+    onDrag: (e: any, info: PanInfo) => void; // New Prop
     onDragEnd: (e: any, info: any, badge: any) => void;
 }
 
 export default function CertificationsDynamicIsland({
     activeView, setActiveView, isExpanded, setIsExpanded,
-    badges, onOpenForge, onDragStart, onDragEnd
+    badges, onOpenForge, onDragStart, onDrag, onDragEnd
 }: Props) {
 
     return (
@@ -163,6 +163,7 @@ export default function CertificationsDynamicIsland({
                                             key={badge.id}
                                             badge={badge}
                                             onDragStart={() => { onDragStart(); setIsExpanded(true); }}
+                                            onDrag={(e: any, info: any) => onDrag(e, info)}
                                             onDragEnd={(e: any, info: any) => onDragEnd(e, info, badge)}
                                         />
                                     ))}

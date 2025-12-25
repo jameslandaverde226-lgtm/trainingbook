@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { db } from "@/lib/firebase";
 import { 
   collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc,
-  arrayUnion, serverTimestamp, query, orderBy 
+  arrayUnion, arrayRemove, serverTimestamp, query, orderBy 
 } from "firebase/firestore";
 import { useAppStore } from "@/lib/store/useStore";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
@@ -32,6 +32,7 @@ interface Badge {
     hex: string;
     iconId: string;
     count?: number; 
+    awardedId?: string; // Specific instance ID if earned
 }
 
 // --- SUB-COMPONENT: BADGE LIST ITEM ---
@@ -72,7 +73,7 @@ const BadgeListItem = ({
                 </div>
 
                 {/* CONTENT */}
-                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !isMenuOpen && onAction(badge)}>
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !isMenuOpen && mode === 'inventory' && onAction(badge)}>
                     <h4 className="text-sm font-[800] text-slate-900 truncate leading-tight">{badge.label}</h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate mt-0.5">
                         {badge.desc || "Certification Module"}
@@ -82,10 +83,20 @@ const BadgeListItem = ({
                 {/* ACTIONS */}
                 <div className="flex items-center gap-2">
                     
-                    {/* MODE: EARNED (Show Count) */}
-                    {mode === 'earned' && badge.count && badge.count > 1 && (
-                        <div className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black shadow-md">
-                            x{badge.count}
+                    {/* MODE: EARNED (Show Count or Delete) */}
+                    {mode === 'earned' && (
+                        <div className="flex items-center gap-2">
+                             {badge.count && badge.count > 1 && (
+                                <div className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black shadow-md">
+                                    x{badge.count}
+                                </div>
+                             )}
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); if(onDelete) onDelete(badge.awardedId || badge.id); }}
+                                className="h-8 w-8 rounded-full bg-slate-50 text-slate-300 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
                         </div>
                     )}
 
@@ -117,7 +128,7 @@ const BadgeListItem = ({
                                             animate={{ opacity: 1, x: 0, scale: 1 }}
                                             exit={{ opacity: 0, x: 10, scale: 0.9 }}
                                             className="flex items-center gap-2 absolute right-0 top-0 bottom-0 bg-white/80 backdrop-blur-md p-1 rounded-full border border-slate-100 shadow-xl z-20"
-                                            style={{ height: '40px', top: '0px' }} // Align perfectly with button height
+                                            style={{ height: '40px', top: '0px' }} 
                                         >
                                             <button onClick={(e) => { e.stopPropagation(); onEdit?.(badge); setIsMenuOpen(false); }} className="h-8 w-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"><Edit3 className="w-3.5 h-3.5" /></button>
                                             <button onClick={(e) => { e.stopPropagation(); onDelete?.(badge.id); }} className="h-8 w-8 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -134,6 +145,132 @@ const BadgeListItem = ({
         </div>
     );
 }
+
+// --- RESPONSIVE SHEET FOR MANAGING BADGES ---
+const MemberAwardsSheet = ({ 
+    member, 
+    inventory, 
+    onClose, 
+    onAward,
+    onRemove 
+}: { 
+    member: any, 
+    inventory: any[], 
+    onClose: () => void, 
+    onAward: (badge: any) => void,
+    onRemove: (badgeId: string) => void
+}) => {
+    const [tab, setTab] = useState<'earned' | 'award'>('earned');
+    const memberUniqueBadges = useMemo(() => {
+        // Just return raw list for now to allow individual deletion, 
+        // or grouped if you want count. Let's use raw list for full control.
+        return member.badges || [];
+    }, [member.badges]);
+
+    return (
+        <ClientPortal>
+            <div className="fixed inset-0 z-[200] flex justify-end items-end lg:items-stretch pointer-events-none">
+                {/* Backdrop */}
+                <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    exit={{ opacity: 0 }} 
+                    className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" 
+                    onClick={onClose} 
+                />
+                
+                {/* Sheet */}
+                <motion.div 
+                    initial={{ x: "100%", opacity: 0.5 }} 
+                    animate={{ x: 0, opacity: 1 }} 
+                    exit={{ x: "100%", opacity: 0 }} 
+                    transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                    className={cn(
+                        "pointer-events-auto bg-[#F8FAFC] w-full flex flex-col shadow-2xl relative overflow-hidden",
+                        // Mobile Styles (Bottom Sheet)
+                        "h-[85vh] rounded-t-[32px] lg:h-full lg:rounded-none lg:rounded-l-[40px] lg:max-w-md"
+                    )}
+                >
+                    {/* Header */}
+                    <div className="flex justify-center pt-3 pb-1 shrink-0 bg-white lg:hidden">
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+                    </div>
+                    
+                    <div className="px-6 py-6 border-b border-slate-100 flex flex-col gap-6 bg-white shrink-0">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-sm overflow-hidden shadow-inner">
+                                {member.image ? <img src={member.image} className="w-full h-full object-cover" /> : member.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-[1000] text-slate-900 tracking-tight leading-none">{member.name}</h2>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{member.role}</p>
+                                </div>
+                            </div>
+                            <button onClick={onClose} className="h-9 w-9 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center active:scale-95 transition-all text-slate-400 hover:text-red-500 hover:border-red-200"><X className="w-5 h-5" /></button>
+                        </div>
+
+                        {/* TABS */}
+                        <div className="flex p-1.5 bg-slate-100 rounded-xl">
+                            <button 
+                                onClick={() => setTab('earned')}
+                                className={cn(
+                                    "flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                    tab === 'earned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                Trophy Case
+                            </button>
+                            <button 
+                                onClick={() => setTab('award')}
+                                className={cn(
+                                    "flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                    tab === 'award' ? "bg-[#004F71] text-white shadow-md" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                Award Badge
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* CONTENT AREA */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-3 pb-20 custom-scrollbar">
+                        {tab === 'earned' ? (
+                            // EARNED LIST
+                            memberUniqueBadges.length > 0 ? (
+                                memberUniqueBadges.map((badge: any, i: number) => (
+                                    <BadgeListItem 
+                                        key={i} // using index as key because IDs might repeat if not unique instance
+                                        badge={badge}
+                                        mode="earned"
+                                        onAction={() => {}} 
+                                        onDelete={onRemove}
+                                    />
+                                ))
+                            ) : (
+                                <div className="flex flex-col items-center justify-center py-20 text-slate-300 border-2 border-dashed border-slate-200 rounded-3xl mx-4 bg-slate-50/50">
+                                    <Shield className="w-12 h-12 mb-3 opacity-30" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">No Certifications Yet</span>
+                                    <button onClick={() => setTab('award')} className="mt-4 text-[10px] font-bold text-[#004F71] underline hover:text-slate-900">Award First Badge</button>
+                                </div>
+                            )
+                        ) : (
+                            // INVENTORY LIST
+                            inventory.map(badge => (
+                                <BadgeListItem 
+                                    key={badge.id}
+                                    badge={badge}
+                                    mode="inventory"
+                                    onAction={(b) => { onAward(b); setTab('earned'); }}
+                                />
+                            ))
+                        )}
+                    </div>
+                </motion.div>
+            </div>
+        </ClientPortal>
+    );
+};
 
 // --- HELPER: GROUP BADGES ---
 const getUniqueBadges = (badges: any[]) => {
@@ -162,11 +299,9 @@ export default function CertificationsPage() {
   const [hoveredMemberId, setHoveredMemberId] = useState<string | null>(null);
   
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
-  const [isMobileArmoryOpen, setIsMobileArmoryOpen] = useState(false); 
   
-  // Sheet State
+  // Award Sheet State
   const [selectedMemberForAward, setSelectedMemberForAward] = useState<string | null>(null);
-  const [sheetTab, setSheetTab] = useState<'earned' | 'award'>('earned');
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null); 
@@ -192,16 +327,8 @@ export default function CertificationsPage() {
     team.find(m => m.id === selectedMemberForAward)
   , [team, selectedMemberForAward]);
 
-  const memberUniqueBadges = useMemo(() => 
-    activeMember ? getUniqueBadges(activeMember.badges || []) : []
-  , [activeMember]);
-
   const handleMemberClick = (memberId: string) => {
-      if (window.innerWidth < 1024) {
-          setSelectedMemberForAward(memberId);
-          setSheetTab('earned'); // Default to viewing profile
-          setIsMobileArmoryOpen(true);
-      }
+      setSelectedMemberForAward(memberId);
   };
 
   const awardBadge = async (targetId: string, badge: any) => {
@@ -228,14 +355,35 @@ export default function CertificationsPage() {
         }, { merge: true });
         
         toast.success(`${badge.label} Awarded`, { id: loadingToast });
-        
-        // Switch back to "Earned" view to see the new badge
-        if (window.innerWidth < 1024) {
-            setSheetTab('earned');
-        }
       } catch (e) {
         updateMemberLocal(targetId, { badges: currentBadges });
         toast.error("Failed to award certification", { id: loadingToast });
+      }
+  };
+
+  const removeBadge = async (badgeId: string) => {
+      if(!activeMember) return;
+      
+      const badgeToRemove = activeMember.badges?.find((b: any) => (b.awardedId === badgeId || b.id === badgeId));
+      if (!badgeToRemove) return;
+
+      const loadToast = toast.loading("Revoking Certification...");
+      
+      try {
+          // FireStore arrayRemove needs the EXACT object match. 
+          // Since timestamps vary, finding the exact object in the array is safer via logic, 
+          // but for atomic update we need the object. 
+          // Here we filter locally and set the new array to avoid complexity.
+          const updatedBadges = activeMember.badges?.filter((b: any) => (b.awardedId !== badgeId && b.id !== badgeId)) || [];
+          
+          updateMemberLocal(activeMember.id, { badges: updatedBadges });
+
+          const memberRef = doc(db, "profileOverrides", activeMember.id);
+          await setDoc(memberRef, { badges: updatedBadges, updatedAt: serverTimestamp() }, { merge: true });
+          
+          toast.success("Certification Revoked", { id: loadToast });
+      } catch (e) {
+          toast.error("Failed to revoke", { id: loadToast });
       }
   };
 
@@ -245,33 +393,44 @@ export default function CertificationsPage() {
     setIsArmoryExpanded(true); 
   };
 
+  // NEW: Handle Drag for Mobile Hover Calculation
+  const handleDrag = (event: any, info: PanInfo) => {
+      // Prioritize touch points
+      let clientX, clientY;
+      if (event.changedTouches && event.changedTouches.length > 0) {
+          clientX = event.changedTouches[0].clientX;
+          clientY = event.changedTouches[0].clientY;
+      } else {
+          clientX = event.clientX;
+          clientY = event.clientY;
+      }
+
+      if (clientX && clientY) {
+         const elements = document.elementsFromPoint(clientX, clientY);
+         const card = elements.find(el => el.hasAttribute("data-member-id") || el.closest('[data-member-id]'));
+         const targetElement = card?.hasAttribute("data-member-id") ? card : card?.closest('[data-member-id]');
+         const targetId = targetElement?.getAttribute("data-member-id");
+         setHoveredMemberId(targetId || null);
+      }
+  };
+
   const handleDragEnd = async (event: any, info: any, badge: any) => {
     setIsDragging(false);
     setHoveredMemberId(null);
     
-    // 1. ROBUST COORDINATE EXTRACTION
-    // We prioritize the native pointer event to get exactly where the user's finger/mouse is.
     let clientX, clientY;
-    
-    // Check for Touch Event (Mobile)
     if (event.changedTouches && event.changedTouches.length > 0) {
         clientX = event.changedTouches[0].clientX;
         clientY = event.changedTouches[0].clientY;
-    } 
-    // Check for Mouse Event (Desktop)
-    else if (event.clientX !== undefined && event.clientY !== undefined) {
+    } else if (event.clientX !== undefined && event.clientY !== undefined) {
         clientX = event.clientX;
         clientY = event.clientY;
     } else {
-        // Fallback to Framer's info point if native event fails
         clientX = info.point.x;
         clientY = info.point.y;
     }
 
-    // 2. RAYCAST
     const elements = document.elementsFromPoint(clientX, clientY);
-    
-    // 3. FIND TARGET
     const card = elements.find(el => el.hasAttribute("data-member-id") || el.closest('[data-member-id]'));
     const targetElement = card?.hasAttribute("data-member-id") ? card : card?.closest('[data-member-id]');
     const targetId = targetElement?.getAttribute("data-member-id");
@@ -333,6 +492,7 @@ export default function CertificationsPage() {
           badges={customAccolades}
           onOpenForge={() => openForge()}
           onDragStart={handleDragStart}
+          onDrag={handleDrag} // Connect new drag handler
           onDragEnd={handleDragEnd}
       />
 
@@ -419,7 +579,7 @@ export default function CertificationsPage() {
                                                     ? "border-[#E51636] shadow-2xl scale-[1.02] z-30 ring-4 ring-red-50" 
                                                     : "border-slate-100 shadow-sm hover:shadow-lg hover:border-slate-200 hover:-translate-y-1",
                                                 
-                                                // FIXED: Removed scale-95, just lowering opacity
+                                                // FIXED: Removed scale-95 to make target larger
                                                 isDragging && !isHoveredTarget && "opacity-40"
                                             )}
                                         >
@@ -427,7 +587,10 @@ export default function CertificationsPage() {
                                             
                                             {/* DROPPABLE OVERLAY */}
                                             {isDragging && (
-                                                <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/60 backdrop-blur-[1px] pointer-events-none">
+                                                <div className={cn(
+                                                    "absolute inset-0 z-20 flex items-center justify-center transition-opacity bg-white/60 backdrop-blur-[1px] pointer-events-none",
+                                                    isHoveredTarget ? "opacity-100" : "opacity-0"
+                                                )}>
                                                     <div className="px-4 py-2 bg-[#004F71] text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2">
                                                         <Target className="w-4 h-4" /> Drop to Award
                                                     </div>
@@ -518,97 +681,20 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
-      {/* --- MEMBER DETAIL SHEET (Mobile) --- */}
+      {/* --- MEMBER AWARDS SHEET (Responsive: Bottom on Mobile, Side on Desktop) --- */}
       <AnimatePresence>
-        {isMobileArmoryOpen && activeMember && (
-             <ClientPortal>
-                <div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none">
-                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" onClick={() => { setIsMobileArmoryOpen(false); setSelectedMemberForAward(null); }} />
-                     
-                     <motion.div 
-                        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
-                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                        className="pointer-events-auto bg-[#F8FAFC] w-full h-[85vh] rounded-t-[32px] shadow-2xl relative flex flex-col overflow-hidden"
-                     >
-                         <div className="flex justify-center pt-3 pb-1 shrink-0 bg-white"><div className="w-12 h-1.5 bg-slate-200 rounded-full" /></div>
-                         <div className="px-6 pb-4 pt-2 border-b border-slate-100 flex flex-col gap-4 bg-white shrink-0">
-                             <div className="flex items-center justify-between">
-                                 <div className="flex items-center gap-3">
-                                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-xs overflow-hidden">
-                                        {activeMember.image ? <img src={activeMember.image} className="w-full h-full object-cover" /> : activeMember.name.charAt(0)}
-                                     </div>
-                                     <div>
-                                         <h2 className="text-lg font-[1000] text-slate-900 tracking-tight leading-none">{activeMember.name}</h2>
-                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{activeMember.role}</p>
-                                     </div>
-                                 </div>
-                                 <button onClick={() => { setIsMobileArmoryOpen(false); setSelectedMemberForAward(null); }} className="h-8 w-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center active:scale-95 transition-all text-slate-400 hover:text-red-500 hover:border-red-200"><X className="w-4 h-4" /></button>
-                             </div>
-
-                             {/* TABS */}
-                             <div className="flex p-1 bg-slate-100 rounded-xl">
-                                 <button 
-                                    onClick={() => setSheetTab('earned')}
-                                    className={cn(
-                                        "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                                        sheetTab === 'earned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
-                                    )}
-                                 >
-                                     Trophy Case
-                                 </button>
-                                 <button 
-                                    onClick={() => setSheetTab('award')}
-                                    className={cn(
-                                        "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                                        sheetTab === 'award' ? "bg-[#004F71] text-white shadow-md" : "text-slate-400"
-                                    )}
-                                 >
-                                     Add Award
-                                 </button>
-                             </div>
-                         </div>
-
-                         {/* CONTENT AREA */}
-                         <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-20 custom-scrollbar">
-                             {sheetTab === 'earned' ? (
-                                 // EARNED LIST
-                                 memberUniqueBadges.length > 0 ? (
-                                    memberUniqueBadges.map((badge: any) => (
-                                        <BadgeListItem 
-                                            key={badge.id}
-                                            badge={badge}
-                                            mode="earned"
-                                            onAction={() => {}} 
-                                        />
-                                    ))
-                                 ) : (
-                                    <div className="flex flex-col items-center justify-center py-12 text-slate-300 border-2 border-dashed border-slate-200 rounded-3xl mx-4">
-                                        <Shield className="w-10 h-10 mb-2 opacity-50" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">No Certifications Yet</span>
-                                        <button onClick={() => setSheetTab('award')} className="mt-4 text-[10px] font-bold text-[#004F71] underline">Award First Badge</button>
-                                    </div>
-                                 )
-                             ) : (
-                                 // INVENTORY LIST
-                                 customAccolades.map(badge => (
-                                     <BadgeListItem 
-                                         key={badge.id}
-                                         badge={badge}
-                                         mode="inventory"
-                                         onAction={() => awardBadge(activeMember.id, badge)}
-                                         onEdit={() => openForge(badge)}
-                                         onDelete={() => requestDeleteBadge(badge.id)}
-                                     />
-                                 ))
-                             )}
-                         </div>
-                     </motion.div>
-                </div>
-             </ClientPortal>
+        {activeMember && (
+            <MemberAwardsSheet 
+                member={activeMember}
+                inventory={customAccolades}
+                onClose={() => setSelectedMemberForAward(null)}
+                onAward={(badge) => awardBadge(activeMember.id, badge)}
+                onRemove={removeBadge}
+            />
         )}
       </AnimatePresence>
 
-      {/* --- DELETE CONFIRMATION MODAL --- */}
+      {/* --- DELETE MODULE CONFIRMATION --- */}
       <AnimatePresence>
         {deleteTargetId && (
             <ClientPortal>
