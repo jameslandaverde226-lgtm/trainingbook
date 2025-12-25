@@ -21,7 +21,7 @@ import TrainerRecruitmentModal from "./_components/TrainerRecruitmentModal";
 import TeamDynamicIsland from "./_components/TeamDynamicIsland";
 import UnitAssignmentModal from "./_components/UnitAssignmentModal";
 
-// --- PROMOTION HUD (Drop Target for Role Changes) ---
+// --- PROMOTION HUD ---
 function PromotionHUD({ 
     draggingMember, 
     onPromote 
@@ -29,7 +29,6 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
-    // Hide Admin from promotion target list
     const visibleStages = STAGES.filter(s => s.id !== "Admin");
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
@@ -60,7 +59,6 @@ function PromotionHUD({
                         return (
                             <div 
                                 key={stage.id} 
-                                // Data attributes used for collision detection
                                 data-role-target={stage.id} 
                                 onMouseEnter={() => setHoveredStage(stage.id)}
                                 onMouseLeave={() => setHoveredStage(null)}
@@ -191,7 +189,6 @@ export default function TeamBoardPage() {
     const handleUnitAssign = async (dept: "FOH" | "BOH") => {
         if (!assignmentMember) return;
         
-        // Optimistic Update
         updateMemberLocal(assignmentMember.id, { dept });
 
         const loadToast = toast.loading(`Initializing ${dept} Profile...`);
@@ -273,26 +270,25 @@ export default function TeamBoardPage() {
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         setMemberDraggingId(null); 
         
-        // 1. Create toast and get ID
+        // 1. Create Toast ID
         const toastId = toast.loading(`Promoting to ${newRole}...`);
         
-        // 2. Optimistic Update (Immediate Feedback)
+        // 2. OPTIMISTIC UPDATE: Update both STATUS and ROLE locally
         updateMemberLocal(memberId, { status: newRole, role: newRole });
 
         try {
-            // 3. Database Update
+            // 3. DATABASE UPDATE: Update both STATUS and ROLE in Firestore
             await setDoc(doc(db, "profileOverrides", memberId), {
                 role: newRole, 
-                status: newRole,
+                status: newRole, // FIX: Ensure status is updated to move them to new tab
                 updatedAt: serverTimestamp()
             }, { merge: true });
 
-            // 4. Update existing toast
+            // 4. SUCCESS: Use same ID to update, preventing double toast
             toast.success("Promotion Confirmed", { id: toastId, icon: '🎖️' });
         } catch (error) {
             console.error(error);
             toast.error("Deployment Failed", { id: toastId });
-            // Optional: Revert local state here on failure
         }
     };
 
