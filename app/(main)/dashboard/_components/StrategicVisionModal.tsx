@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
-import { X, Target, Zap, TrendingUp, Save, Rocket, Mountain, Plus, Trash2, GripVertical, Gauge, Users, DollarSign, Trophy } from "lucide-react";
+import { motion, Reorder } from "framer-motion";
+import { 
+  X, Target, Zap, Rocket, Mountain, Plus, Trash2, GripVertical, 
+  Gauge, Users, DollarSign, Trophy, Database, PenLine, Link2, Save
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import ClientPortal from "@/components/core/ClientPortal";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
@@ -10,15 +13,18 @@ import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 
 // --- TYPES ---
+export type MetricSource = 'manual' | 'system_1on1' | 'system_training_avg' | 'system_active_goals' | 'system_leaders';
+
 export interface VisionPillar {
     id: string;
     title: string;
     subtitle: string;
-    current: number;
+    current: number; // Used if manual
     target: number;
     unit: "%" | "Count" | "Currency";
-    icon: "Zap" | "Mountain" | "Target" | "Gauge" | "Users" | "Dollar" | "Trophy";
-    color: "cyan" | "emerald" | "red" | "amber" | "violet" | "rose";
+    icon: string;
+    color: string;
+    source: MetricSource; // NEW: Determines if we calculate it or read 'current'
 }
 
 interface Props {
@@ -27,18 +33,20 @@ interface Props {
   currentPillars: VisionPillar[];
 }
 
-const ICONS = { Zap, Mountain, Target, Gauge, Users, DollarSign, Trophy };
-const COLORS = [
-    { id: "cyan", hex: "cyan" },
-    { id: "emerald", hex: "emerald" },
-    { id: "red", hex: "red" },
-    { id: "amber", hex: "amber" },
-    { id: "violet", hex: "violet" },
-    { id: "rose", hex: "rose" },
-];
+const ICONS: any = { Zap, Mountain, Target, Gauge, Users, DollarSign, Trophy };
+
+// Explicit Colors to prevent Tailwind purging
+const COLOR_MAP: any = {
+    cyan: "#06b6d4",
+    emerald: "#10b981",
+    red: "#ef4444",
+    amber: "#f59e0b",
+    violet: "#8b5cf6",
+    rose: "#f43f5e",
+};
 
 export default function StrategicVisionModal({ isOpen, onClose, currentPillars }: Props) {
-  const [pillars, setPillars] = useState<VisionPillar[]>(currentPillars.length > 0 ? currentPillars : []);
+  const [pillars, setPillars] = useState<VisionPillar[]>(currentPillars);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
@@ -48,7 +56,7 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
               pillars,
               updatedAt: serverTimestamp()
           });
-          toast.success("Directives Updated");
+          toast.success("System Telemetry Updated");
           onClose();
       } catch (e) {
           toast.error("Failed to update vision");
@@ -60,20 +68,19 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
   const addPillar = () => {
       const newPillar: VisionPillar = {
           id: Math.random().toString(),
-          title: "New Objective",
-          subtitle: "Weekly Target",
+          title: "New Directive",
+          subtitle: "Target",
           current: 0,
           target: 100,
           unit: "%",
           icon: "Target",
-          color: "cyan"
+          color: "cyan",
+          source: "manual"
       };
       setPillars([...pillars, newPillar]);
   };
 
-  const removePillar = (id: string) => {
-      setPillars(pillars.filter(p => p.id !== id));
-  };
+  const removePillar = (id: string) => setPillars(pillars.filter(p => p.id !== id));
 
   const updatePillar = (id: string, field: keyof VisionPillar, value: any) => {
       setPillars(pillars.map(p => p.id === id ? { ...p, [field]: value } : p));
@@ -84,8 +91,12 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
   return (
     <ClientPortal>
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#004F71]/80 backdrop-blur-md" onClick={onClose} />
-            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[85vh]">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-md" onClick={onClose} />
+            <motion.div 
+                initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} 
+                className="bg-white w-full max-w-2xl rounded-[40px] shadow-2xl overflow-hidden relative z-10 flex flex-col max-h-[85vh]"
+            >
+                {/* Header */}
                 <div className="bg-[#004F71] p-8 pb-10 text-white relative overflow-hidden shrink-0">
                     <div className="absolute top-0 right-0 p-6 opacity-10"><Rocket className="w-32 h-32" /></div>
                     <div className="relative z-10">
@@ -95,53 +106,87 @@ export default function StrategicVisionModal({ isOpen, onClose, currentPillars }
                     <button onClick={onClose} className="absolute top-6 right-6 p-2 bg-white/10 rounded-full hover:bg-white/20 transition-all"><X className="w-5 h-5" /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-6 bg-slate-50">
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 custom-scrollbar">
                     <Reorder.Group axis="y" values={pillars} onReorder={setPillars} className="space-y-4">
                         {pillars.map(pillar => {
-                            const Icon = ICONS[pillar.icon as keyof typeof ICONS] || Target;
+                            const Icon = ICONS[pillar.icon] || Target;
                             return (
                                 <Reorder.Item key={pillar.id} value={pillar} className="bg-white p-5 rounded-[24px] border border-slate-200 shadow-sm relative group">
                                     <div className="flex items-start gap-4">
                                         <div className="cursor-grab active:cursor-grabbing text-slate-300 mt-2"><GripVertical className="w-5 h-5" /></div>
-                                        <div className="flex-1 space-y-4">
+                                        <div className="flex-1 space-y-5">
                                             
-                                            {/* HEADER ROW */}
-                                            <div className="flex gap-4">
+                                            {/* TOP ROW: Config */}
+                                            <div className="flex gap-4 border-b border-slate-100 pb-4">
                                                 <div className="flex-1 space-y-2">
-                                                    <input value={pillar.title} onChange={e => updatePillar(pillar.id, 'title', e.target.value)} className="w-full text-sm font-black uppercase tracking-wide text-slate-900 border-b border-transparent focus:border-slate-200 outline-none" placeholder="TITLE" />
-                                                    <input value={pillar.subtitle} onChange={e => updatePillar(pillar.id, 'subtitle', e.target.value)} className="w-full text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-transparent focus:border-slate-200 outline-none" placeholder="SUBTITLE" />
+                                                    <input value={pillar.title} onChange={e => updatePillar(pillar.id, 'title', e.target.value)} className="w-full text-sm font-black uppercase tracking-wide text-slate-900 border-none outline-none p-0 focus:ring-0 placeholder:text-slate-300" placeholder="TITLE" />
+                                                    <input value={pillar.subtitle} onChange={e => updatePillar(pillar.id, 'subtitle', e.target.value)} className="w-full text-[10px] font-bold uppercase tracking-widest text-slate-400 border-none outline-none p-0 focus:ring-0 placeholder:text-slate-200" placeholder="SUBTITLE" />
                                                 </div>
                                                 
-                                                {/* Color Picker */}
-                                                <div className="flex gap-1">
-                                                    {COLORS.map(c => (
-                                                        <button key={c.id} onClick={() => updatePillar(pillar.id, 'color', c.id)} className={cn("w-4 h-4 rounded-full transition-all", pillar.color === c.id ? `bg-${c.id}-500 ring-2 ring-offset-1 ring-${c.id}-500` : `bg-${c.id}-200 hover:bg-${c.id}-400`)} />
+                                                {/* Fixed Color Picker */}
+                                                <div className="flex gap-1.5 h-fit">
+                                                    {Object.entries(COLOR_MAP).map(([key, hex]: any) => (
+                                                        <button 
+                                                            key={key} 
+                                                            onClick={() => updatePillar(pillar.id, 'color', key)} 
+                                                            className={cn("w-5 h-5 rounded-full transition-all border-2", pillar.color === key ? "border-slate-900 scale-110" : "border-transparent opacity-50 hover:opacity-100")}
+                                                            style={{ backgroundColor: hex }} 
+                                                        />
                                                     ))}
                                                 </div>
                                             </div>
 
-                                            {/* METRICS ROW */}
-                                            <div className="flex gap-4 items-end">
-                                                <div className="flex-1 bg-slate-50 rounded-xl p-2 px-3 border border-slate-100 flex items-center gap-2">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase">Current</span>
-                                                    <input type="number" value={pillar.current} onChange={e => updatePillar(pillar.id, 'current', parseFloat(e.target.value))} className="w-full bg-transparent font-black text-slate-900 outline-none" />
+                                            {/* DATA SOURCE TOGGLE */}
+                                            <div className="flex gap-3">
+                                                <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200 shrink-0 h-fit">
+                                                    <button onClick={() => updatePillar(pillar.id, 'source', 'manual')} className={cn("p-2 rounded-lg transition-all", pillar.source === 'manual' ? "bg-white shadow-sm text-slate-900" : "text-slate-400")}>
+                                                        <PenLine className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={() => updatePillar(pillar.id, 'source', 'system_1on1')} className={cn("p-2 rounded-lg transition-all", pillar.source !== 'manual' ? "bg-[#004F71] shadow-sm text-white" : "text-slate-400")}>
+                                                        <Link2 className="w-4 h-4" />
+                                                    </button>
                                                 </div>
-                                                <div className="text-slate-300 font-black">/</div>
-                                                <div className="flex-1 bg-slate-50 rounded-xl p-2 px-3 border border-slate-100 flex items-center gap-2">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase">Target</span>
-                                                    <input type="number" value={pillar.target} onChange={e => updatePillar(pillar.id, 'target', parseFloat(e.target.value))} className="w-full bg-transparent font-black text-slate-900 outline-none" />
+
+                                                <div className="flex-1 space-y-2">
+                                                    {pillar.source === 'manual' ? (
+                                                        <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                                            <span className="text-[9px] font-bold text-slate-400 uppercase pl-1">Manual Value</span>
+                                                            <input type="number" value={pillar.current} onChange={e => updatePillar(pillar.id, 'current', parseFloat(e.target.value))} className="w-20 bg-white rounded-lg px-2 py-1 text-sm font-black text-slate-900 border border-slate-200 outline-none" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-2 bg-blue-50 p-2 rounded-xl border border-blue-100">
+                                                            <Database className="w-4 h-4 text-[#004F71]" />
+                                                            <select 
+                                                                value={pillar.source} 
+                                                                onChange={e => updatePillar(pillar.id, 'source', e.target.value)}
+                                                                className="bg-transparent text-[10px] font-bold uppercase text-[#004F71] outline-none w-full"
+                                                            >
+                                                                <option value="system_1on1">1-on-1s (Monthly)</option>
+                                                                <option value="system_training_avg">Avg. Training %</option>
+                                                                <option value="system_active_goals">Active Goals</option>
+                                                                <option value="system_leaders">Leader Count</option>
+                                                            </select>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                
-                                                {/* Unit Toggle */}
-                                                <button onClick={() => updatePillar(pillar.id, 'unit', pillar.unit === '%' ? 'Count' : '%')} className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-xs text-slate-500 hover:bg-slate-200 transition-colors">
+                                            </div>
+
+                                            {/* TARGETS ROW */}
+                                            <div className="flex gap-4 items-center bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                                                <div className="flex-1">
+                                                    <span className="text-[8px] font-bold text-slate-400 uppercase block mb-1">Goal Target</span>
+                                                    <input type="number" value={pillar.target} onChange={e => updatePillar(pillar.id, 'target', parseFloat(e.target.value))} className="w-full bg-transparent text-lg font-black text-slate-900 outline-none border-b border-dashed border-slate-300 focus:border-[#004F71]" />
+                                                </div>
+                                                <button onClick={() => updatePillar(pillar.id, 'unit', pillar.unit === '%' ? 'Count' : '%')} className="px-3 py-2 rounded-xl bg-white border border-slate-200 font-bold text-xs text-slate-500 shadow-sm hover:text-[#004F71] transition-colors">
                                                     {pillar.unit}
                                                 </button>
                                             </div>
 
-                                            {/* Icon Selector (Simple) */}
-                                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                                                {Object.entries(ICONS).map(([key, IconC]) => (
-                                                    <button key={key} onClick={() => updatePillar(pillar.id, 'icon', key)} className={cn("p-2 rounded-lg transition-all", pillar.icon === key ? "bg-slate-900 text-white" : "bg-slate-50 text-slate-400 hover:bg-slate-100")}>
+                                            {/* Icon Selector */}
+                                            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 pt-1">
+                                                {Object.entries(ICONS).map(([key, IconC]: any) => (
+                                                    <button key={key} onClick={() => updatePillar(pillar.id, 'icon', key)} className={cn("p-2 rounded-lg transition-all border", pillar.icon === key ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-400 border-slate-100 hover:border-slate-300")}>
                                                         <IconC className="w-4 h-4" />
                                                     </button>
                                                 ))}

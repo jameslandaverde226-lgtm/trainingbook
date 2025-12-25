@@ -9,7 +9,8 @@ import {
   Activity, CalendarDays,
   ArrowRight, GraduationCap,
   BookOpen, Sparkles, User, Plus, Edit3, Trash2, FileText, CheckCircle2, Loader2,
-  Zap, Shield, MessageSquare, Flag, Mountain, Rocket, Crosshair, LayoutList, Search, Gauge, DollarSign
+  Zap, Shield, MessageSquare, Flag, Mountain, Rocket, Crosshair, LayoutList, Search,
+  Gauge, DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isSameMonth, formatDistanceToNow, isFuture } from "date-fns";
@@ -185,7 +186,7 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
 
 // --- DYNAMIC STRATEGIC VISION BOARD ---
 const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], onUpdate: () => void }) => {
-    const ICONS = { Zap, Mountain, Target, Gauge, Users, DollarSign, Trophy };
+    const ICONS: any = { Zap, Mountain, Target, Gauge, Users, DollarSign, Trophy };
     
     const getColors = (color: string) => {
         const map: any = {
@@ -234,7 +235,9 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
                     {pillars.map(pillar => {
                         const style = getColors(pillar.color);
                         const Icon = ICONS[pillar.icon as keyof typeof ICONS] || Target;
-                        const percentage = Math.min(100, (pillar.current / pillar.target) * 100);
+                        // Safe Calculation
+                        const percentage = pillar.target > 0 ? Math.min(100, (pillar.current / pillar.target) * 100) : 0;
+                        const isAuto = pillar.source && pillar.source !== 'manual';
 
                         return (
                             <div key={pillar.id} className="relative bg-gradient-to-b from-white/10 to-white/5 border border-white/10 rounded-[24px] md:rounded-[32px] p-4 md:p-6 backdrop-blur-md hover:bg-white/15 transition-all duration-500 group/card flex flex-col justify-between h-auto md:h-40 shadow-lg hover:-translate-y-1">
@@ -242,6 +245,7 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
                                     <div className={cn("flex items-center gap-1.5 md:gap-2.5 px-2 py-1 md:px-3 md:py-1.5 rounded-full border", style.text, style.bg, style.border)}>
                                         <Icon className="w-3 h-3 md:w-3.5 md:h-3.5 fill-current" />
                                         <span className="text-[7px] md:text-[9px] font-black uppercase tracking-widest">{pillar.subtitle}</span>
+                                        {isAuto && <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse ml-1" title="Live System Data" />}
                                     </div>
                                     <span className="text-xl md:text-[10px] font-black text-white md:text-white/80 md:bg-black/20 md:px-2 md:py-1 rounded-lg">
                                         {pillar.current}{pillar.unit === '%' ? '%' : ''} / {pillar.target}{pillar.unit === '%' ? '%' : ''}
@@ -270,48 +274,43 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
 };
 
 // --- MAIN PAGE ---
-
 export default function DashboardPage() {
   const { events, team, loading, subscribeEvents, subscribeTeam, currentUser } = useAppStore();
   const [currentTime, setCurrentTime] = useState(new Date());
   
-  // Modals State
+  // Modals & State
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selected1on1, setSelected1on1] = useState<CalendarEvent | null>(null);
   const [activeKPI, setActiveKPI] = useState<{ title: string; items: any[]; color: string; icon: any } | null>(null);
   
-  // Vision State
   const [visionPillars, setVisionPillars] = useState<VisionPillar[]>([]);
   const [isVisionModalOpen, setIsVisionModalOpen] = useState(false);
-
-  // Member Detail State for Non-Admins
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
 
-  // Tab State for Mobile Scroll
+  // Mobile Tabs
   const [mobileTab, setMobileTab] = useState<'live' | 'next'>('live');
   const scrollRef = useRef<HTMLDivElement>(null);
   const feedRef = useRef<HTMLDivElement>(null);
   const nextRef = useRef<HTMLDivElement>(null);
 
+  // --- DATA SUBSCRIPTIONS ---
   useEffect(() => {
     const unsubEvents = subscribeEvents();
     const unsubTeam = subscribeTeam();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-
-    // Subscribe to Vision Data (Dynamic Array)
+    
+    // Subscribe to Vision Config
     const unsubVision = onSnapshot(doc(db, "vision", "current"), (docSnap) => {
         if (docSnap.exists()) {
             const data = docSnap.data();
-            if (data.pillars) {
-                setVisionPillars(data.pillars);
-            }
+            if (data.pillars) setVisionPillars(data.pillars);
         } else {
-             // Fallback for new system
+             // Defaults
              setVisionPillars([
-                 { id: "1", title: "Speed of Service", subtitle: "Weekly", current: 65, target: 80, unit: "%", icon: "Zap", color: "cyan" },
-                 { id: "2", title: "New Leaders", subtitle: "Monthly", current: 3, target: 5, unit: "Count", icon: "Target", color: "emerald" },
-                 { id: "3", title: "Hospitality Score", subtitle: "North Star", current: 15, target: 20, unit: "%", icon: "Mountain", color: "red" }
+                 { id: "1", title: "Speed of Service", subtitle: "Weekly", current: 65, target: 80, unit: "%", icon: "Zap", color: "cyan", source: "manual" },
+                 { id: "2", title: "New Leaders", subtitle: "Monthly", current: 3, target: 5, unit: "Count", icon: "Target", color: "emerald", source: "system_leaders" },
+                 { id: "3", title: "Hospitality Score", subtitle: "North Star", current: 15, target: 20, unit: "%", icon: "Mountain", color: "red", source: "manual" }
              ]);
         }
     });
@@ -319,25 +318,62 @@ export default function DashboardPage() {
     return () => { unsubEvents(); unsubTeam(); unsubVision(); clearInterval(timer); };
   }, [subscribeEvents, subscribeTeam]);
 
-  // Scroll Observer for Tabs
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
+  // --- CALCULATE LIVE METRICS ---
+  // This is the "Smart" part. We calculate real numbers from the store.
+  const calculatedPillars = useMemo(() => {
+    const currentMonth1on1s = events.filter(e => e.type === "OneOnOne" && e.status === "Done" && isSameMonth(e.startDate, new Date())).length;
+    const activeGoalsCount = events.filter(e => e.type === "Goal" && e.status !== "Done").length;
+    const leaderCount = team.filter(m => m.status === "Team Leader" || m.status === "Director" || m.status === "Assistant Director").length;
+    
+    // Calculate Average Training Progress
+    const totalProgress = team.reduce((acc, curr) => acc + (curr.progress || 0), 0);
+    const avgTraining = team.length > 0 ? Math.round(totalProgress / team.length) : 0;
 
-    const handleScroll = () => {
-        const scrollLeft = container.scrollLeft;
-        const width = container.clientWidth;
-        if (scrollLeft > width * 0.3) {
-            setMobileTab('next');
-        } else {
-            setMobileTab('live');
-        }
-    };
+    return visionPillars.map(p => {
+        let liveVal = p.current;
+        if (p.source === 'system_1on1') liveVal = currentMonth1on1s;
+        if (p.source === 'system_active_goals') liveVal = activeGoalsCount;
+        if (p.source === 'system_leaders') liveVal = leaderCount;
+        if (p.source === 'system_training_avg') liveVal = avgTraining;
+        
+        return { ...p, current: liveVal };
+    });
+  }, [visionPillars, events, team]);
 
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
+  // ... (KPIs, Feed, NextSession Logic same as before) ...
+  const kpis = useMemo(() => {
+    const certifiedLeaders = team.filter(m => m.status === "Director" || m.status === "Assistant Director");
+    const monthlyOneOnOnes = events.filter(e => e.type === "OneOnOne" && isSameMonth(e.startDate, new Date()));
+    const activeGoals = events.filter(e => e.type === "Goal" && e.status !== "Done");
 
+    return [
+      { id: "leaders", label: "Certified Leaders", value: certifiedLeaders.length.toString(), icon: GraduationCap, color: "bg-[#004F71]", modalColor: "bg-[#004F71]", trend: "Live Count", data: certifiedLeaders.map(l => ({ id: l.id, title: l.name, subtitle: l.role, icon: User, status: l.dept })) },
+      { id: "1on1s", label: "1-on-1s (MTD)", value: monthlyOneOnOnes.length.toString(), icon: Users, color: "text-purple-600", bg: "bg-purple-50", modalColor: "bg-purple-600", trend: "Monthly Cadence", data: monthlyOneOnOnes.map(e => ({ id: e.id, title: e.title, subtitle: `with ${e.teamMemberName}`, icon: MessageSquare, status: e.status, rawEvent: e })) },
+      { id: "goals", label: "Active Goals", value: activeGoals.length.toString(), icon: Target, color: "text-[#E51636]", bg: "bg-[#E51636]/5", modalColor: "bg-[#E51636]", trend: "Strategic Focus", data: activeGoals.map(g => ({ id: g.id, title: g.title, subtitle: `Assigned to ${g.assigneeName}`, icon: Target, status: g.priority, rawEvent: g })) },
+      { id: "roster", label: "Total Roster", value: team.length.toString(), icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50", modalColor: "bg-emerald-600", trend: "Headcount", data: team.map(t => ({ id: t.id, title: t.name, subtitle: t.role, icon: User, status: t.dept })) },
+    ];
+  }, [team, events]);
+  
+  const activityFeed = useMemo(() => {
+      return [...events].sort((a, b) => {
+          const aCreated = (a as any).createdAt;
+          const bCreated = (b as any).createdAt;
+          const dateA = aCreated?.toDate ? aCreated.toDate() : new Date(a.startDate);
+          const dateB = bCreated?.toDate ? bCreated.toDate() : new Date(b.startDate);
+          return dateB.getTime() - dateA.getTime();
+      }).slice(0, 8); 
+  }, [events]);
+
+  const nextSession = useMemo(() => {
+    return events.filter(e => e.type === "OneOnOne" && isFuture(e.startDate)).sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0];
+  }, [events]);
+
+  const handleDeleteEvent = async (id: string) => { const loadToast = toast.loading("Decommissioning..."); try { await deleteDoc(doc(db, "events", id)); toast.success("Terminated", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } };
+  const handleUpdateEvent = async (id: string, updates: any) => { const loadToast = toast.loading("Updating..."); try { await updateDoc(doc(db, "events", id), { ...updates, updatedAt: serverTimestamp() }); toast.success("Synced", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } };
+  const handleUpdate1on1 = async (updatedEvent: CalendarEvent) => { const loadToast = toast.loading("Updating Session..."); try { await updateDoc(doc(db, "events", updatedEvent.id), { description: updatedEvent.description, subtasks: updatedEvent.subtasks, status: updatedEvent.status, updatedAt: serverTimestamp() }); toast.success("Session Updated", { id: loadToast }); setSelected1on1(null); } catch (e) { toast.error("Error", { id: loadToast }); } };
+  const handleKPIItemClick = (item: any) => { if (item.rawEvent) { if (item.rawEvent.type === "OneOnOne") { setSelected1on1(item.rawEvent); } else { setSelectedEvent(item.rawEvent); } } };
+  
+  // Handlers (same as before)
   const scrollToSection = (section: 'live' | 'next') => {
       if (!scrollRef.current) return;
       if (section === 'live') {
@@ -393,214 +429,180 @@ export default function DashboardPage() {
         </div>
     );
   }
-
-  // --- ADMIN / DIRECTOR DASHBOARD LOGIC ---
   
-  const kpis = useMemo(() => {
-    const certifiedLeaders = team.filter(m => m.status === "Director" || m.status === "Assistant Director");
-    const monthlyOneOnOnes = events.filter(e => e.type === "OneOnOne" && isSameMonth(e.startDate, new Date()));
-    const activeGoals = events.filter(e => e.type === "Goal" && e.status !== "Done");
-
-    return [
-      { id: "leaders", label: "Certified Leaders", value: certifiedLeaders.length.toString(), icon: GraduationCap, color: "bg-[#004F71]", modalColor: "bg-[#004F71]", trend: "Live Count", data: certifiedLeaders.map(l => ({ id: l.id, title: l.name, subtitle: l.role, icon: User, status: l.dept })) },
-      { id: "1on1s", label: "1-on-1s (MTD)", value: monthlyOneOnOnes.length.toString(), icon: Users, color: "text-purple-600", bg: "bg-purple-50", modalColor: "bg-purple-600", trend: "Monthly Cadence", data: monthlyOneOnOnes.map(e => ({ id: e.id, title: e.title, subtitle: `with ${e.teamMemberName}`, icon: MessageSquare, status: e.status, rawEvent: e })) },
-      { id: "goals", label: "Active Goals", value: activeGoals.length.toString(), icon: Target, color: "text-[#E51636]", bg: "bg-[#E51636]/5", modalColor: "bg-[#E51636]", trend: "Strategic Focus", data: activeGoals.map(g => ({ id: g.id, title: g.title, subtitle: `Assigned to ${g.assigneeName}`, icon: Target, status: g.priority, rawEvent: g })) },
-      { id: "roster", label: "Total Roster", value: team.length.toString(), icon: Activity, color: "text-emerald-600", bg: "bg-emerald-50", modalColor: "bg-emerald-600", trend: "Headcount", data: team.map(t => ({ id: t.id, title: t.name, subtitle: t.role, icon: User, status: t.dept })) },
-    ];
-  }, [team, events]);
-
-  const activityFeed = useMemo(() => {
-      return [...events].sort((a, b) => {
-          const aCreated = (a as any).createdAt;
-          const bCreated = (b as any).createdAt;
-          const dateA = aCreated?.toDate ? aCreated.toDate() : new Date(a.startDate);
-          const dateB = bCreated?.toDate ? bCreated.toDate() : new Date(b.startDate);
-          return dateB.getTime() - dateA.getTime();
-      }).slice(0, 8); 
-  }, [events]);
-
-  const nextSession = useMemo(() => {
-    return events.filter(e => e.type === "OneOnOne" && isFuture(e.startDate)).sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0];
-  }, [events]);
-
-  const handleDeleteEvent = async (id: string) => { const loadToast = toast.loading("Decommissioning..."); try { await deleteDoc(doc(db, "events", id)); toast.success("Terminated", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } };
-  const handleUpdateEvent = async (id: string, updates: any) => { const loadToast = toast.loading("Updating..."); try { await updateDoc(doc(db, "events", id), { ...updates, updatedAt: serverTimestamp() }); toast.success("Synced", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } };
-  const handleUpdate1on1 = async (updatedEvent: CalendarEvent) => { const loadToast = toast.loading("Updating Session..."); try { await updateDoc(doc(db, "events", updatedEvent.id), { description: updatedEvent.description, subtasks: updatedEvent.subtasks, status: updatedEvent.status, updatedAt: serverTimestamp() }); toast.success("Session Updated", { id: loadToast }); setSelected1on1(null); } catch (e) { toast.error("Error", { id: loadToast }); } };
-  const handleKPIItemClick = (item: any) => { if (item.rawEvent) { if (item.rawEvent.type === "OneOnOne") { setSelected1on1(item.rawEvent); } else { setSelectedEvent(item.rawEvent); } } };
-
   if (loading && team.length === 0) return <div className="h-screen flex flex-col items-center justify-center bg-[#F8FAFC] gap-4"><Loader2 className="w-10 h-10 animate-spin text-[#E51636]" /><p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Synchronizing Operations...</p></div>;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-6 pb-20 font-sans text-slate-900 relative overflow-hidden">
-      
-      {/* Background Blurs */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[800px] md:w-[1400px] h-[800px] md:h-[1400px] bg-gradient-to-br from-blue-50/40 via-purple-50/20 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] md:w-[1000px] h-[600px] md:h-[1000px] bg-gradient-to-tl from-red-50/30 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
-      </div>
+        {/* Background Blurs */}
+        <div className="fixed inset-0 pointer-events-none">
+            <div className="absolute top-[-20%] left-[-10%] w-[800px] md:w-[1400px] h-[800px] md:h-[1400px] bg-gradient-to-br from-blue-50/40 via-purple-50/20 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[600px] md:w-[1000px] h-[600px] md:h-[1000px] bg-gradient-to-tl from-red-50/30 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
+        </div>
 
-      <div className="max-w-[1400px] mx-auto relative z-10 space-y-6 md:space-y-8 mt-4 md:mt-12">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-1">
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-             <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
-                <div className="px-3 py-1 bg-white border border-slate-100 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm flex items-center justify-center md:justify-start gap-2 w-fit">
-                  <CalendarDays className="w-3 h-3 text-[#E51636]" />
-                  {format(currentTime, "EEEE, MMMM do")}
-                  <div className="w-px h-3 bg-slate-200 mx-1 hidden md:block" />
-                  <span className="tabular-nums text-slate-900">{format(currentTime, "h:mm aa")}</span>
+        <div className="max-w-[1400px] mx-auto relative z-10 space-y-6 md:space-y-8 mt-4 md:mt-12">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-1">
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+                    <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
+                        <div className="px-3 py-1 bg-white border border-slate-100 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500 shadow-sm flex items-center justify-center md:justify-start gap-2 w-fit">
+                            <CalendarDays className="w-3 h-3 text-[#E51636]" />
+                            {format(currentTime, "EEEE, MMMM do")}
+                            <div className="w-px h-3 bg-slate-200 mx-1 hidden md:block" />
+                            <span className="tabular-nums text-slate-900">{format(currentTime, "h:mm aa")}</span>
+                        </div>
+                        <span className="flex items-center gap-1.5 px-2.5 py-1 bg-[#004F71] border border-[#004F71] rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-900/20 w-fit">
+                            <Sparkles className="w-2.5 h-2.5 fill-current" />
+                            Command Center
+                        </span>
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 leading-tight">
+                        Ops<span className="text-[#E51636]">Overview</span>
+                    </h1>
+                </motion.div>
+            </div>
+            
+            {/* THE SMART VISION BOARD */}
+            <StrategicVisionBoard pillars={calculatedPillars} onUpdate={() => setIsVisionModalOpen(true)} />
+
+            {/* KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            {kpis.map((kpi, idx) => (
+                <GlassCard key={idx} onClick={() => setActiveKPI({ title: kpi.label, items: kpi.data, color: kpi.modalColor, icon: kpi.icon })} className="p-4 md:p-5 flex flex-col justify-between h-28 md:h-32 group hover:-translate-y-1 hover:shadow-lg transition-all duration-500">
+                    <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2 md:gap-3">
+                        <div className={cn("p-1.5 md:p-2 rounded-xl transition-transform group-hover:scale-110 duration-500 shadow-sm", kpi.bg || "bg-slate-100", kpi.color)}><kpi.icon className="w-3.5 h-3.5 md:w-4 md:h-4" /></div>
+                        <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 hidden md:block">{kpi.label}</span>
+                        <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 md:hidden">{kpi.label.split(' ')[0]}</span>
+                    </div>
+                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
+                    </div>
+                    <div><div className="text-3xl md:text-4xl font-[1000] text-slate-900 tracking-tighter">{kpi.value}</div><div className="mt-1 text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><div className="w-3 h-px bg-slate-200" /> <span className="truncate">{kpi.trend}</span></div></div>
+                </GlassCard>
+            ))}
+            </div>
+
+            {/* --- MOBILE TABS HEADER --- */}
+            <div className="flex lg:hidden items-center gap-6 px-1 mb-2">
+                <button onClick={() => scrollToSection('live')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'live' ? "text-slate-900" : "text-slate-300")}>
+                    Live Feed
+                    {mobileTab === 'live' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
+                </button>
+                <button onClick={() => scrollToSection('next')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'next' ? "text-slate-900" : "text-slate-300")}>
+                    Up Next
+                    {mobileTab === 'next' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
+                </button>
+            </div>
+
+            {/* --- HORIZONTAL SCROLL CONTAINER FOR MOBILE --- */}
+            <div 
+                ref={scrollRef}
+                className="flex lg:grid lg:grid-cols-12 gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] -mx-4 px-4 pb-8 lg:mx-0 lg:px-0 lg:pb-0"
+            >
+            
+            {/* LIVE FEED PANEL */}
+            <div ref={feedRef} className="min-w-[90vw] md:min-w-[50vw] lg:min-w-0 col-span-12 lg:col-span-8 lg:col-start-1 lg:row-start-1 flex flex-col gap-4 snap-center h-fit">
+                <div className="hidden lg:flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                        <LayoutList className="w-4 h-4 text-[#E51636]" />
+                        <h3 className="text-lg font-black text-slate-900 tracking-tight">Live Operational Feed</h3>
+                    </div>
+                    <div className="px-2 py-0.5 bg-white border border-slate-100 rounded-full text-[8px] font-black uppercase tracking-widest text-slate-400">Real-time</div>
                 </div>
-                <span className="flex items-center gap-1.5 px-2.5 py-1 bg-[#004F71] border border-[#004F71] rounded-full text-[9px] font-black uppercase tracking-widest text-white shadow-lg shadow-blue-900/20 w-fit">
-                  <Sparkles className="w-2.5 h-2.5 fill-current" />
-                  Command Center
-                </span>
-             </div>
-             <h1 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 leading-tight">
-               Ops<span className="text-[#E51636]">Overview</span>
-             </h1>
-          </motion.div>
-        </div>
 
-        {/* --- DYNAMIC VISION BOARD --- */}
-        <StrategicVisionBoard pillars={visionPillars} onUpdate={() => setIsVisionModalOpen(true)} />
-
-        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-           {kpis.map((kpi, idx) => (
-             <GlassCard key={idx} onClick={() => setActiveKPI({ title: kpi.label, items: kpi.data, color: kpi.modalColor, icon: kpi.icon })} className="p-4 md:p-5 flex flex-col justify-between h-28 md:h-32 group hover:-translate-y-1 hover:shadow-lg transition-all duration-500">
-                <div className="flex justify-between items-start">
-                   <div className="flex items-center gap-2 md:gap-3">
-                      <div className={cn("p-1.5 md:p-2 rounded-xl transition-transform group-hover:scale-110 duration-500 shadow-sm", kpi.bg || "bg-slate-100", kpi.color)}><kpi.icon className="w-3.5 h-3.5 md:w-4 md:h-4" /></div>
-                      <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 hidden md:block">{kpi.label}</span>
-                      <span className="text-[8px] font-black uppercase tracking-[0.1em] text-slate-400 md:hidden">{kpi.label.split(' ')[0]}</span>
-                   </div>
-                   <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
-                </div>
-                <div><div className="text-3xl md:text-4xl font-[1000] text-slate-900 tracking-tighter">{kpi.value}</div><div className="mt-1 text-[8px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><div className="w-3 h-px bg-slate-200" /> <span className="truncate">{kpi.trend}</span></div></div>
-             </GlassCard>
-           ))}
-        </div>
-
-        {/* --- MOBILE TABS HEADER --- */}
-        <div className="flex lg:hidden items-center gap-6 px-1 mb-2">
-            <button onClick={() => scrollToSection('live')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'live' ? "text-slate-900" : "text-slate-300")}>
-                Live Feed
-                {mobileTab === 'live' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
-            </button>
-            <button onClick={() => scrollToSection('next')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'next' ? "text-slate-900" : "text-slate-300")}>
-                Up Next
-                {mobileTab === 'next' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
-            </button>
-        </div>
-
-        {/* --- HORIZONTAL SCROLL CONTAINER FOR MOBILE --- */}
-        <div 
-            ref={scrollRef}
-            className="flex lg:grid lg:grid-cols-12 gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] -mx-4 px-4 pb-8 lg:mx-0 lg:px-0 lg:pb-0"
-        >
-          
-          {/* LIVE FEED PANEL */}
-          <div ref={feedRef} className="min-w-[90vw] md:min-w-[50vw] lg:min-w-0 col-span-12 lg:col-span-8 lg:col-start-1 lg:row-start-1 flex flex-col gap-4 snap-center h-fit">
-             <div className="hidden lg:flex items-center justify-between px-1">
-                 <div className="flex items-center gap-2">
-                     <LayoutList className="w-4 h-4 text-[#E51636]" />
-                     <h3 className="text-lg font-black text-slate-900 tracking-tight">Live Operational Feed</h3>
-                 </div>
-                 <div className="px-2 py-0.5 bg-white border border-slate-100 rounded-full text-[8px] font-black uppercase tracking-widest text-slate-400">Real-time</div>
-             </div>
-
-             <div className="bg-white border border-slate-100 lg:bg-transparent lg:border-0 rounded-[32px] p-4 lg:p-0 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] lg:shadow-none relative h-full">
-                <div className="lg:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 bg-slate-200 rounded-full mb-4 opacity-50" />
-                <div className="relative pl-6 lg:pl-0 mt-4 lg:mt-0">
-                    <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-slate-100 lg:hidden" />
-                    <div className="grid grid-cols-1 gap-3 md:gap-3">
-                        <AnimatePresence>
-                            {activityFeed.map((event, i) => {
-                                const isDone = event.status === "Done";
-                                return (
-                                    <motion.div 
-                                        key={event.id}
-                                        layoutId={`event-card-${event.id}`}
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        onClick={() => { if(event.type === 'OneOnOne') setSelected1on1(event); else setSelectedEvent(event); }}
-                                        transition={{ delay: i * 0.05 }}
-                                        className="group relative bg-white lg:bg-white p-3 md:p-4 rounded-[20px] md:rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex items-start gap-3 md:gap-4 overflow-hidden cursor-pointer"
-                                    >
-                                        <div className={cn("hidden lg:block absolute left-0 top-0 bottom-0 w-1 transition-colors", event.priority === 'High' ? "bg-[#E51636]" : "bg-[#004F71]/50")} />
-                                        <div className="lg:hidden absolute -left-[25px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white bg-slate-300 z-10" />
-                                        <ActivityIcon type={event.type} />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center justify-between mb-0.5">
-                                                <div className="flex items-center gap-2"><span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400">{getEventLabel(event.type)}</span>{isDone && <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[7px] font-black uppercase tracking-wider">Completed</span>}</div>
-                                                <span className="text-[8px] md:text-[9px] font-bold text-slate-300">{formatDistanceToNow(event.startDate)} ago</span>
+                <div className="bg-white border border-slate-100 lg:bg-transparent lg:border-0 rounded-[32px] p-4 lg:p-0 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] lg:shadow-none relative h-full">
+                    <div className="lg:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 bg-slate-200 rounded-full mb-4 opacity-50" />
+                    <div className="relative pl-6 lg:pl-0 mt-4 lg:mt-0">
+                        <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-slate-100 lg:hidden" />
+                        <div className="grid grid-cols-1 gap-3 md:gap-3">
+                            <AnimatePresence>
+                                {activityFeed.map((event, i) => {
+                                    const isDone = event.status === "Done";
+                                    return (
+                                        <motion.div 
+                                            key={event.id}
+                                            layoutId={`event-card-${event.id}`}
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            onClick={() => { if(event.type === 'OneOnOne') setSelected1on1(event); else setSelectedEvent(event); }}
+                                            transition={{ delay: i * 0.05 }}
+                                            className="group relative bg-white lg:bg-white p-3 md:p-4 rounded-[20px] md:rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex items-start gap-3 md:gap-4 overflow-hidden cursor-pointer"
+                                        >
+                                            <div className={cn("hidden lg:block absolute left-0 top-0 bottom-0 w-1 transition-colors", event.priority === 'High' ? "bg-[#E51636]" : "bg-[#004F71]/50")} />
+                                            <div className="lg:hidden absolute -left-[25px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white bg-slate-300 z-10" />
+                                            <ActivityIcon type={event.type} />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center justify-between mb-0.5">
+                                                    <div className="flex items-center gap-2"><span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400">{getEventLabel(event.type)}</span>{isDone && <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[7px] font-black uppercase tracking-wider">Completed</span>}</div>
+                                                    <span className="text-[8px] md:text-[9px] font-bold text-slate-300">{formatDistanceToNow(event.startDate)} ago</span>
+                                                </div>
+                                                <h4 className="text-sm md:text-base font-bold text-slate-900 leading-snug truncate group-hover:text-[#004F71] transition-colors">{event.title}</h4>
+                                                <div className="flex items-center gap-1.5 mt-1.5">
+                                                    <div className="w-4 h-4 rounded-md bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-500">{event.assigneeName.charAt(0)}</div>
+                                                    <span className="text-[10px] font-medium text-slate-500 truncate max-w-[100px]">{event.assigneeName}</span>
+                                                    <ArrowRight className="w-3 h-3 text-slate-300" />
+                                                    <span className="text-[10px] font-medium text-slate-500 truncate max-w-[100px]">{event.teamMemberName || "Team"}</span>
+                                                </div>
                                             </div>
-                                            <h4 className="text-sm md:text-base font-bold text-slate-900 leading-snug truncate group-hover:text-[#004F71] transition-colors">{event.title}</h4>
-                                            <div className="flex items-center gap-1.5 mt-1.5">
-                                                <div className="w-4 h-4 rounded-md bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-500">{event.assigneeName.charAt(0)}</div>
-                                                <span className="text-[10px] font-medium text-slate-500 truncate max-w-[100px]">{event.assigneeName}</span>
-                                                <ArrowRight className="w-3 h-3 text-slate-300" />
-                                                <span className="text-[10px] font-medium text-slate-500 truncate max-w-[100px]">{event.teamMemberName || "Team"}</span>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </AnimatePresence>
+                                        </motion.div>
+                                    );
+                                })}
+                            </AnimatePresence>
+                        </div>
                     </div>
                 </div>
-             </div>
-          </div>
+            </div>
 
-          {/* UP NEXT PANEL */}
-          <div ref={nextRef} className="min-w-[90vw] md:min-w-[50vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-4 lg:sticky lg:top-24 snap-center h-fit">
-             <div className="hidden lg:flex items-center gap-2 px-1 mb-1">
-                 <Clock className="w-4 h-4 text-[#004F71]" />
-                 <h3 className="text-lg font-black text-slate-900 tracking-tight">Up Next</h3>
-             </div>
-             
-             <GlassCard className="w-full p-6 md:p-8 flex flex-col bg-[#004F71] text-white border-0 shadow-xl relative overflow-hidden group min-h-[300px] md:min-h-[360px] snap-center">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-colors duration-700" />
-                <div className="flex items-center justify-between relative z-10 mb-6 md:mb-8">
-                    <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/10 shadow-inner"><BookOpen className="w-5 h-5" /></div>
-                    <div className="px-2.5 py-1 bg-white/10 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/5">Priority</div>
+            {/* UP NEXT PANEL */}
+            <div ref={nextRef} className="min-w-[90vw] md:min-w-[50vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-4 lg:sticky lg:top-24 snap-center h-fit">
+                <div className="hidden lg:flex items-center gap-2 px-1 mb-1">
+                    <Clock className="w-4 h-4 text-[#004F71]" />
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight">Up Next</h3>
                 </div>
-
-                {nextSession ? (
-                    <div className="mt-auto space-y-4 md:space-y-6 relative z-10">
-                        <div>
-                            <p className="text-[9px] font-black uppercase text-blue-200 tracking-[0.2em] mb-1">Upcoming Session</p>
-                            <p className="text-2xl md:text-3xl font-black leading-none mb-1">{nextSession.assigneeName}</p>
-                            <p className="text-xs md:text-sm text-blue-100 opacity-60 font-medium">with {nextSession.teamMemberName || "Team Member"}</p>
-                        </div>
-                        <div className="flex items-center gap-4 py-3 border-t border-white/10">
-                             <div className="text-center"><p className="text-lg md:text-xl font-black leading-none">{format(nextSession.startDate, "d")}</p><p className="text-[8px] font-bold uppercase text-blue-200 mt-1">{format(nextSession.startDate, "MMM")}</p></div>
-                             <div className="w-px h-6 bg-white/10" />
-                             <div><p className="text-sm md:text-base font-bold leading-none">{format(nextSession.startDate, "h:mm a")}</p><p className="text-[8px] font-bold uppercase text-blue-200 mt-1">Start Time</p></div>
-                        </div>
-                        <button onClick={() => setSelected1on1(nextSession)} className="w-full py-3 md:py-4 bg-white text-[#004F71] rounded-[20px] font-black uppercase text-[10px] tracking-[0.2em] shadow-lg hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-3">Launch Prep <ArrowRight className="w-3.5 h-3.5" /></button>
+                
+                <GlassCard className="w-full p-6 md:p-8 flex flex-col bg-[#004F71] text-white border-0 shadow-xl relative overflow-hidden group min-h-[300px] md:min-h-[360px] snap-center">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-colors duration-700" />
+                    <div className="flex items-center justify-between relative z-10 mb-6 md:mb-8">
+                        <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/10 shadow-inner"><BookOpen className="w-5 h-5" /></div>
+                        <div className="px-2.5 py-1 bg-white/10 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/5">Priority</div>
                     </div>
-                ) : (
-                    <div className="mt-auto text-center pb-8 relative z-10 flex flex-col items-center"><CheckCircle2 className="w-16 h-16 mb-4 opacity-20" /><p className="text-xs font-bold uppercase tracking-widest opacity-40">All sessions logged</p></div>
-                )}
-             </GlassCard>
-          </div>
 
+                    {nextSession ? (
+                        <div className="mt-auto space-y-4 md:space-y-6 relative z-10">
+                            <div>
+                                <p className="text-[9px] font-black uppercase text-blue-200 tracking-[0.2em] mb-1">Upcoming Session</p>
+                                <p className="text-2xl md:text-3xl font-black leading-none mb-1">{nextSession.assigneeName}</p>
+                                <p className="text-xs md:text-sm text-blue-100 opacity-60 font-medium">with {nextSession.teamMemberName || "Team Member"}</p>
+                            </div>
+                            <div className="flex items-center gap-4 py-3 border-t border-white/10">
+                                <div className="text-center"><p className="text-lg md:text-xl font-black leading-none">{format(nextSession.startDate, "d")}</p><p className="text-[8px] font-bold uppercase text-blue-200 mt-1">{format(nextSession.startDate, "MMM")}</p></div>
+                                <div className="w-px h-6 bg-white/10" />
+                                <div><p className="text-sm md:text-base font-bold leading-none">{format(nextSession.startDate, "h:mm a")}</p><p className="text-[8px] font-bold uppercase text-blue-200 mt-1">Start Time</p></div>
+                            </div>
+                            <button onClick={() => setSelected1on1(nextSession)} className="w-full py-3 md:py-4 bg-white text-[#004F71] rounded-[20px] font-black uppercase text-[10px] tracking-[0.2em] shadow-lg hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-3">Launch Prep <ArrowRight className="w-3.5 h-3.5" /></button>
+                        </div>
+                    ) : (
+                        <div className="mt-auto text-center pb-8 relative z-10 flex flex-col items-center"><CheckCircle2 className="w-16 h-16 mb-4 opacity-20" /><p className="text-xs font-bold uppercase tracking-widest opacity-40">All sessions logged</p></div>
+                    )}
+                </GlassCard>
+            </div>
         </div>
-      </div>
+        </div>
 
-      <AnimatePresence>{selectedEvent && <EventDetailSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />}</AnimatePresence>
-      <AnimatePresence>{selected1on1 && <OneOnOneSessionModal event={selected1on1} onClose={() => setSelected1on1(null)} onUpdate={handleUpdate1on1} />}</AnimatePresence>
-      <AnimatePresence>{activeKPI && <KPIModal title={activeKPI.title} items={activeKPI.items} color={activeKPI.color} icon={activeKPI.icon} onClose={() => setActiveKPI(null)} onItemClick={handleKPIItemClick} />}</AnimatePresence>
-      
-      {/* STRATEGIC VISION MODAL */}
-      <AnimatePresence>
-          {isVisionModalOpen && (
-              <StrategicVisionModal 
-                  isOpen={isVisionModalOpen} 
-                  onClose={() => setIsVisionModalOpen(false)} 
-                  currentPillars={visionPillars} 
-              />
-          )}
-      </AnimatePresence>
+        {/* ... (Modals) ... */}
+        <AnimatePresence>{selectedEvent && <EventDetailSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />}</AnimatePresence>
+        <AnimatePresence>{selected1on1 && <OneOnOneSessionModal event={selected1on1} onClose={() => setSelected1on1(null)} onUpdate={handleUpdate1on1} />}</AnimatePresence>
+        <AnimatePresence>{activeKPI && <KPIModal title={activeKPI.title} items={activeKPI.items} color={activeKPI.color} icon={activeKPI.icon} onClose={() => setActiveKPI(null)} onItemClick={handleKPIItemClick} />}</AnimatePresence>
+        
+        {/* STRATEGIC VISION MODAL */}
+        <AnimatePresence>
+            {isVisionModalOpen && (
+                <StrategicVisionModal 
+                    isOpen={isVisionModalOpen} 
+                    onClose={() => setIsVisionModalOpen(false)} 
+                    currentPillars={visionPillars} 
+                />
+            )}
+        </AnimatePresence>
     </div>
   );
 }
