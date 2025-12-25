@@ -1,14 +1,14 @@
 // --- FILE: ./app/(main)/calendar/_components/EventDetailSheet.tsx ---
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Added useEffect
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, Calendar, Clock, User, Shield, Target, Zap, Activity, 
   MessageSquare, Trash2, CheckCircle2, AlertCircle, 
   Terminal, Sparkles, Fingerprint, Crown, ArrowRight, Save,
   Quote, ShieldAlert, AlertTriangle, Info, Sticker,
-  FileText, StickyNote, Flag // Added Flag
+  FileText, StickyNote, Flag 
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -40,7 +40,6 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }: any) 
                         initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }}
                         className="relative bg-white w-full max-w-sm rounded-[40px] shadow-2xl overflow-hidden border border-white/20 p-8 flex flex-col items-center text-center"
                     >
-                        {/* --- TOP RIGHT CLOSE BUTTON --- */}
                         <button 
                             onClick={onClose} 
                             className="absolute top-5 right-5 p-2 text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded-full transition-all active:scale-90"
@@ -85,6 +84,14 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
   const { team } = useAppStore();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
+  // LOCK SCROLL ON MOUNT
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
+
   // Resolve Identities
   const leader = team.find(m => m.id === event.assignee);
   const participant = team.find(m => m.id === event.teamMemberId);
@@ -112,12 +119,10 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
           logType = match[1];
           cleanDescription = match[2];
       } else {
-          // Fallback if regex fails but tag exists
           cleanDescription = event.description?.replace(/\[DOCUMENT LOG: .*?\]/, "").trim() || "";
       }
   }
 
-  // Helper to get icon for log type
   const getLogIcon = (type: string) => {
       switch(type) {
           case 'Incident Report': return <ShieldAlert className="w-5 h-5 text-red-500" />;
@@ -145,7 +150,6 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
       >
         {/* --- HEADER --- */}
         <div className={cn("p-8 md:p-12 text-white relative shrink-0 overflow-hidden", brandBg)}>
-            {/* Background Texture */}
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:20px_20px]" />
             <div className="absolute -top-10 -right-10 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
             <Terminal className="absolute top-6 right-6 w-32 h-32 opacity-5 rotate-12 pointer-events-none" />
@@ -231,13 +235,18 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
 
             {/* Operational Intel */}
             <div className="space-y-3">
-                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
-                    <MessageSquare className="w-3.5 h-3.5" /> Operational Intel
-                </span>
-                <div className="p-6 md:p-8 bg-slate-50/50 border border-slate-200 rounded-[32px] relative overflow-hidden group">
+                <div className="flex items-center justify-between px-1">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <MessageSquare className="w-3.5 h-3.5" /> Operational Intel
+                    </span>
+                    {/* Moved Priority Badge Here */}
+                    {getPriorityBadge(event.priority)}
+                </div>
+                
+                <div className="p-6 md:p-8 bg-slate-50/50 border border-slate-200 rounded-[32px] relative overflow-hidden group min-h-[160px]">
                     <Quote className="absolute top-4 right-4 w-10 h-10 text-slate-200 rotate-12" />
                     
-                    {/* NEW: Document Log Header */}
+                    {/* Document Log Header */}
                     {isDocumentLog && (
                         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200/60">
                             <div className="p-2 bg-white rounded-xl shadow-sm border border-slate-100">
@@ -256,25 +265,7 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
                 </div>
             </div>
 
-            {/* Impact Analysis Grid */}
-            <div className="grid grid-cols-3 gap-3">
-                <div className="p-4 bg-white border border-slate-100 rounded-2xl flex flex-col items-center gap-2 shadow-sm text-center">
-                    <span className="text-[8px] font-black text-slate-300 uppercase">Priority</span>
-                    {/* NEW PRIORITY BADGE */}
-                    {getPriorityBadge(event.priority)}
-                </div>
-                <div className="p-4 bg-white border border-slate-100 rounded-2xl flex flex-col items-center gap-2 shadow-sm text-center">
-                    <span className="text-[8px] font-black text-slate-300 uppercase">Status</span>
-                    <Badge color={event.status === 'Done' ? 'green' : 'slate'}>{event.status}</Badge>
-                </div>
-                <div className="p-4 bg-white border border-slate-100 rounded-2xl flex flex-col items-center gap-2 shadow-sm text-center">
-                    <span className="text-[8px] font-black text-slate-300 uppercase">Sync</span>
-                    <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-600 rounded-md">
-                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-[9px] font-black uppercase">Live</span>
-                    </div>
-                </div>
-            </div>
+            {/* REMOVED: Impact Analysis Grid (Status/Sync) */}
         </div>
 
         {/* --- FOOTER ACTIONS --- */}
