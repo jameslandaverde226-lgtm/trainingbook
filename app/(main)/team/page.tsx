@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { AnimatePresence, motion, LayoutGroup, PanInfo } from "framer-motion";
 import { 
   Users, Search, Zap, Loader2,
-  LayoutGrid, GalleryHorizontal
+  LayoutGrid, GalleryHorizontal, ChevronDown 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -28,6 +28,7 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
+    // Hide Admin from promotion target list if desired
     const visibleStages = STAGES.filter(s => s.id !== "Admin");
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
@@ -132,6 +133,7 @@ export default function TeamBoardPage() {
         return team
             .filter(m => {
                 const matchesStage = m.status === activeStage;
+                // FILTER LOGIC
                 const matchesFilter = activeFilter === "ALL" || m.dept === activeFilter;
                 const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
                 return matchesStage && matchesFilter && matchesSearch;
@@ -280,7 +282,7 @@ export default function TeamBoardPage() {
                 setActiveFilter={setActiveFilter}
             />
 
-            <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-48 px-2 md:px-8 space-y-6 relative z-10">
+            <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-48 px-4 md:px-8 space-y-6 relative z-10">
                 <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="space-y-1"><h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none uppercase">{activeStage}</h2></div>
                 </div>
