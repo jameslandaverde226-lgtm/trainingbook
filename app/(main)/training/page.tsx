@@ -39,15 +39,12 @@ interface Section {
   order: number;
 }
 
-// FIX: Updated Type Definition for CANVA_LINKS to support dynamic keys
 const CANVA_LINKS: Record<string, string> = {
   FOH: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view",
   BOH: "https://www.canva.com/design/DAG7ssYg444/FFZwbb8mLfLGiGrP2VeHiA/view",
-  // Fallback for Unassigned
   Unassigned: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view" 
 };
 
-// ... (PageRangeSelector remains unchanged) ...
 function PageRangeSelector({ start, end, onUpdate }: any) {
     const adjust = (field: 'pageStart' | 'pageEnd', amount: number) => {
         const currentVal = field === 'pageStart' ? start : end;
@@ -111,13 +108,11 @@ export default function TrainingBuilderPage() {
 
   const getEmbedUrl = () => {
     if (!activeSection || !activeSection.pageStart) return null;
-    // FIX: Safely access CANVA_LINKS with fallback
     const link = CANVA_LINKS[activeDept] || CANVA_LINKS.FOH;
     const base = link.split('?')[0];
     return `${base}?embed#${activeSection.pageStart}`;
   };
 
-  // ... (Scroll Spy logic remains same) ...
   useEffect(() => {
     const handleScroll = () => {
         const viewportCenter = window.innerHeight / 2;
@@ -158,7 +153,6 @@ export default function TrainingBuilderPage() {
     }
   }, [iframeLoading]);
 
-  // ... (addSection, updateSection, handleFileUpload remain same) ...
   const addSection = async () => {
     const nextOrder = sections.length > 0 ? (sections[sections.length - 1].order || 0) + 1 : 0;
     const lastPage = sections.length > 0 ? (Number(sections[sections.length - 1].pageEnd) || 0) : 0;
@@ -193,14 +187,14 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-40 font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
       
-      {/* MOBILE HEADER */}
-      <div className="md:hidden fixed top-20 left-1/2 -translate-x-1/2 z-[110] w-[90%] max-w-sm">
+      {/* MOBILE HEADER (Sticky) */}
+      <div className="md:hidden sticky top-4 z-[60] w-full px-4 mb-6 flex justify-center">
         <motion.div 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] rounded-full p-1.5 flex items-center justify-between ring-1 ring-black/5"
+            className="bg-white/90 backdrop-blur-xl border border-white/60 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] rounded-full p-1.5 flex items-center justify-between ring-1 ring-black/5 w-full max-w-sm"
         >
             <div className="flex bg-slate-100/50 p-1 rounded-full border border-slate-200/50">
                 <button 
@@ -222,7 +216,7 @@ export default function TrainingBuilderPage() {
                     <Utensils className="w-3.5 h-3.5" /> BOH
                 </button>
             </div>
-            {/* ... Phase Info ... */}
+            
             <div className="flex items-center gap-3 pr-4">
                 <div className="h-6 w-px bg-slate-200" />
                 <div className="flex flex-col items-end leading-none">
@@ -243,7 +237,7 @@ export default function TrainingBuilderPage() {
         </motion.div>
       </div>
 
-      {/* DESKTOP DYNAMIC ISLAND */}
+      {/* DESKTOP DYNAMIC ISLAND (Hidden Mobile) */}
       <div className="hidden md:flex fixed top-24 left-0 right-0 z-[120] justify-center pointer-events-none px-4" onMouseEnter={() => setIsIslandExpanded(true)} onMouseLeave={() => setIsIslandExpanded(false)}>
         <motion.div 
             layout animate={{ width: isIslandExpanded ? 780 : 380, height: 60 }} 
@@ -287,10 +281,10 @@ export default function TrainingBuilderPage() {
         </motion.div>
       </div>
 
-      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-32 md:pt-48 grid grid-cols-12 gap-8 md:gap-12 items-stretch relative z-10">
+      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-0 md:pt-48 grid grid-cols-12 gap-8 md:gap-12 items-stretch relative z-10">
          
          {/* LEFT COLUMN: LIST */}
-         <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-6 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative">
+         <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-0 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative">
             {sections.map((section, idx) => {
                const isActive = activeSectionId === section.id;
                return (
@@ -298,7 +292,7 @@ export default function TrainingBuilderPage() {
                   key={section.id} 
                   ref={el => { sectionRefs.current[section.id] = el; }} 
                   className={cn(
-                      "relative scroll-mt-32 md:scroll-mt-64 transition-all duration-500", 
+                      "relative transition-all duration-500", 
                       isActive ? "z-30" : "z-0"
                   )}
                >
@@ -310,21 +304,23 @@ export default function TrainingBuilderPage() {
                             exit={{ opacity: 0, scale: 0.9 }} 
                             transition={{ duration: 0.6, ease: "easeOut" }}
                             className={cn(
-                                "absolute -inset-10 md:-inset-16 bg-gradient-to-r from-transparent via-current to-transparent blur-[80px] md:blur-[120px] rounded-[50%] -z-10 pointer-events-none", 
+                                "absolute -inset-10 md:-inset-16 bg-gradient-to-r from-transparent via-current to-transparent blur-[80px] md:blur-[120px] rounded-[50%] -z-10 pointer-events-none hidden md:block", 
                                 activeDept === "FOH" ? "text-blue-500" : "text-red-500"
                             )} 
                         />
                     )}
                   </AnimatePresence>
                   
-                  {/* Phase Number Badge */}
+                  {/* Phase Number Badge (Desktop Only) */}
                   <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                   
                   <div 
                     onClick={() => handleMobileCardClick(section.id)}
                     className={cn(
-                        "bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col", 
-                        isActive ? "shadow-[0_25px_60px_-15px_rgba(0,0,0,0.15)] border-slate-200 scale-100 md:scale-[1.02] ring-1 ring-black/5" : "opacity-90 md:opacity-60 border-transparent md:hover:opacity-100 scale-95 md:scale-100 hover:scale-[0.98] md:hover:scale-[1.01]"
+                        "bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm", 
+                        isActive 
+                            ? "border-slate-200 scale-100 ring-1 ring-black/5" 
+                            : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]"
                     )}
                   >
                      <div className="flex justify-between items-start mb-6 md:mb-8 gap-4 md:gap-6">
@@ -411,7 +407,6 @@ export default function TrainingBuilderPage() {
                   
                   <div className="px-7 py-4 bg-white/50 border-t border-slate-100 flex justify-between items-center shrink-0">
                       <span className="text-[9px] font-bold uppercase text-slate-300 tracking-widest leading-none">Trainingbook Command v4.0</span>
-                      {/* FIX: Use fallback link for Unassigned/Unknown depts */}
                       <a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="flex items-center gap-2 text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest transition-all"><Maximize2 className="w-3 h-3" /> Fullscreen</a>
                   </div>
                </div>
