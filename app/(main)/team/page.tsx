@@ -19,7 +19,7 @@ import { TeamCard } from "./_components/TeamCard";
 import { MemberDetailSheet } from "./_components/MemberDetailSheet";
 import TrainerRecruitmentModal from "./_components/TrainerRecruitmentModal";
 import TeamDynamicIsland from "./_components/TeamDynamicIsland";
-import UnitAssignmentModal from "./_components/UnitAssignmentModal"; // IMPORTED
+import UnitAssignmentModal from "./_components/UnitAssignmentModal"; 
 
 // --- PROMOTION HUD (Drop Target for Role Changes) ---
 function PromotionHUD({ 
@@ -29,7 +29,6 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
-    // Hide Admin from promotion target list
     const visibleStages = STAGES.filter(s => s.id !== "Admin");
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
@@ -104,7 +103,8 @@ function PromotionHUD({
 
 // --- MAIN PAGE ---
 export default function TeamBoardPage() {
-    const { team, subscribeTeam, subscribeEvents } = useAppStore(); 
+    // FIX: Include updateMemberLocal in destructuring
+    const { team, subscribeTeam, subscribeEvents, updateMemberLocal } = useAppStore(); 
     
     // Filters
     const [activeStage, setActiveStage] = useState<Status>("Team Member");
@@ -118,7 +118,7 @@ export default function TeamBoardPage() {
 
     // Interaction State
     const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
-    const [assignmentMember, setAssignmentMember] = useState<TeamMember | null>(null); // NEW STATE FOR ASSIGNMENT
+    const [assignmentMember, setAssignmentMember] = useState<TeamMember | null>(null); 
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
     const [trainerDraggingId, setTrainerDraggingId] = useState<string | null>(null);
@@ -140,13 +140,9 @@ export default function TeamBoardPage() {
     const filteredMembers = useMemo(() => {
         return team
             .filter(m => {
-                // 1. Role Match
                 const matchesStage = m.status === activeStage;
-                // 2. Dept Filter (FOH/BOH) - This uses the data from your scraper
                 const matchesFilter = activeFilter === "ALL" || m.dept === activeFilter;
-                // 3. Search
                 const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
-                
                 return matchesStage && matchesFilter && matchesSearch;
             })
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -161,7 +157,6 @@ export default function TeamBoardPage() {
         const observer = new IntersectionObserver(
             (entries) => {
                 if (entries[0].isIntersecting && visibleCount < filteredMembers.length) {
-                    // Load more members when the sentinel comes into view
                     setVisibleCount((prev) => prev + 12);
                 }
             },
@@ -185,7 +180,6 @@ export default function TeamBoardPage() {
 
     // --- HANDLERS ---
 
-    // NEW: Handle clicking a card
     const handleMemberClick = (member: TeamMember) => {
         if (member.dept === "Unassigned") {
             setAssignmentMember(member);
@@ -194,10 +188,12 @@ export default function TeamBoardPage() {
         }
     };
 
-    // NEW: Handle Unit Assignment
     const handleUnitAssign = async (dept: "FOH" | "BOH") => {
         if (!assignmentMember) return;
         
+        // Optimistic Update
+        updateMemberLocal(assignmentMember.id, { dept });
+
         const loadToast = toast.loading(`Initializing ${dept} Profile...`);
         try {
             await updateDoc(doc(db, "teamMembers", assignmentMember.id), { 
@@ -206,9 +202,6 @@ export default function TeamBoardPage() {
             });
             toast.success("Unit Assigned", { id: loadToast });
             setAssignmentMember(null);
-            
-            // Optionally open the sheet immediately after assignment
-            // setSelectedMember({ ...assignmentMember, dept }); 
         } catch (e) {
             toast.error("Assignment Failed", { id: loadToast });
         }
@@ -287,7 +280,12 @@ export default function TeamBoardPage() {
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         setMemberDraggingId(null); 
         const loadToast = toast.loading(`Promoting to ${newRole}...`);
+        
+        // 1. OPTIMISTIC UPDATE: Update local state instantly
+        updateMemberLocal(memberId, { status: newRole, role: newRole });
+
         try {
+            // 2. REAL UPDATE
             await setDoc(doc(db, "profileOverrides", memberId), {
                 role: newRole, 
                 status: newRole,
@@ -298,6 +296,10 @@ export default function TeamBoardPage() {
         } catch (error) {
             console.error(error);
             toast.error("Deployment Failed", { id: loadToast });
+            
+            // Revert on fail if needed
+            // const original = team.find(m => m.id === memberId);
+            // if(original) updateMemberLocal(memberId, { status: original.status });
         }
     };
 
@@ -311,14 +313,11 @@ export default function TeamBoardPage() {
         const clientY = event.clientY || event.changedTouches?.[0]?.clientY;
 
         if (clientX && clientY) {
-            // Find what element is under the cursor
             const elementsBelow = document.elementsFromPoint(clientX, clientY);
-            
-            // Look for our specific drop targets
-            const targetElement = elementsBelow.find(el => el.hasAttribute('data-role-id'));
+            const targetElement = elementsBelow.find(el => el.hasAttribute('data-role-target'));
             
             if (targetElement) {
-                const newRole = targetElement.getAttribute('data-role-id') as Status;
+                const newRole = targetElement.getAttribute('data-role-target') as Status;
                 if (newRole && newRole !== member.status) {
                     handlePromoteMember(member.id, newRole);
                 }
@@ -367,7 +366,7 @@ export default function TeamBoardPage() {
                                             >
                                                 <TeamCard 
                                                     member={member} 
-                                                    onClick={handleMemberClick} // UPDATED: Use new handler
+                                                    onClick={handleMemberClick} 
                                                     onAssignClick={handleOpenTrainerModal} 
                                                     onDragStart={() => setMemberDraggingId(member.id)} 
                                                     onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
@@ -418,7 +417,7 @@ export default function TeamBoardPage() {
             {/* MODALS & OVERLAYS */}
             <TrainerRecruitmentModal isOpen={isTrainerPanelOpen} onClose={() => setIsTrainerPanelOpen(false)} onDragStart={handleTrainerDragStart} onDragEnd={handleTrainerDragEnd} draggingId={trainerDraggingId} />
             
-            {/* ASSIGNMENT MODAL (NEW) */}
+            {/* ASSIGNMENT MODAL */}
             <AnimatePresence>
                 {assignmentMember && (
                     <UnitAssignmentModal 

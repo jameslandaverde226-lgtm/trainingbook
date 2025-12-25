@@ -34,6 +34,7 @@ export default function TeamDynamicIsland({
 
   const unassignedCount = team.filter(m => m.dept === "Unassigned").length;
 
+  // Close when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -56,11 +57,9 @@ export default function TeamDynamicIsland({
           transition={spring}
           onClick={() => !isOpen && setIsOpen(true)}
           className={cn(
-            "pointer-events-auto bg-white/95 backdrop-blur-2xl border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] flex flex-col ring-1 ring-black/5 transform-gpu origin-top relative",
-            // FIX: Removed overflow-hidden from collapsed state to allow badge to pop out if needed, 
-            // though keeping it clips the corners nicely. We handle badge position inside.
+            "pointer-events-auto bg-white/95 backdrop-blur-2xl border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] flex flex-col ring-1 ring-black/5 transform-gpu origin-top relative z-50",
             isOpen
-              ? "rounded-[32px] w-full max-w-[420px] border-white/60 overflow-hidden"
+              ? "rounded-[32px] w-full max-w-[420px] border-white/60 overflow-hidden" // Clip content when open to prevent spill
               : "rounded-full w-auto border-slate-200/60 cursor-pointer hover:scale-[1.02] hover:bg-white"
           )}
         >
@@ -69,29 +68,26 @@ export default function TeamDynamicIsland({
                     // --- 1. COLLAPSED VIEW ---
                     <motion.div 
                         key="collapsed"
-                        initial={{ opacity: 0, filter: "blur(4px)" }}
-                        animate={{ opacity: 1, filter: "blur(0px)" }}
-                        exit={{ opacity: 0, filter: "blur(4px)", position: "absolute", top: 0, left: 0, width: "100%" }}
-                        transition={{ duration: 0.2 }}
+                        initial={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
+                        animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+                        exit={{ opacity: 0, scale: 0.9, filter: "blur(4px)", transition: { duration: 0.1 } }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.1 }} // Slight delay on enter to let box shrink first
                         className="flex items-center gap-3 px-1.5 py-1.5 h-14 relative"
                     >
-                         <div className="relative">
-                            {/* Notification Badge - Fixed Positioning */}
-                             {unassignedCount > 0 && (
-                                 <motion.div 
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white text-[9px] font-black text-white shadow-sm z-50 pointer-events-none"
-                                 >
-                                     {unassignedCount}
-                                 </motion.div>
-                             )}
+                         {/* Notification Badge - Outside the overflow hidden if possible, but here we just absolute position it */}
+                         {unassignedCount > 0 && (
+                             <motion.div 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white text-[9px] font-black text-white shadow-sm z-50 pointer-events-none"
+                             >
+                                 {unassignedCount}
+                             </motion.div>
+                         )}
 
-                             <div className="w-10 h-10 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-md shadow-red-500/20 shrink-0">
-                                 <Layers className="w-5 h-5" />
-                             </div>
+                         <div className="w-10 h-10 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-md shadow-red-500/20 shrink-0">
+                             <Layers className="w-5 h-5" />
                          </div>
-
                          <div className="flex flex-col justify-center pr-4 min-w-[120px]">
                              <span className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight">
                                  {activeStageData?.title || "Roster"}
@@ -110,9 +106,10 @@ export default function TeamDynamicIsland({
                         key="expanded"
                         initial={{ opacity: 0, filter: "blur(4px)" }}
                         animate={{ opacity: 1, filter: "blur(0px)" }}
-                        exit={{ opacity: 0, filter: "blur(4px)", position: "absolute", top: 0, left: 0, width: "100%" }}
-                        transition={{ duration: 0.3, delay: 0.05 }}
-                        className="flex flex-col p-3 gap-4"
+                        // CRITICAL FIX: Faster exit duration (0.15s) ensures content is gone before box shrinks
+                        exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.1 } }} 
+                        transition={{ duration: 0.3, delay: 0.1 }}
+                        className="flex flex-col p-3 gap-4 min-w-[320px]"
                     >
                         {/* Header Row */}
                         <div className="flex items-center justify-between px-2">

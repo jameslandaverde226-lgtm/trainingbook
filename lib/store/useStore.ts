@@ -32,6 +32,9 @@ interface AppState {
   login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => void;
+
+  // Optimistic Update Helper
+  updateMemberLocal: (id: string, updates: Partial<TeamMember>) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -64,28 +67,21 @@ export const useAppStore = create<AppState>((set) => ({
     return onSnapshot(q, async (snapshot) => {
       const teamData: TeamMember[] = [];
 
-      // We use a for...of loop or map to handle async overrides
-      // Using Promise.all is faster
       const promises = snapshot.docs.map(async (d) => {
         try {
           const memberData = d.data();
           
-          // Default role/status from the scraped data
           let finalStatus = memberData.status || "Team Member";
           let finalRole = memberData.role || "Team Member";
 
-          // Try to fetch manual overrides (e.g. if you promoted someone manually)
-          // We wrap this in a mini try/catch so missing overrides don't break the main user load
           try {
             const overrideRef = doc(db, "profileOverrides", d.id);
             const overrideSnap = await getDoc(overrideRef);
             
             if (overrideSnap.exists()) {
                const overrideData = overrideSnap.data();
-               // Spread overrides on top
                Object.assign(memberData, overrideData);
                
-               // Recalculate status if overridden
                if (overrideData.status) finalStatus = overrideData.status;
                if (overrideData.role) finalRole = overrideData.role;
             }
@@ -98,10 +94,9 @@ export const useAppStore = create<AppState>((set) => ({
             ...memberData,
             status: finalStatus,
             role: finalRole,
-            // Ensure these objects exist to prevent UI crashes
             stats: memberData.stats || { speed: 50, accuracy: 50, hospitality: 50, knowledge: 50, leadership: 50 },
             progress: memberData.progress || 0,
-            dept: memberData.dept || "FOH",
+            dept: memberData.dept || "Unassigned",
             image: memberData.image || ""
           } as TeamMember;
 
@@ -112,10 +107,8 @@ export const useAppStore = create<AppState>((set) => ({
       });
 
       const results = await Promise.all(promises);
-      // Filter out any nulls from errors
       const validMembers = results.filter((m): m is TeamMember => m !== null);
 
-      console.log(`✅ Loaded ${validMembers.length} Team Members from Firestore`);
       set({ team: validMembers });
     });
   },
@@ -124,7 +117,6 @@ export const useAppStore = create<AppState>((set) => ({
 
   login: async (email, password) => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    // (Existing login logic kept simple for brevity, assumed working)
     const uid = userCredential.user.uid;
     set({ currentUser: { uid, email, name: "Admin", role: "Director" } });
   },
@@ -145,5 +137,12 @@ export const useAppStore = create<AppState>((set) => ({
         set({ currentUser: null, authLoading: false });
       }
     });
-  }
+  },
+
+  // NEW: Optimistic Update Implementation
+  updateMemberLocal: (id, updates) => {
+    set((state) => ({
+      team: state.team.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+    }));
+  },
 }));
