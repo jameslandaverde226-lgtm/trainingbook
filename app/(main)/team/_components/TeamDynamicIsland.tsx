@@ -34,7 +34,6 @@ export default function TeamDynamicIsland({
 
   const unassignedCount = team.filter(m => m.dept === "Unassigned").length;
 
-  // Close when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -59,9 +58,11 @@ export default function TeamDynamicIsland({
           className={cn(
             "pointer-events-auto bg-white/95 backdrop-blur-2xl border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] flex flex-col ring-1 ring-black/5 transform-gpu origin-top relative z-50",
             isOpen
-              ? "rounded-[32px] w-full max-w-[420px] border-white/60 overflow-hidden" // Clip content when open to prevent spill
+              ? "rounded-[32px] w-full max-w-[420px] border-white/60 overflow-hidden" 
               : "rounded-full w-auto border-slate-200/60 cursor-pointer hover:scale-[1.02] hover:bg-white"
           )}
+          // Explicitly animate height for smoothness
+          style={{ height: isOpen ? 'auto' : '56px' }}
         >
             <AnimatePresence mode="popLayout" initial={false}>
                 {!isOpen ? (
@@ -71,10 +72,10 @@ export default function TeamDynamicIsland({
                         initial={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
                         animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                         exit={{ opacity: 0, scale: 0.9, filter: "blur(4px)", transition: { duration: 0.1 } }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.1 }} // Slight delay on enter to let box shrink first
-                        className="flex items-center gap-3 px-1.5 py-1.5 h-14 relative"
+                        transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.1 }}
+                        className="flex items-center gap-3 px-1.5 py-1.5 h-14 relative w-full"
                     >
-                         {/* Notification Badge - Outside the overflow hidden if possible, but here we just absolute position it */}
+                         {/* Notification Badge */}
                          {unassignedCount > 0 && (
                              <motion.div 
                                 initial={{ scale: 0 }}
@@ -106,10 +107,10 @@ export default function TeamDynamicIsland({
                         key="expanded"
                         initial={{ opacity: 0, filter: "blur(4px)" }}
                         animate={{ opacity: 1, filter: "blur(0px)" }}
-                        // CRITICAL FIX: Faster exit duration (0.15s) ensures content is gone before box shrinks
-                        exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.1 } }} 
+                        // CRITICAL FIX: Absolute positioning on exit prevents layout shift
+                        exit={{ opacity: 0, filter: "blur(4px)", position: "absolute", top: 0, left: 0, width: "100%", zIndex: -1, transition: { duration: 0.15 } }} 
                         transition={{ duration: 0.3, delay: 0.1 }}
-                        className="flex flex-col p-3 gap-4 min-w-[320px]"
+                        className="flex flex-col p-3 gap-4 min-w-[320px] w-full"
                     >
                         {/* Header Row */}
                         <div className="flex items-center justify-between px-2">
@@ -149,7 +150,6 @@ export default function TeamDynamicIsland({
                                 )}
                                 <span className="relative z-10">{f === 'ALL' ? 'All Units' : f}</span>
                                 
-                                {/* Inner Badge for Unassigned Count (Only on ALL tab) */}
                                 {f === 'ALL' && unassignedCount > 0 && (
                                     <span className={cn(
                                         "relative z-10 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm transition-colors",
@@ -163,7 +163,6 @@ export default function TeamDynamicIsland({
                           })}
                         </div>
                         
-                        {/* Unassigned Warning Strip */}
                         {unassignedCount > 0 && (
                             <div className="mx-1 px-3 py-2 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2">
                                 <AlertCircle className="w-3.5 h-3.5 text-red-500" />
