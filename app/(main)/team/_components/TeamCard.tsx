@@ -2,7 +2,7 @@
 
 import { useState, useRef, memo, useEffect, useMemo } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, PanInfo } from "framer-motion";
-import { Camera, Loader2, Link2, UserPlus, Crown, Sparkles, User } from "lucide-react";
+import { Camera, Loader2, Link2, UserPlus, Crown, Sparkles, User, Activity, Clock } from "lucide-react";
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { storage, db } from "@/lib/firebase"; 
@@ -67,6 +67,9 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
 
   // --- PROBATION LOGIC ---
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
+
+  // --- PROGRESS SEGMENTS ---
+  const progressTicks = Math.round((member.progress || 0) / 10);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
@@ -144,7 +147,7 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                     loading="lazy" 
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/40 to-transparent opacity-90" />
               </>
             ) : (
                 <>
@@ -168,11 +171,23 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                     {member.dept}
                   </div>
 
-                  {/* PROBATION BADGE */}
+                  {/* PROBATION GAUGE */}
                   {probation && probation.isActive && (
-                     <div className="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/30 backdrop-blur-md flex items-center gap-1.5 shadow-sm text-amber-200">
-                        <Sparkles className="w-2.5 h-2.5 fill-current animate-pulse" />
-                        <span className="text-[8px] font-black uppercase tracking-wider">New</span>
+                     <div className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 backdrop-blur-md flex items-center gap-2 shadow-sm text-amber-200">
+                        {/* Tiny Pie Chart */}
+                        <div className="relative w-3.5 h-3.5 flex items-center justify-center">
+                            <svg className="w-full h-full -rotate-90">
+                                <circle cx="50%" cy="50%" r="40%" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-20" />
+                                <circle 
+                                    cx="50%" cy="50%" r="40%" fill="none" 
+                                    stroke="currentColor" strokeWidth="2" 
+                                    strokeDasharray="100" 
+                                    strokeDashoffset={100 - probation.percentage} 
+                                    strokeLinecap="round" 
+                                />
+                            </svg>
+                        </div>
+                        <span className="text-[8px] font-black uppercase tracking-wider">{probation.daysRemaining} Days Left</span>
                      </div>
                   )}
               </div>
@@ -198,10 +213,25 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                   <h3 className="text-2xl md:text-3xl font-[900] text-white tracking-tighter leading-[0.9] drop-shadow-md mb-1.5">
                     {member.name}
                   </h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mb-4">
                       <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">{member.role}</span>
                       <div className="w-1 h-1 rounded-full bg-white/30" />
-                      <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">{member.progress}% EXP</span>
+                      <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">{member.progress}% Complete</span>
+                  </div>
+
+                  {/* TIMELINE PROGRESS BAR */}
+                  <div className="flex gap-1 mb-2">
+                     {Array.from({ length: 10 }).map((_, i) => (
+                         <div 
+                            key={i}
+                            className={cn(
+                                "h-1 flex-1 rounded-full transition-all duration-500",
+                                i < progressTicks 
+                                    ? "bg-white/90 shadow-[0_0_8px_rgba(255,255,255,0.5)]" 
+                                    : "bg-white/10"
+                            )}
+                         />
+                     ))}
                   </div>
                </div>
 
