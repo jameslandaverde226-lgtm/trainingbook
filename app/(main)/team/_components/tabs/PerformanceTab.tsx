@@ -1,14 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { formatDistanceToNow } from "date-fns";
-import { ShieldCheck, MessageSquare, Link2, Medal, Zap, Target, Activity, FileText } from "lucide-react";
+import { formatDistanceToNow, format } from "date-fns";
+import { 
+  ShieldCheck, MessageSquare, Link2, Medal, Zap, Target, Activity, 
+  FileText, CheckCircle2, AlertTriangle, BookOpen, Star 
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember, CalendarEvent } from "../../../calendar/_components/types";
 import OneOnOneSessionModal from "../../../calendar/_components/OneOnOneSessionModal";
 import { useAppStore } from "@/lib/store/useStore";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
@@ -17,26 +20,51 @@ interface Props {
   member: TeamMember;
 }
 
+// Helper to map activity types to visuals
+const getActivityConfig = (type: string) => {
+    switch (type) {
+        case 'GOAL': return { icon: Target, color: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' };
+        case '1-ON-1': return { icon: MessageSquare, color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50' };
+        case 'INCIDENT': return { icon: AlertTriangle, color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50' };
+        case 'COMMENDATION': return { icon: Star, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' };
+        case 'REVIEW': return { icon: FileText, color: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' };
+        case 'MODULE': return { icon: BookOpen, color: 'bg-slate-800', text: 'text-slate-700', bg: 'bg-slate-100' };
+        case 'AWARD': return { icon: Medal, color: 'bg-amber-400', text: 'text-amber-700', bg: 'bg-amber-50' };
+        default: return { icon: Activity, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50' };
+    }
+};
+
 export function PerformanceTab({ member }: Props) {
-  const { events } = useAppStore();
+  const { events, curriculum } = useAppStore();
   const [selectedSession, setSelectedSession] = useState<CalendarEvent | null>(null);
 
+  // --- AGGREGATE TIMELINE DATA ---
   const timelineData = useMemo(() => {
     const history: any[] = [];
     
-    // FIX: Filter by ID matches even if role changes
-    const assignedEvents = events.filter(e => 
-        e.teamMemberId === member.id || e.assignee === member.id
+    // 1. CALENDAR EVENTS & DOCUMENTS
+    // Filter events where this member is the target OR the assignee (if it's their own goal)
+    const relevantEvents = events.filter(e => 
+        e.teamMemberId === member.id || (e.assignee === member.id && e.type === 'Goal')
     );
     
-    assignedEvents.forEach(e => {
+    relevantEvents.forEach(e => {
         let category = 'MISSION';
-        
-        let description = e.description || "";
-        if (description.startsWith("[DOCUMENT LOG:")) {
-             const match = description.match(/\[DOCUMENT LOG: (.*?)\]/);
-             category = match ? match[1].toUpperCase() : 'DOCUMENT';
-             description = description.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
+        let title = e.title;
+        let desc = e.description || "";
+
+        // Parse Document Logs
+        if (desc.startsWith("[DOCUMENT LOG:")) {
+             const match = desc.match(/\[DOCUMENT LOG: (.*?)\]/);
+             const docType = match ? match[1] : 'Note';
+             
+             if (docType.includes("Incident")) category = 'INCIDENT';
+             else if (docType.includes("Commendation")) category = 'COMMENDATION';
+             else if (docType.includes("Review")) category = 'REVIEW';
+             else category = 'DOCUMENT';
+
+             // Clean up description for display
+             desc = desc.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
         }
         else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
@@ -44,27 +72,56 @@ export function PerformanceTab({ member }: Props) {
 
         history.push({ 
             id: e.id, 
-            date: e.startDate, 
-            title: e.title, 
+            date: e.createdAt?.toDate ? e.createdAt.toDate() : e.startDate, // Prefer creation date for feed
+            title, 
             category, 
             rawEvent: e, 
-            description: description 
+            description: desc 
         });
     });
 
+    // 2. BADGES (CERTIFICATIONS)
     if(member.badges) {
         member.badges.forEach((b: any) => history.push({ 
             id: b.awardedId || b.id, 
             date: b.timestamp ? new Date(b.timestamp) : new Date(), 
-            title: `Badge Awarded: ${b.label}`, 
+            title: `Certification Earned: ${b.label}`, 
             category: 'AWARD', 
+            description: "Official Certification added to profile.",
             hex: b.hex, 
             iconId: b.iconId 
         }));
     }
 
+    // 3. CURRICULUM MODULES
+    // We infer completion time from the profileOverride update time if available, otherwise fallback
+    // Since we don't store exact timestamp per module in the simple array, we can group them
+    // For a production app, you'd store { taskId: string, completedAt: Timestamp } in Firestore.
+    // For now, we will show "Current Progress" as a single entry if they have started training.
+    if (member.completedTaskIds && member.completedTaskIds.length > 0) {
+        // Find the names of completed tasks
+        let completedNames: string[] = [];
+        curriculum.forEach(section => {
+             section.tasks?.forEach((t: any) => {
+                 if (member.completedTaskIds?.includes(t.id)) completedNames.push(t.title);
+             });
+        });
+
+        // We'll create one "Recent Activity" entry for modules to avoid spamming the feed with old data
+        // if we don't have timestamps.
+        if (completedNames.length > 0) {
+             history.push({
+                 id: 'module-summary',
+                 date: new Date(), // Always shows at top
+                 title: `${completedNames.length} Training Modules Verified`,
+                 category: 'MODULE',
+                 description: `Completed: ${completedNames.slice(0, 3).join(", ")}${completedNames.length > 3 ? "..." : ""}`
+             });
+        }
+    }
+
     return history.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [events, member]); // Reactive to global event store updates
+  }, [events, member, curriculum]);
 
   const handleUpdateEvent = async (updatedEvent: CalendarEvent) => { 
       try { 
@@ -89,39 +146,82 @@ export function PerformanceTab({ member }: Props) {
 
   return (
     <>
-        <div className="p-8 pb-32 h-full overflow-y-auto custom-scrollbar">
+        <div className="p-8 pb-32 h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
+            
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-8">
+                <div className="p-3 bg-slate-900 text-white rounded-2xl shadow-lg">
+                    <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                    <h3 className="text-2xl font-[900] text-slate-900 tracking-tight leading-none">Performance Log</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Holistic Operational Data</p>
+                </div>
+            </div>
+
             {timelineData.length === 0 ? (
-                 <div className="flex flex-col items-center justify-center h-[400px] text-slate-300 border-2 border-dashed border-slate-100 rounded-[32px]">
-                     <Activity className="w-10 h-10 opacity-20 mb-2" />
-                     <p className="text-xs font-bold uppercase tracking-widest">No History Recorded</p>
+                 <div className="flex flex-col items-center justify-center h-[400px] text-slate-300 border-2 border-dashed border-slate-200 rounded-[32px]">
+                     <Activity className="w-12 h-12 opacity-20 mb-4" />
+                     <p className="text-xs font-bold uppercase tracking-widest">No Activity Recorded</p>
                  </div>
             ) : (
-                <div className="relative pl-8 space-y-8 border-l-2 border-slate-100 ml-4">
+                <div className="relative pl-6 lg:pl-10 space-y-8">
+                    {/* Connecting Line */}
+                    <div className="absolute left-[23px] lg:left-[39px] top-4 bottom-4 w-0.5 bg-slate-200" />
+
                     {timelineData.map((item, idx) => {
-                        const isAward = item.category === 'AWARD';
-                        const isStrategy = item.category === '1-ON-1';
-                        
-                        let Icon = ShieldCheck;
-                        if (isAward) Icon = TACTICAL_ICONS.find(ic => ic.id === item.iconId)?.icon || Medal;
-                        if (isStrategy) Icon = MessageSquare;
-                        if (item.category === 'GOAL') Icon = Target;
-                        if (item.category === 'SYSTEM') Icon = Link2;
-                        if (item.category.includes('INCIDENT') || item.category === 'DOCUMENT') Icon = FileText;
+                        const config = getActivityConfig(item.category);
+                        const Icon = config.icon;
+                        const isInteractive = !!item.rawEvent && item.category === '1-ON-1';
 
                         return (
-                            <div key={idx} className="relative group cursor-pointer" onClick={() => handleItemClick(item)}>
-                                <div className={cn("absolute -left-[44px] top-0 w-10 h-10 rounded-xl flex items-center justify-center border-4 border-white shadow-sm z-10", isAward ? "bg-white" : "bg-slate-900 text-white")} style={isAward ? { color: item.hex } : {}}>
-                                    <Icon className="w-5 h-5" />
+                            <motion.div 
+                                key={`${item.id}-${idx}`}
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: idx * 0.05 }}
+                                className={cn("relative group", isInteractive && "cursor-pointer")}
+                                onClick={() => handleItemClick(item)}
+                            >
+                                {/* Timeline Dot */}
+                                <div className={cn(
+                                    "absolute -left-[34px] lg:-left-[54px] top-0 w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center border-4 border-[#F8FAFC] shadow-sm z-10 text-white", 
+                                    config.color
+                                )}>
+                                    <Icon className="w-3.5 h-3.5 lg:w-4 lg:h-4 fill-current" />
                                 </div>
-                                <div className={cn("p-6 bg-white border border-slate-100 rounded-[24px] shadow-sm hover:shadow-md transition-all", isStrategy && "border-purple-200 bg-purple-50/20")}>
+
+                                {/* Content Card */}
+                                <div className={cn(
+                                    "p-5 lg:p-6 bg-white border rounded-[24px] shadow-sm transition-all relative overflow-hidden",
+                                    isInteractive ? "hover:border-purple-300 hover:shadow-md active:scale-[0.99]" : "border-slate-100"
+                                )}>
+                                    {/* Category Tag */}
                                     <div className="flex justify-between items-start mb-2">
-                                        <span className={cn("text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md", isAward ? "bg-amber-50 text-amber-600" : isStrategy ? "bg-purple-100 text-purple-700" : "bg-slate-100 text-slate-500")}>{item.category}</span>
-                                        <span className="text-[10px] font-bold text-slate-300">{formatDistanceToNow(item.date)} ago</span>
+                                        <span className={cn("px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider", config.bg, config.text)}>
+                                            {item.category}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-300 whitespace-nowrap">
+                                            {formatDistanceToNow(item.date)} ago
+                                        </span>
                                     </div>
-                                    <h4 className="text-lg font-bold text-slate-900 mb-1">{item.title}</h4>
-                                    {item.description && <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed whitespace-pre-wrap">{item.description}</p>}
+
+                                    <h4 className="text-base lg:text-lg font-black text-slate-900 mb-1.5 leading-tight">{item.title}</h4>
+                                    
+                                    {item.description && (
+                                        <p className="text-xs lg:text-sm text-slate-500 font-medium leading-relaxed line-clamp-3">
+                                            {item.description}
+                                        </p>
+                                    )}
+
+                                    {/* Interactive Hint */}
+                                    {isInteractive && (
+                                        <div className="mt-4 pt-3 border-t border-purple-100 flex items-center gap-2 text-purple-600 text-[10px] font-black uppercase tracking-wider">
+                                            <MessageSquare className="w-3 h-3" /> View Session Details
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
+                            </motion.div>
                         );
                     })}
                 </div>
