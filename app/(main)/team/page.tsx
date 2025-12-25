@@ -12,7 +12,8 @@ import toast from "react-hot-toast";
 // Firebase Imports
 import { useAppStore } from "@/lib/store/useStore";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, serverTimestamp, collection, addDoc, updateDoc } from "firebase/firestore";
+// ADDED: writeBatch to imports
+import { doc, setDoc, serverTimestamp, collection, addDoc, updateDoc, writeBatch } from "firebase/firestore";
 
 import { Status, STAGES, TeamMember } from "../calendar/_components/types";
 import { TeamCard } from "./_components/TeamCard";
@@ -267,6 +268,7 @@ export default function TeamBoardPage() {
         }
     };
 
+    // --- FIX: UPDATED PROMOTION LOGIC TO USE BATCH WRITE ---
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         setMemberDraggingId(null); 
         
@@ -277,18 +279,34 @@ export default function TeamBoardPage() {
         updateMemberLocal(memberId, { status: newRole, role: newRole });
 
         try {
-            // 3. DATABASE UPDATE: Update both STATUS and ROLE in Firestore
-            await setDoc(doc(db, "profileOverrides", memberId), {
+            // 3. DATABASE UPDATE: Using Batch Write to ensure consistency
+            const batch = writeBatch(db);
+            
+            // Ref for overrides (so scraper doesn't overwrite it later)
+            const overrideRef = doc(db, "profileOverrides", memberId);
+            // Ref for base document (so it appears correct immediately in console/lists)
+            const memberRef = doc(db, "teamMembers", memberId);
+
+            batch.set(overrideRef, {
                 role: newRole, 
-                status: newRole, // FIX: Ensure status is updated to move them to new tab
+                status: newRole, 
                 updatedAt: serverTimestamp()
             }, { merge: true });
 
-            // 4. SUCCESS: Use same ID to update, preventing double toast
+            batch.update(memberRef, {
+                role: newRole,
+                status: newRole,
+                updatedAt: serverTimestamp()
+            });
+
+            await batch.commit();
+
+            // 4. SUCCESS
             toast.success("Promotion Confirmed", { id: toastId, icon: '🎖️' });
         } catch (error) {
-            console.error(error);
+            console.error("Promotion failed:", error);
             toast.error("Deployment Failed", { id: toastId });
+            // Optional: Revert optimistic update here if critical
         }
     };
 
