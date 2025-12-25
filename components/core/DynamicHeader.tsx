@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation'; // Added useRouter
+import Image from 'next/image'; // Import Image
+import { usePathname, useRouter } from 'next/navigation'; 
 import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { 
   LayoutDashboard, 
@@ -17,9 +18,8 @@ import {
   BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/lib/store/useStore'; // Import Store
+import { useAppStore } from '@/lib/store/useStore'; 
 
-// CONFIGURED NAV LINKS
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/calendar', label: 'Schedule', icon: Calendar },
@@ -30,14 +30,12 @@ const NAV_LINKS = [
 
 export default function DynamicHeader() {
   const pathname = usePathname();
-  const router = useRouter(); // For redirecting after logout
+  const router = useRouter(); 
   const { scrollY } = useScroll();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
-  // --- AUTH STATE ---
-  const { currentUser, logout } = useAppStore(); // Get real user data
+  const { currentUser, logout } = useAppStore(); 
 
-  // Fallback if loading or not logged in (though AuthGuard should prevent this)
   const user = currentUser ? {
       name: currentUser.name || "Operator",
       email: currentUser.email || "",
@@ -50,7 +48,6 @@ export default function DynamicHeader() {
       router.push("/login");
   };
   
-  // --- Scroll Physics ---
   const headerY = useTransform(scrollY, [0, 100], [0, -10]);
   const headerBorder = useTransform(scrollY, [0, 20], ["rgba(0,0,0,0)", "rgba(226,232,240,1)"]);
   const headerShadow = useTransform(scrollY, [0, 20], ["none", "0 10px 15px -3px rgba(0, 0, 0, 0.05)"]);
@@ -69,9 +66,15 @@ export default function DynamicHeader() {
           {/* --- Left: Logo & Nav --- */}
           <div className="flex items-center gap-6 flex-1 overflow-hidden">
             <Link href="/dashboard" className="flex items-center gap-3 group shrink-0">
-              <div className="relative h-9 w-9 bg-[#004F71] rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg ring-1 ring-white/20 group-hover:scale-105 transition-transform">
-                T
-                <div className="absolute inset-0 bg-white/10 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              {/* REPLACED 'T' WITH SVG LOGO */}
+              <div className="relative h-9 w-9 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Image 
+                    src="/planning.svg" 
+                    alt="TrainingBook Logo" 
+                    width={36} 
+                    height={36} 
+                    className="w-full h-full object-contain"
+                />
               </div>
               <span className="text-lg font-black tracking-tight text-slate-900">
                 Training<span className="text-[#004F71]">book</span>
@@ -181,11 +184,20 @@ export default function DynamicHeader() {
       ======================================= */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-40 px-6 py-4 bg-slate-50/80 backdrop-blur-md flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="h-9 w-9 bg-[#004F71] rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg shadow-blue-900/20">T</div>
+             {/* REPLACED 'T' WITH SVG LOGO HERE TOO */}
+            <div className="relative h-9 w-9">
+                 <Image 
+                    src="/planning.svg" 
+                    alt="Logo" 
+                    width={36} 
+                    height={36} 
+                    className="w-full h-full object-contain"
+                />
+            </div>
             <span className="text-lg font-black tracking-tight text-slate-900">Trainingbook</span>
           </Link>
           <div 
-            onClick={() => setIsProfileOpen(!isProfileOpen)} // Allow mobile users to open profile too if needed, or link to profile page
+            onClick={() => setIsProfileOpen(!isProfileOpen)} 
             className="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-md ring-2 ring-white overflow-hidden"
           >
              {currentUser?.image ? (
