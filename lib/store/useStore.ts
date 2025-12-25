@@ -1,3 +1,4 @@
+// --- FILE: ./lib/store/useStore.ts ---
 import { create } from "zustand";
 import { db, auth } from "@/lib/firebase";
 import { collection, onSnapshot, query, doc, getDoc } from "firebase/firestore";
@@ -62,8 +63,6 @@ export const useAppStore = create<AppState>((set) => ({
     const q = query(collection(db, "teamMembers")); 
     
     return onSnapshot(q, async (snapshot) => {
-      const teamData: TeamMember[] = [];
-
       const promises = snapshot.docs.map(async (d) => {
         try {
           const memberData = d.data();
@@ -71,13 +70,14 @@ export const useAppStore = create<AppState>((set) => ({
           let finalStatus = memberData.status || "Team Member";
           let finalRole = memberData.role || "Team Member";
 
+          // Merge profile overrides
           try {
             const overrideRef = doc(db, "profileOverrides", d.id);
             const overrideSnap = await getDoc(overrideRef);
             
             if (overrideSnap.exists()) {
                const overrideData = overrideSnap.data();
-               Object.assign(memberData, overrideData);
+               Object.assign(memberData, overrideData); // Merges fields like 'badges'
                
                if (overrideData.status) finalStatus = overrideData.status;
                if (overrideData.role) finalRole = overrideData.role;
@@ -94,7 +94,8 @@ export const useAppStore = create<AppState>((set) => ({
             stats: memberData.stats || { speed: 50, accuracy: 50, hospitality: 50, knowledge: 50, leadership: 50 },
             progress: memberData.progress || 0,
             dept: memberData.dept || "Unassigned",
-            image: memberData.image || ""
+            image: memberData.image || "",
+            badges: memberData.badges || [] // Ensure badges array exists
           } as TeamMember;
 
         } catch (e) {
@@ -106,11 +107,10 @@ export const useAppStore = create<AppState>((set) => ({
       const results = await Promise.all(promises);
       const validMembers = results.filter((m): m is TeamMember => m !== null);
 
-      set({ team: validMembers });
+      set({ team: validMembers, loading: false }); // Ensure loading is set to false here
     });
   },
 
-  // --- UPDATED: Implemented Subscription ---
   subscribeCurriculum: () => {
     const q = query(collection(db, "curriculum"));
     return onSnapshot(q, (snapshot) => {

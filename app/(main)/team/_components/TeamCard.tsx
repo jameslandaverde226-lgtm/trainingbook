@@ -1,3 +1,4 @@
+// --- FILE: ./app/(main)/team/_components/TeamCard.tsx ---
 "use client";
 
 import { useState, useRef, memo, useEffect, useMemo } from "react";
@@ -9,6 +10,7 @@ import { storage, db } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
+import { TACTICAL_ICONS } from "@/lib/icon-library"; // Added Import
 
 interface Props {
   member: TeamMember;
@@ -223,10 +225,37 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                   <h3 className="text-2xl md:text-3xl font-[900] text-white tracking-tighter leading-[0.9] drop-shadow-md mb-1.5">
                     {member.name}
                   </h3>
-                  <div className="flex items-center gap-2 mb-4">
+                  
+                  {/* ROLE & PROGRESS */}
+                  <div className="flex items-center gap-2 mb-3">
                       <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">{member.role}</span>
                       <div className="w-1 h-1 rounded-full bg-white/30" />
                       <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">{member.progress}% Complete</span>
+                  </div>
+
+                  {/* UPDATED: BADGE ROW */}
+                  <div className="flex flex-wrap gap-1.5 mb-2 min-h-[24px]">
+                     {member.badges && member.badges.length > 0 ? (
+                         member.badges.slice(0, 5).map((badge: any, idx: number) => {
+                             const Icon = TACTICAL_ICONS.find(i => i.id === badge.iconId)?.icon || Sparkles;
+                             return (
+                                 <div 
+                                    key={idx} 
+                                    className="h-6 px-2 rounded-md bg-white/10 border border-white/10 flex items-center gap-1.5 shadow-sm backdrop-blur-sm"
+                                    title={badge.label}
+                                 >
+                                     <Icon className="w-3 h-3" style={{ color: badge.hex }} />
+                                     {/* Show label only for the first badge to save space, otherwise just icon */}
+                                     {idx === 0 && <span className="text-[8px] font-bold text-white/90 uppercase tracking-wider">{badge.label}</span>}
+                                 </div>
+                             )
+                         })
+                     ) : (
+                         <div className="h-6 flex items-center gap-1.5 opacity-30">
+                            <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                            <span className="text-[8px] font-bold text-white uppercase tracking-widest">No Certs</span>
+                         </div>
+                     )}
                   </div>
 
                   {/* TIMELINE PROGRESS BAR */}
