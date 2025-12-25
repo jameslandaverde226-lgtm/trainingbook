@@ -187,14 +187,16 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] font-sans relative overflow-x-hidden">
       
-      {/* MOBILE HEADER (Sticky) */}
-      <div className="md:hidden sticky top-4 z-[60] w-full px-4 mb-6 flex justify-center">
+      {/* --- MOBILE HEADER (Sticky Island) --- */}
+      {/* Moved 'top-20' to 'top-[72px]' to sit nicely below the global header on mobile */}
+      {/* Added margin bottom to push content down */}
+      <div className="md:hidden sticky top-[72px] z-[40] w-full px-4 mb-8 flex justify-center pointer-events-none">
         <motion.div 
-            initial={{ y: -20, opacity: 0 }}
+            initial={{ y: -10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="bg-white/90 backdrop-blur-xl border border-white/60 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] rounded-full p-1.5 flex items-center justify-between ring-1 ring-black/5 w-full max-w-sm"
+            className="pointer-events-auto bg-white/90 backdrop-blur-xl border border-white/60 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] rounded-full p-1.5 flex items-center justify-between ring-1 ring-black/5 w-full max-w-sm"
         >
             <div className="flex bg-slate-100/50 p-1 rounded-full border border-slate-200/50">
                 <button 
@@ -237,7 +239,7 @@ export default function TrainingBuilderPage() {
         </motion.div>
       </div>
 
-      {/* DESKTOP DYNAMIC ISLAND (Hidden Mobile) */}
+      {/* --- DESKTOP DYNAMIC ISLAND (Hidden Mobile) --- */}
       <div className="hidden md:flex fixed top-24 left-0 right-0 z-[120] justify-center pointer-events-none px-4" onMouseEnter={() => setIsIslandExpanded(true)} onMouseLeave={() => setIsIslandExpanded(false)}>
         <motion.div 
             layout animate={{ width: isIslandExpanded ? 780 : 380, height: 60 }} 
@@ -281,7 +283,7 @@ export default function TrainingBuilderPage() {
         </motion.div>
       </div>
 
-      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-0 md:pt-48 grid grid-cols-12 gap-8 md:gap-12 items-stretch relative z-10">
+      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-0 md:pt-48 grid grid-cols-12 gap-8 md:gap-12 items-stretch relative z-10 pb-32">
          
          {/* LEFT COLUMN: LIST */}
          <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-0 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative">
@@ -369,7 +371,7 @@ export default function TrainingBuilderPage() {
                   </div>
                </div>
             )})}
-            <button onClick={addSection} className="w-full py-12 md:py-16 border-4 border-dashed rounded-[32px] md:rounded-[44px] font-black uppercase transition-all flex flex-col items-center justify-center gap-4 group border-slate-200 text-slate-300 hover:border-[#004F71] hover:text-[#004F71] hover:bg-white mb-20 md:mb-0">
+            <button onClick={addSection} className="w-full py-12 md:py-16 border-4 border-dashed rounded-[32px] md:rounded-[44px] font-black uppercase transition-all flex flex-col items-center justify-center gap-4 group border-slate-200 text-slate-300 hover:border-[#004F71] hover:text-[#004F71] hover:bg-white mb-32 md:mb-0">
                 <div className={cn("p-4 rounded-full transition-all group-hover:scale-110 shadow-sm bg-slate-50 group-hover:bg-[#004F71] group-hover:text-white")}><Plus className="w-8 h-8" /></div>
                 <span className="text-lg md:text-xl tracking-tighter">Create New Phase</span>
             </button>
