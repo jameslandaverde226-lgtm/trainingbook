@@ -8,7 +8,7 @@ import {
   MessageSquare, Trash2, CheckCircle2, AlertCircle, 
   Terminal, Sparkles, Fingerprint, Crown, ArrowRight, Save,
   Quote, ShieldAlert, AlertTriangle, Info, Sticker,
-  FileText, StickyNote 
+  FileText, StickyNote, Flag // Added Flag
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -127,6 +127,13 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
       }
   };
 
+  // --- PRIORITY STYLE HELPER ---
+  const getPriorityBadge = (p: string) => {
+     if (p === 'High') return <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 border border-red-100 rounded-lg text-[#E51636] font-black text-[9px] uppercase tracking-wider"><Flag className="w-3 h-3 fill-current" /> High</div>;
+     if (p === 'Medium') return <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-100 rounded-lg text-amber-600 font-black text-[9px] uppercase tracking-wider"><Flag className="w-3 h-3 fill-current" /> Medium</div>;
+     return <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-lg text-[#004F71] font-black text-[9px] uppercase tracking-wider"><Flag className="w-3 h-3 fill-current" /> Low</div>;
+  };
+
   return (
     <>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
@@ -222,7 +229,7 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
                 </div>
             </div>
 
-            {/* Operational Intel (Includes Document Parsing) */}
+            {/* Operational Intel */}
             <div className="space-y-3">
                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
                     <MessageSquare className="w-3.5 h-3.5" /> Operational Intel
@@ -253,7 +260,8 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
             <div className="grid grid-cols-3 gap-3">
                 <div className="p-4 bg-white border border-slate-100 rounded-2xl flex flex-col items-center gap-2 shadow-sm text-center">
                     <span className="text-[8px] font-black text-slate-300 uppercase">Priority</span>
-                    <Badge color={event.priority === 'High' ? 'red' : 'blue'}>{event.priority}</Badge>
+                    {/* NEW PRIORITY BADGE */}
+                    {getPriorityBadge(event.priority)}
                 </div>
                 <div className="p-4 bg-white border border-slate-100 rounded-2xl flex flex-col items-center gap-2 shadow-sm text-center">
                     <span className="text-[8px] font-black text-slate-300 uppercase">Status</span>

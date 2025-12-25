@@ -103,6 +103,16 @@ const DraggableEventCard = ({
       }
   }
 
+  // --- PRIORITY COLOR LOGIC ---
+  const getPriorityColor = (p: string) => {
+      switch(p) {
+          case 'High': return "bg-red-50 text-[#E51636] border-red-100";
+          case 'Medium': return "bg-amber-50 text-amber-500 border-amber-100";
+          case 'Low': return "bg-blue-50 text-[#004F71] border-blue-100";
+          default: return "bg-slate-50 text-slate-400 border-slate-100";
+      }
+  }
+
   return (
     <motion.div 
       layout
@@ -166,7 +176,7 @@ const DraggableEventCard = ({
                     </p>
                 </div>
                 
-                {/* DATE DISPLAY - UPDATED LOGIC */}
+                {/* DATE DISPLAY */}
                 <div className="flex items-center gap-1 opacity-60 mt-0.5">
                     {isMultiDay ? <CalendarIcon className="w-2.5 h-2.5 shrink-0" /> : <Clock className="w-2.5 h-2.5 shrink-0" />}
                     <span className="text-[7px] font-black uppercase tracking-wider tabular-nums truncate">
@@ -176,31 +186,30 @@ const DraggableEventCard = ({
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
-                {!continuesAfter && (
-                    <div className="flex items-center gap-1 bg-slate-50/80 px-1 py-0.5 rounded-md border border-slate-100">
-                         {event.priority === "High" && (
-                             <Flag className="w-2 h-2 text-[#E51636] fill-current" />
-                         )}
-                         
-                         <div className="flex -space-x-1 ml-0.5">
-                            <div className={cn(
-                                "w-3.5 h-3.5 rounded flex items-center justify-center text-[6px] font-black text-white shadow-sm ring-1 ring-white", 
-                                leader?.dept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]"
-                            )}>
-                                {leader?.name.charAt(0) || 'L'}
-                            </div>
+                 {/* PRIORITY FLAG - VISIBLE ON ALL */}
+                 <div className={cn("p-1 rounded-[4px] border", getPriorityColor(event.priority))}>
+                     <Flag className="w-2 h-2 fill-current" />
+                 </div>
 
-                            {participant && (
-                                <div className={cn(
-                                    "w-3.5 h-3.5 rounded flex items-center justify-center text-[6px] font-black text-white shadow-sm ring-1 ring-white transition-transform group-hover:translate-x-0.5", 
-                                    participant?.dept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]"
-                                )}>
-                                    {participant.name.charAt(0)}
-                                </div>
-                            )}
-                         </div>
-                    </div>
-                )}
+                 {!continuesAfter && (
+                    <div className="flex -space-x-1">
+                        <div className={cn(
+                            "w-3.5 h-3.5 rounded flex items-center justify-center text-[6px] font-black text-white shadow-sm ring-1 ring-white", 
+                            leader?.dept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]"
+                        )}>
+                            {leader?.name.charAt(0) || 'L'}
+                        </div>
+
+                        {participant && (
+                            <div className={cn(
+                                "w-3.5 h-3.5 rounded flex items-center justify-center text-[6px] font-black text-white shadow-sm ring-1 ring-white transition-transform group-hover:translate-x-0.5", 
+                                participant?.dept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]"
+                            )}>
+                                {participant.name.charAt(0)}
+                            </div>
+                        )}
+                     </div>
+                 )}
             </div>
         </div>
 

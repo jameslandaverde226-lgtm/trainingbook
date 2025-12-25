@@ -5,13 +5,13 @@ import { motion } from "framer-motion";
 import { CalendarEvent, STICKERS } from "./types";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, isValid, format, isSameDay, isSameMonth, max, min } from "date-fns";
-import { Link2, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Link2, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { useAppStore } from "@/lib/store/useStore";
 
 interface Props {
   event: CalendarEvent;
   timelineStart: Date;
-  timelineEnd: Date; // Added prop
+  timelineEnd: Date; 
   dayWidth: number;
   isStamping: boolean;
   isLinking: boolean;
@@ -38,15 +38,10 @@ const TimelineEventCard = ({
 
   if (!isValid(event.startDate) || !isValid(event.endDate) || !isValid(timelineStart)) return null;
 
-  // --- VISUAL CLAMPING LOGIC ---
-  // Ensure we only render what is inside the visible window
   const visualStart = max([event.startDate, timelineStart]);
-  // We allow the end to extend beyond view so scrolling works naturally, 
-  // but we track if it continues for styling.
   const isContinuesLeft = event.startDate < timelineStart;
   const isContinuesRight = event.endDate > timelineEnd;
 
-  // Calculate position relative to the START of the board
   const startDiff = differenceInCalendarDays(visualStart, timelineStart);
   const duration = differenceInCalendarDays(event.endDate, visualStart) + 1;
   
@@ -76,6 +71,16 @@ const TimelineEventCard = ({
     }
   };
   const styles = getStyles(event.type);
+
+   // --- PRIORITY COLOR LOGIC ---
+  const getPriorityColor = (p: string) => {
+      switch(p) {
+          case 'High': return "text-[#E51636]";
+          case 'Medium': return "text-amber-500";
+          case 'Low': return "text-[#004F71]";
+          default: return "text-slate-400";
+      }
+  }
 
   return (
     <motion.div
@@ -118,13 +123,20 @@ const TimelineEventCard = ({
 
         {isCompact ? (
             <div className="flex flex-col justify-center h-full w-full pl-1.5 overflow-hidden">
-                <span className={cn("text-[8px] font-black truncate leading-tight", styles.text)}>{event.title}</span>
+                 <div className="flex items-center gap-1">
+                    <Flag className={cn("w-2 h-2 fill-current shrink-0", getPriorityColor(event.priority))} />
+                    <span className={cn("text-[8px] font-black truncate leading-tight", styles.text)}>{event.title}</span>
+                 </div>
             </div>
         ) : (
             <div className="flex items-center justify-between w-full relative z-20 gap-2 pl-1">
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                     <div className="flex items-center gap-1.5">
                         {isSource && !isLinking && <Link2 className="w-2.5 h-2.5 text-slate-400" />}
+                        
+                        {/* PRIORITY ICON */}
+                        <Flag className={cn("w-2.5 h-2.5 fill-current shrink-0", getPriorityColor(event.priority))} />
+
                         <span className={cn("text-[9px] md:text-[10px] font-black truncate tracking-tight leading-tight", styles.text)}>{event.title}</span>
                         {event.stickers?.slice(0, 3).map(s => {
                             const st = STICKERS.find(x => x.id === s);
