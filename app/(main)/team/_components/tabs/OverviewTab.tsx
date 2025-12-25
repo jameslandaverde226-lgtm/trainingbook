@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { 
   Zap, Users, Check, Award, Command, Activity, Target, 
-  ShieldAlert, CalendarClock, MessageSquare, Link2, Lightbulb, Goal, BookOpen 
+  ShieldAlert, CalendarClock, MessageSquare, Link2, Lightbulb, Goal, BookOpen, FileText, Star, StickyNote, File 
 } from "lucide-react";
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember, STAGES, CalendarEvent } from "../../../calendar/_components/types";
@@ -16,8 +16,22 @@ interface Props {
   member: TeamMember;
 }
 
+// Duplicate styling logic for consistency with Performance Tab
+const getCategoryStyle = (type: string) => {
+    switch (type) {
+        case 'GOAL': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+        case '1-ON-1': return 'bg-purple-50 text-purple-700 border-purple-100';
+        case 'INCIDENT': return 'bg-red-50 text-red-700 border-red-100';
+        case 'COMMENDATION': return 'bg-amber-50 text-amber-700 border-amber-100';
+        case 'REVIEW': return 'bg-blue-50 text-blue-700 border-blue-100';
+        case 'NOTE': return 'bg-slate-100 text-slate-600 border-slate-200';
+        case 'MODULE': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+        case 'AWARD': return 'bg-orange-50 text-orange-700 border-orange-100';
+        default: return 'bg-slate-100 text-slate-600 border-slate-200';
+    }
+};
+
 export function OverviewTab({ member }: Props) {
-  // 1. ADD: Destructure curriculum from store
   const { events, curriculum } = useAppStore();
   const isFOH = member.dept === "FOH";
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
@@ -29,25 +43,31 @@ export function OverviewTab({ member }: Props) {
     
     assignedEvents.forEach(e => {
         let category = 'MISSION';
-        if (e.type === 'Goal') category = 'GOAL';
+        let desc = e.description || "";
+
+        // Parse Document Logs - SAME LOGIC AS PERFORMANCE TAB
+        if (desc.startsWith("[DOCUMENT LOG:")) {
+             const match = desc.match(/\[DOCUMENT LOG: (.*?)\]/);
+             const docType = match ? match[1] : 'Note';
+             
+             if (docType.includes("Incident")) category = 'INCIDENT';
+             else if (docType.includes("Commendation")) category = 'COMMENDATION';
+             else if (docType.includes("Review")) category = 'REVIEW';
+             else if (docType.includes("Note")) category = 'NOTE';
+             else category = 'DOCUMENT';
+
+             desc = desc.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
+        }
+        else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
-        let desc = e.description || "";
-        if (desc.startsWith("[DOCUMENT LOG:")) desc = desc.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
-
         history.push({ 
-            id: e.id, 
-            date: e.startDate, 
-            title: e.title, 
-            category, 
-            description: desc, 
-            rawEvent: e, 
-            mentorName: e.assigneeName 
+            id: e.id, date: e.startDate, title: e.title, category, 
+            description: desc, rawEvent: e, mentorName: e.assigneeName 
         });
     });
 
-    // 2. ADD: Curriculum Logic (Same as Performance Tab)
     if (member.completedTaskIds && member.completedTaskIds.length > 0) {
         let completedNames: string[] = [];
         curriculum.forEach(section => {
@@ -59,7 +79,7 @@ export function OverviewTab({ member }: Props) {
         if (completedNames.length > 0) {
              history.push({
                  id: 'module-summary',
-                 date: new Date(), // Always fresh
+                 date: new Date(),
                  title: `${completedNames.length} Training Modules Verified`,
                  category: 'MODULE',
                  description: `Completed: ${completedNames.slice(0, 2).join(", ")}${completedNames.length > 2 ? "..." : ""}`
@@ -77,7 +97,7 @@ export function OverviewTab({ member }: Props) {
   return (
     <div className="p-5 lg:p-10 space-y-6 lg:space-y-8 pb-32 h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
         
-        {/* --- TOP ROW: MENTOR & PROBATION --- */}
+        {/* --- TOP ROW: MENTOR & PROBATION (Unchanged) --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
             {/* 1. MENTOR CARD */}
             {member.pairing ? (
@@ -134,7 +154,7 @@ export function OverviewTab({ member }: Props) {
             )}
         </div>
 
-        {/* --- DEPLOYMENT STATUS TIMELINE --- */}
+        {/* --- DEPLOYMENT STATUS TIMELINE (Unchanged) --- */}
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 text-center">Unit Deployment Status</h4>
             <div className="overflow-x-auto no-scrollbar pt-12 pb-6 -mx-6 px-6 scroll-smooth snap-x">
@@ -146,16 +166,12 @@ export function OverviewTab({ member }: Props) {
                         const isCurrent = i === currentIdx; 
                         
                         let dateStr = "";
-                        if (s.id === "Onboarding" && member.joined) {
-                            dateStr = format(new Date(member.joined), "MMM yyyy");
-                        } else if (member.promotionDates?.[s.id]) {
+                        if (s.id === "Onboarding" && member.joined) dateStr = format(new Date(member.joined), "MMM yyyy");
+                        else if (member.promotionDates?.[s.id]) {
                              const d = new Date(member.promotionDates[s.id]);
                              if (isValid(d)) dateStr = format(d, "MMM yyyy");
-                        } else if (isCurrent) {
-                             dateStr = "Current";
-                        } else if (isDone) {
-                             dateStr = "Completed";
-                        }
+                        } else if (isCurrent) dateStr = "Current";
+                        else if (isDone) dateStr = "Completed";
 
                         return (
                             <div key={s.id} className="relative z-10 flex flex-col items-center gap-3 group snap-center min-w-[90px]">
@@ -178,7 +194,7 @@ export function OverviewTab({ member }: Props) {
             </div>
         </div>
 
-        {/* --- ACCOLADES --- */}
+        {/* --- ACCOLADES (Unchanged) --- */}
         <div className="space-y-3">
             <div className="flex items-center gap-3 px-2">
                 <Award className="w-4 h-4 text-amber-500" />
@@ -203,7 +219,7 @@ export function OverviewTab({ member }: Props) {
             </div>
         </div>
 
-        {/* --- INTELLIGENCE & ACTIVITY --- */}
+        {/* --- INTELLIGENCE & GOALS --- */}
         <div className="bg-white p-5 lg:p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-[#004F71] text-white rounded-xl shadow-md"><Command className="w-4 h-4" /></div>
@@ -227,11 +243,7 @@ export function OverviewTab({ member }: Props) {
                             <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full border-[3px] border-white bg-slate-200 group-hover:bg-[#E51636] transition-all shadow-sm z-10" />
                             <div className="space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className={cn(
-                                        "px-2 py-0.5 rounded-md text-[8px] font-black uppercase border",
-                                        item.category === 'MODULE' ? 'bg-slate-100 text-slate-600 border-slate-200' : 
-                                        item.category === 'MISSION' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-50 text-slate-600 border-slate-100'
-                                    )}>
+                                    <span className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase border", getCategoryStyle(item.category))}>
                                         {item.category}
                                     </span>
                                     <span className="text-[8px] font-bold text-slate-300 uppercase">{formatDistanceToNow(item.date)} ago</span>

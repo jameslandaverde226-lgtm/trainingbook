@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { 
   ShieldCheck, MessageSquare, Link2, Medal, Zap, Target, Activity, 
-  FileText, CheckCircle2, AlertTriangle, BookOpen, Star 
+  FileText, CheckCircle2, AlertTriangle, BookOpen, Star, StickyNote, File 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember, CalendarEvent } from "../../../calendar/_components/types";
@@ -20,17 +20,23 @@ interface Props {
   member: TeamMember;
 }
 
-// Helper to map activity types to visuals
+// Visual Configuration for different activity types
 const getActivityConfig = (type: string) => {
     switch (type) {
-        case 'GOAL': return { icon: Target, color: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50' };
-        case '1-ON-1': return { icon: MessageSquare, color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50' };
-        case 'INCIDENT': return { icon: AlertTriangle, color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50' };
-        case 'COMMENDATION': return { icon: Star, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50' };
-        case 'REVIEW': return { icon: FileText, color: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50' };
-        case 'MODULE': return { icon: BookOpen, color: 'bg-slate-800', text: 'text-slate-700', bg: 'bg-slate-100' };
-        case 'AWARD': return { icon: Medal, color: 'bg-amber-400', text: 'text-amber-700', bg: 'bg-amber-50' };
-        default: return { icon: Activity, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50' };
+        // Operational
+        case 'GOAL': return { icon: Target, color: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', accent: 'border-l-emerald-500' };
+        case '1-ON-1': return { icon: MessageSquare, color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', accent: 'border-l-purple-500' };
+        // Documents
+        case 'INCIDENT': return { icon: AlertTriangle, color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', accent: 'border-l-red-500' };
+        case 'COMMENDATION': return { icon: Star, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500' };
+        case 'REVIEW': return { icon: FileText, color: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200', accent: 'border-l-blue-500' };
+        case 'NOTE': return { icon: StickyNote, color: 'bg-slate-500', text: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', accent: 'border-l-slate-400' };
+        case 'DOCUMENT': return { icon: File, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', accent: 'border-l-slate-300' };
+        // System
+        case 'MODULE': return { icon: BookOpen, color: 'bg-indigo-500', text: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', accent: 'border-l-indigo-500' };
+        case 'AWARD': return { icon: Medal, color: 'bg-orange-500', text: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', accent: 'border-l-orange-500' };
+        // Default
+        default: return { icon: Activity, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200', accent: 'border-l-slate-300' };
     }
 };
 
@@ -43,7 +49,6 @@ export function PerformanceTab({ member }: Props) {
     const history: any[] = [];
     
     // 1. CALENDAR EVENTS & DOCUMENTS
-    // Filter events where this member is the target OR the assignee (if it's their own goal)
     const relevantEvents = events.filter(e => 
         e.teamMemberId === member.id || (e.assignee === member.id && e.type === 'Goal')
     );
@@ -61,6 +66,7 @@ export function PerformanceTab({ member }: Props) {
              if (docType.includes("Incident")) category = 'INCIDENT';
              else if (docType.includes("Commendation")) category = 'COMMENDATION';
              else if (docType.includes("Review")) category = 'REVIEW';
+             else if (docType.includes("Note")) category = 'NOTE';
              else category = 'DOCUMENT';
 
              // Clean up description for display
@@ -94,12 +100,7 @@ export function PerformanceTab({ member }: Props) {
     }
 
     // 3. CURRICULUM MODULES
-    // We infer completion time from the profileOverride update time if available, otherwise fallback
-    // Since we don't store exact timestamp per module in the simple array, we can group them
-    // For a production app, you'd store { taskId: string, completedAt: Timestamp } in Firestore.
-    // For now, we will show "Current Progress" as a single entry if they have started training.
     if (member.completedTaskIds && member.completedTaskIds.length > 0) {
-        // Find the names of completed tasks
         let completedNames: string[] = [];
         curriculum.forEach(section => {
              section.tasks?.forEach((t: any) => {
@@ -107,12 +108,10 @@ export function PerformanceTab({ member }: Props) {
              });
         });
 
-        // We'll create one "Recent Activity" entry for modules to avoid spamming the feed with old data
-        // if we don't have timestamps.
         if (completedNames.length > 0) {
              history.push({
                  id: 'module-summary',
-                 date: new Date(), // Always shows at top
+                 date: new Date(), 
                  title: `${completedNames.length} Training Modules Verified`,
                  category: 'MODULE',
                  description: `Completed: ${completedNames.slice(0, 3).join(", ")}${completedNames.length > 3 ? "..." : ""}`
@@ -194,7 +193,10 @@ export function PerformanceTab({ member }: Props) {
                                 {/* Content Card */}
                                 <div className={cn(
                                     "p-5 lg:p-6 bg-white border rounded-[24px] shadow-sm transition-all relative overflow-hidden",
-                                    isInteractive ? "hover:border-purple-300 hover:shadow-md active:scale-[0.99]" : "border-slate-100"
+                                    // Add left accent border
+                                    "border-l-4", config.accent,
+                                    config.border,
+                                    isInteractive ? "hover:shadow-md active:scale-[0.99]" : ""
                                 )}>
                                     {/* Category Tag */}
                                     <div className="flex justify-between items-start mb-2">
@@ -209,7 +211,7 @@ export function PerformanceTab({ member }: Props) {
                                     <h4 className="text-base lg:text-lg font-black text-slate-900 mb-1.5 leading-tight">{item.title}</h4>
                                     
                                     {item.description && (
-                                        <p className="text-xs lg:text-sm text-slate-500 font-medium leading-relaxed line-clamp-3">
+                                        <p className="text-xs lg:text-sm text-slate-500 font-medium leading-relaxed line-clamp-3 whitespace-pre-wrap">
                                             {item.description}
                                         </p>
                                     )}
