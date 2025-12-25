@@ -72,26 +72,14 @@ export default function TeamDynamicIsland({
                         initial={{ opacity: 0, filter: "blur(4px)" }}
                         animate={{ opacity: 1, filter: "blur(0px)" }}
                         exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.15 } }}
-                        className="flex items-center gap-3 px-1.5 py-1.5 h-14 relative w-full"
+                        // Added pr-3 to the container to give space for the badge inside
+                        className="flex items-center gap-3 px-1.5 py-1.5 pr-3 h-14 relative w-full"
                     >
-                         {/* Notification Badge - Fixed Positioning */}
-                         {unassignedCount > 0 && (
-                             <motion.div 
-                                layoutId="notification-badge"
-                                initial={{ scale: 0 }}
-                                animate={{ scale: 1 }}
-                                // Changed from absolute to relative wrapper logic or strict inset
-                                className="absolute top-0 right-0 transform translate-x-[2px] -translate-y-[2px] min-w-[20px] h-5 px-1 bg-[#E51636] rounded-full flex items-center justify-center border-2 border-white text-[9px] font-black text-white shadow-sm z-50 pointer-events-none"
-                             >
-                                 {unassignedCount}
-                             </motion.div>
-                         )}
-
                          <motion.div layoutId="icon-container" className="w-10 h-10 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-md shadow-red-500/20 shrink-0">
                              <Layers className="w-5 h-5" />
                          </motion.div>
                          
-                         <motion.div layout="position" className="flex flex-col justify-center pr-5 min-w-[120px]">
+                         <motion.div layout="position" className="flex flex-col justify-center pr-2 min-w-[120px]">
                              <motion.span layoutId="title-text" className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">
                                  {activeStageData?.title || "Roster"}
                              </motion.span>
@@ -100,7 +88,20 @@ export default function TeamDynamicIsland({
                              </motion.span>
                          </motion.div>
                          
-                         <motion.div layoutId="chevron" className="pr-2 opacity-40">
+                         {/* Notification Badge - Now positioned RELATIVE to content flow, not absolute, or absolutely positioned but within padding */}
+                         {unassignedCount > 0 && (
+                             <motion.div 
+                                layoutId="notification-badge"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                // Positioned top-right but inset by 6px so it sits inside the rounded corner
+                                className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 bg-[#E51636] rounded-full flex items-center justify-center border border-white text-[9px] font-black text-white shadow-sm z-50 pointer-events-none"
+                             >
+                                 {unassignedCount}
+                             </motion.div>
+                         )}
+
+                         <motion.div layoutId="chevron" className="opacity-40 pl-1">
                              <ChevronDown className="w-4 h-4" />
                          </motion.div>
                     </motion.div>
