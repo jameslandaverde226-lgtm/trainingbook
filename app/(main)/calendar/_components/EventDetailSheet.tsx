@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, Calendar, Clock, User, Shield, Target, Zap, Activity, 
   MessageSquare, Trash2, CheckCircle2, ShieldAlert, 
-  Terminal, Sparkles, Quote, Trophy, Vote, Medal, Sticker, Flag
+  Terminal, Sparkles, Quote, Trophy, Vote, Medal, Sticker, Flag, Lock
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -76,21 +76,20 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
   else if (event.type === 'Goal') { brandBg = 'bg-emerald-600'; HeaderIcon = Target; }
 
   // --- PARSE INTELLIGENT LOGS ---
-  const isSystemLog = event.description?.startsWith("[SYSTEM LOG:") || event.description?.startsWith("[OFFICIAL ANNOUNCEMENT]");
+  const isSystemLog = event.description?.startsWith("[SYSTEM LOG:") || event.description?.startsWith("[OFFICIAL ANNOUNCEMENT]") || event.type === 'Award' || event.type === 'Vote';
   const isDocLog = event.description?.startsWith("[DOCUMENT LOG:");
   
+  // DETERMINE IMMUTABILITY (Cannot Delete)
+  // Awards, Votes, Promotions, Assignments, Transfers are permanent system records.
+  const isImmutable = isSystemLog || isDocLog;
+
   let logTitle = "Operational Context";
   let cleanDescription = event.description || "";
 
   if (isSystemLog) {
       logTitle = event.description?.split(']')[0].replace('[SYSTEM LOG: ', '').replace('[', '') || "System Event";
-      
-      // Extract body
       let rawBody = event.description?.split(']').slice(1).join(']').trim() || "";
-      
-      // Clean out "Module ID: ..." for display
       cleanDescription = rawBody.replace(/Module ID:.*$/gm, "").trim();
-
   } else if (isDocLog) {
       logTitle = event.description?.split(']')[0].replace('[DOCUMENT LOG: ', '').replace(']', '') || "Document";
       cleanDescription = event.description?.split(']').slice(1).join(']').trim() || "";
@@ -127,8 +126,14 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
             <div className="relative z-10 space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="px-3 py-1.5 bg-white/10 rounded-full border border-white/20 backdrop-blur-md flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                        <span className="text-[9px] font-black uppercase tracking-[0.3em]">Mission Brief</span>
+                        {isImmutable ? (
+                             <Lock className="w-3 h-3 text-white/80" />
+                        ) : (
+                             <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                        )}
+                        <span className="text-[9px] font-black uppercase tracking-[0.3em]">
+                            {isImmutable ? "Permanent Record" : "Mission Brief"}
+                        </span>
                     </div>
                     <button onClick={onClose} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all active:scale-90 border border-white/10"><X className="w-5 h-5" /></button>
                 </div>
@@ -228,13 +233,21 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
             </div>
         </div>
 
-        {/* --- FOOTER ACTIONS --- */}
+        {/* --- FOOTER ACTIONS (INTELLIGENT) --- */}
         <div className="p-6 md:p-10 border-t border-slate-100 bg-white flex items-center justify-between gap-4 shrink-0 pb-10 md:pb-10">
-             {/* FIXED: Using correct state setter */}
-             <button onClick={() => setIsConfirmOpen(true)} className="flex items-center gap-2 px-4 py-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95">
-                <Trash2 className="w-5 h-5" />
-                <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Decommission</span>
-             </button>
+             
+             {/* If IMMUTABLE: Show 'Protected' Badge. Else: Show Delete Button */}
+             {isImmutable ? (
+                 <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 text-slate-400 rounded-xl border border-slate-100 cursor-not-allowed opacity-60">
+                    <Lock className="w-4 h-4" />
+                    <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Log Locked</span>
+                 </div>
+             ) : (
+                 <button onClick={() => setIsConfirmOpen(true)} className="flex items-center gap-2 px-4 py-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95">
+                    <Trash2 className="w-5 h-5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Decommission</span>
+                 </button>
+             )}
 
              {event.status !== 'Done' && (
                 <button onClick={() => onUpdate(event.id, { status: "Done" })} className="flex-1 md:flex-none flex items-center justify-center gap-3 px-8 py-4 bg-[#004F71] text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-900/20 hover:scale-[1.02] active:scale-95 transition-all">
