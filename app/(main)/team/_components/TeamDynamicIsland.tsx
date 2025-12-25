@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { STAGES, Status } from "../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore"; 
 
-// --- ANIMATION PHYSICS (Optimized for "Apple-like" feel) ---
+// --- ANIMATION PHYSICS ---
 const transition: Transition = {
   type: "spring",
   stiffness: 350,
@@ -74,13 +74,14 @@ export default function TeamDynamicIsland({
                         exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.15 } }}
                         className="flex items-center gap-3 px-1.5 py-1.5 h-14 relative w-full"
                     >
-                         {/* Notification Badge */}
+                         {/* Notification Badge - Fixed Positioning */}
                          {unassignedCount > 0 && (
                              <motion.div 
                                 layoutId="notification-badge"
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
-                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white text-[9px] font-black text-white shadow-sm z-50 pointer-events-none"
+                                // Changed from absolute to relative wrapper logic or strict inset
+                                className="absolute top-0 right-0 transform translate-x-[2px] -translate-y-[2px] min-w-[20px] h-5 px-1 bg-[#E51636] rounded-full flex items-center justify-center border-2 border-white text-[9px] font-black text-white shadow-sm z-50 pointer-events-none"
                              >
                                  {unassignedCount}
                              </motion.div>
@@ -90,7 +91,7 @@ export default function TeamDynamicIsland({
                              <Layers className="w-5 h-5" />
                          </motion.div>
                          
-                         <motion.div layout="position" className="flex flex-col justify-center pr-4 min-w-[120px]">
+                         <motion.div layout="position" className="flex flex-col justify-center pr-5 min-w-[120px]">
                              <motion.span layoutId="title-text" className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">
                                  {activeStageData?.title || "Roster"}
                              </motion.span>
@@ -161,7 +162,7 @@ export default function TeamDynamicIsland({
                                     <motion.span 
                                         layoutId="notification-badge"
                                         className={cn(
-                                            "relative z-10 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm transition-colors",
+                                            "relative z-10 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm transition-colors",
                                             isActive ? "bg-white text-[#E51636]" : "bg-red-100 text-red-600"
                                         )}
                                     >
