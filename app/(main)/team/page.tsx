@@ -122,8 +122,8 @@ export default function TeamBoardPage() {
     const [trainerDraggingId, setTrainerDraggingId] = useState<string | null>(null);
     const [isTrainerPanelOpen, setIsTrainerPanelOpen] = useState(false);
     
-    // NEW: Processing Lock
-    const [isProcessing, setIsProcessing] = useState(false);
+    // UPDATED: Using Ref for synchronous locking to prevent double-fires
+    const isProcessingRef = useRef(false);
 
     // Derived active member (Reactive!)
     const selectedMember = useMemo(() => 
@@ -201,9 +201,9 @@ export default function TeamBoardPage() {
     };
 
     const handleUnitAssign = async (dept: "FOH" | "BOH") => {
-        if (!assignmentMember || isProcessing) return;
+        if (!assignmentMember || isProcessingRef.current) return;
         
-        setIsProcessing(true);
+        isProcessingRef.current = true;
         updateMemberLocal(assignmentMember.id, { dept });
 
         const loadToast = toast.loading(`Initializing ${dept} Profile...`);
@@ -234,7 +234,7 @@ export default function TeamBoardPage() {
         } catch (e) {
             toast.error("Assignment Failed", { id: loadToast });
         } finally {
-            setIsProcessing(false);
+            isProcessingRef.current = false;
         }
     };
 
@@ -245,8 +245,8 @@ export default function TeamBoardPage() {
     const handleTrainerDragStart = (trainerId: string) => setTrainerDraggingId(trainerId);
 
     const handleAssignTrainer = async (trainer: TeamMember, memberId: string) => {
-        if (isProcessing) return;
-        setIsProcessing(true);
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
 
         const member = team.find(m => m.id === memberId);
         if (member) {
@@ -283,10 +283,10 @@ export default function TeamBoardPage() {
                 console.error(err);
                 toast.error("Failed to assign mentor", { id: loadToast });
             } finally {
-                setIsProcessing(false);
+                isProcessingRef.current = false;
             }
         } else {
-             setIsProcessing(false);
+             isProcessingRef.current = false;
         }
     };
 
@@ -308,9 +308,9 @@ export default function TeamBoardPage() {
         }
     };
 
-    // --- PROMOTION LOGIC (UPDATED WITH EVENT LOGGING & DEBOUNCE) ---
+    // --- PROMOTION LOGIC (UPDATED WITH EVENT LOGGING & REF DEBOUNCE) ---
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
-        if (isProcessing) return;
+        if (isProcessingRef.current) return;
         
         const member = team.find(m => m.id === memberId);
         if(!member || member.status === newRole) {
@@ -318,7 +318,8 @@ export default function TeamBoardPage() {
             return;
         }
 
-        setIsProcessing(true);
+        // LOCK IMMEDIATELY
+        isProcessingRef.current = true;
         setMemberDraggingId(null); 
         
         const toastId = toast.loading(`Promoting to ${newRole}...`);
@@ -371,7 +372,10 @@ export default function TeamBoardPage() {
             // Revert optimistic update
             updateMemberLocal(memberId, { status: member.status, role: member.role });
         } finally {
-            setIsProcessing(false);
+            // UNLOCK after a short delay to prevent double-taps
+            setTimeout(() => {
+                 isProcessingRef.current = false;
+            }, 500);
         }
     };
 
