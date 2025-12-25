@@ -10,9 +10,8 @@ import { useAppStore } from "@/lib/store/useStore";
 // --- ANIMATION PHYSICS ---
 const spring: Transition = {
   type: "spring",
-  stiffness: 500,
+  stiffness: 400,
   damping: 30,
-  mass: 1,
 };
 
 interface Props {
@@ -56,23 +55,20 @@ export default function TeamDynamicIsland({
           transition={spring}
           onClick={() => !isOpen && setIsOpen(true)}
           className={cn(
-            "pointer-events-auto bg-white/95 backdrop-blur-2xl border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] flex flex-col ring-1 ring-black/5 transform-gpu origin-top relative z-50",
+            "pointer-events-auto bg-white/95 backdrop-blur-2xl border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] flex flex-col ring-1 ring-black/5 transform-gpu origin-top relative z-50 overflow-hidden",
             isOpen
-              ? "rounded-[32px] w-full max-w-[420px] border-white/60 overflow-hidden" 
+              ? "rounded-[32px] w-full max-w-[420px] border-white/60" 
               : "rounded-full w-auto border-slate-200/60 cursor-pointer hover:scale-[1.02] hover:bg-white"
           )}
-          // Explicitly animate height for smoothness
-          style={{ height: isOpen ? 'auto' : '56px' }}
         >
-            <AnimatePresence mode="popLayout" initial={false}>
+            <AnimatePresence mode="wait" initial={false}>
                 {!isOpen ? (
                     // --- 1. COLLAPSED VIEW ---
                     <motion.div 
                         key="collapsed"
-                        initial={{ opacity: 0, scale: 0.9, filter: "blur(4px)" }}
-                        animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-                        exit={{ opacity: 0, scale: 0.9, filter: "blur(4px)", transition: { duration: 0.1 } }}
-                        transition={{ type: "spring", stiffness: 500, damping: 30, delay: 0.1 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
                         className="flex items-center gap-3 px-1.5 py-1.5 h-14 relative w-full"
                     >
                          {/* Notification Badge */}
@@ -89,14 +85,14 @@ export default function TeamDynamicIsland({
                          <div className="w-10 h-10 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-md shadow-red-500/20 shrink-0">
                              <Layers className="w-5 h-5" />
                          </div>
-                         <div className="flex flex-col justify-center pr-4 min-w-[120px]">
-                             <span className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight">
+                         <motion.div layout="position" className="flex flex-col justify-center pr-4 min-w-[120px]">
+                             <span className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">
                                  {activeStageData?.title || "Roster"}
                              </span>
-                             <span className="text-[9px] font-bold text-slate-400">
+                             <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap">
                                  {activeFilter === "ALL" ? "All Units" : `${activeFilter} Unit`}
                              </span>
-                         </div>
+                         </motion.div>
                          <div className="pr-2 opacity-40">
                              <ChevronDown className="w-4 h-4" />
                          </div>
@@ -105,11 +101,9 @@ export default function TeamDynamicIsland({
                     // --- 2. EXPANDED VIEW ---
                     <motion.div 
                         key="expanded"
-                        initial={{ opacity: 0, filter: "blur(4px)" }}
-                        animate={{ opacity: 1, filter: "blur(0px)" }}
-                        // CRITICAL FIX: Absolute positioning on exit prevents layout shift
-                        exit={{ opacity: 0, filter: "blur(4px)", position: "absolute", top: 0, left: 0, width: "100%", zIndex: -1, transition: { duration: 0.15 } }} 
-                        transition={{ duration: 0.3, delay: 0.1 }}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
                         className="flex flex-col p-3 gap-4 min-w-[320px] w-full"
                     >
                         {/* Header Row */}
@@ -186,7 +180,7 @@ export default function TeamDynamicIsland({
                                 className={cn(
                                   "flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all duration-200 text-left group relative overflow-hidden",
                                   isActive
-                                    ? "bg-[#004F71] text-white border-[#004F71] shadow-lg shadow-blue-900/20"
+                                    ? "bg-[#004F71] text-white border-[#004F71] shadow-lg shadow-blue-900/20" 
                                     : "bg-white border-slate-100 hover:border-slate-200 text-slate-500 hover:bg-slate-50"
                                 )}
                               >
