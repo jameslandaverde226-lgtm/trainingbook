@@ -3,10 +3,10 @@
 import { useMemo } from "react";
 import { 
   Zap, Users, Check, Award, Command, Activity, Target, 
-  ShieldAlert, CalendarClock, MessageSquare, Link2 
+  ShieldAlert, CalendarClock, MessageSquare, Link2, Lightbulb, Goal 
 } from "lucide-react";
 import { cn, getProbationStatus } from "@/lib/utils";
-import { TeamMember, STAGES } from "../../../calendar/_components/types";
+import { TeamMember, STAGES, CalendarEvent } from "../../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore";
 import { format, formatDistanceToNow, isValid } from "date-fns";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
@@ -40,8 +40,13 @@ export function OverviewTab({ member }: Props) {
             description: desc, rawEvent: e, mentorName: e.assigneeName 
         });
     });
-    return history.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 5); 
+    return history.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8); 
   }, [events, member.id]);
+
+  // Extract recent goals for the "Key Objectives" panel
+  const recentGoals = useMemo(() => {
+      return timelineData.filter(i => i.category === 'GOAL' || i.category === '1-ON-1').slice(0, 3);
+  }, [timelineData]);
 
   return (
     <div className="p-5 lg:p-10 space-y-6 lg:space-y-8 pb-32 h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
@@ -106,13 +111,9 @@ export function OverviewTab({ member }: Props) {
         {/* --- DEPLOYMENT STATUS TIMELINE --- */}
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 text-center">Unit Deployment Status</h4>
-            
-            {/* Added px-8 to inner container and width-auto to ensure scroll works but padding is respected */}
             <div className="overflow-x-auto no-scrollbar pt-12 pb-6 -mx-6 px-6 scroll-smooth snap-x">
                 <div className="flex items-center gap-4 px-4 min-w-max mx-auto">
-                    {/* Background Line */}
                     <div className="absolute left-10 right-10 top-[4.5rem] h-0.5 bg-slate-100 -z-10" />
-                    
                     {STAGES.map((s, i) => { 
                         const currentIdx = STAGES.findIndex(x => x.id === member.status); 
                         const isDone = i < currentIdx; 
@@ -141,17 +142,8 @@ export function OverviewTab({ member }: Props) {
                                     {isDone ? <Check className="w-5 h-5" /> : <span className="font-black text-xs">{i + 1}</span>}
                                 </div>
                                 <div className="flex flex-col items-center gap-0.5 text-center">
-                                    <span className={cn(
-                                        "text-[9px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors leading-none", 
-                                        isCurrent ? "text-slate-900" : "text-slate-300"
-                                    )}>{s.title}</span>
-                                    
-                                    <span className={cn(
-                                        "text-[8px] font-bold uppercase tracking-wide",
-                                        isCurrent ? "text-[#E51636]" : isDone ? "text-emerald-500" : "text-slate-300 opacity-0"
-                                    )}>
-                                        {dateStr}
-                                    </span>
+                                    <span className={cn("text-[9px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors leading-none", isCurrent ? "text-slate-900" : "text-slate-300")}>{s.title}</span>
+                                    <span className={cn("text-[8px] font-bold uppercase tracking-wide", isCurrent ? "text-[#E51636]" : isDone ? "text-emerald-500" : "text-slate-300 opacity-0")}>{dateStr}</span>
                                 </div>
                             </div>
                         ) 
@@ -166,7 +158,6 @@ export function OverviewTab({ member }: Props) {
                 <Award className="w-4 h-4 text-amber-500" />
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Validated Accolades</span>
             </div>
-            
             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 pl-2 snap-x">
                 {member.badges && member.badges.length > 0 ? member.badges.map((badge: any, i: number) => { 
                     const Icon = TACTICAL_ICONS.find(ic => ic.id === badge.iconId)?.icon || Award; 
@@ -179,17 +170,17 @@ export function OverviewTab({ member }: Props) {
                         </div>
                     ) 
                 }) : (
-                    <div className="w-full text-center py-8 border-2 border-dashed border-slate-200 rounded-[20px] text-slate-300 bg-slate-50/50">
+                    <div className="w-full text-center py-6 border-2 border-dashed border-slate-200 rounded-[20px] text-slate-300 bg-slate-50/50">
                         <p className="text-[9px] font-bold uppercase tracking-widest">No badges awarded</p>
                     </div>
                 )}
             </div>
         </div>
 
-        {/* --- INTELLIGENCE & ACTIVITY --- */}
+        {/* --- INTELLIGENCE & GOALS (GRID) --- */}
         <div className="bg-white p-5 lg:p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-900 text-white rounded-xl shadow-md"><Command className="w-4 h-4" /></div>
+                <div className="p-2 bg-[#004F71] text-white rounded-xl shadow-md"><Command className="w-4 h-4" /></div>
                 <div>
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 block">Command Center</span>
                     <span className="text-base lg:text-lg font-bold text-slate-900 leading-none">Intelligence</span>
@@ -197,7 +188,9 @@ export function OverviewTab({ member }: Props) {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                <div className="lg:col-span-7 space-y-5 relative pl-4 border-l-2 border-slate-50">
+                
+                {/* COLUMN 1: ACTIVITY STREAM (7 Columns) */}
+                <div className="lg:col-span-7 space-y-5 relative pl-4 border-l-2 border-slate-100">
                     <div className="flex items-center gap-2 mb-1">
                         <Activity className="w-3.5 h-3.5 text-[#E51636]" />
                         <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Activity Stream</span>
@@ -212,10 +205,41 @@ export function OverviewTab({ member }: Props) {
                                     <span className="text-[8px] font-bold text-slate-300 uppercase">{formatDistanceToNow(item.date)} ago</span>
                                 </div>
                                 <p className="text-xs lg:text-sm font-bold text-slate-800 leading-tight">{item.title}</p>
+                                {item.description && <p className="text-[10px] text-slate-500 line-clamp-1">{item.description}</p>}
                             </div>
                         </div>
                     )) : (
-                        <p className="text-xs text-slate-300 italic pl-2">No recent activity detected.</p>
+                        <div className="p-4 bg-slate-50 rounded-xl text-center text-slate-400 border border-slate-100 border-dashed">
+                             <p className="text-[10px] font-bold uppercase tracking-widest">No recent activity detected.</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* COLUMN 2: KEY OBJECTIVES (5 Columns) */}
+                <div className="lg:col-span-5 space-y-4">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Target className="w-3.5 h-3.5 text-[#004F71]" />
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Key Objectives</span>
+                    </div>
+
+                    {recentGoals.length > 0 ? recentGoals.map((goal, idx) => (
+                        <div key={idx} className="p-4 bg-slate-50 border border-slate-100 rounded-[20px] shadow-sm flex items-start gap-3">
+                            <div className={cn("p-2 rounded-lg shrink-0", goal.category === '1-ON-1' ? "bg-purple-100 text-purple-600" : "bg-emerald-100 text-emerald-600")}>
+                                {goal.category === '1-ON-1' ? <Lightbulb className="w-4 h-4" /> : <Goal className="w-4 h-4" />}
+                            </div>
+                            <div>
+                                <h5 className="text-xs font-bold text-slate-900 leading-snug">{goal.title}</h5>
+                                <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">{goal.description || "No specific details logged."}</p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">{formatDistanceToNow(goal.date)} ago</span>
+                                </div>
+                            </div>
+                        </div>
+                    )) : (
+                        <div className="p-8 border-2 border-dashed border-slate-100 rounded-[24px] flex flex-col items-center justify-center text-slate-300 bg-slate-50/50">
+                            <Target className="w-8 h-8 mb-2 opacity-50" />
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-center">No Active Goals</span>
+                        </div>
                     )}
                 </div>
             </div>
