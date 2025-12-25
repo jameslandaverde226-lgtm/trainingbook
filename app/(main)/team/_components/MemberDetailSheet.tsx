@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Plus } from "lucide-react";
 import ClientPortal from "@/components/core/ClientPortal";
@@ -10,7 +9,7 @@ import { TeamMember } from "../../calendar/_components/types";
 import { MemberProfileHeader } from "./MemberProfileHeader";
 import { CurriculumTab } from "./tabs/CurriculumTab";
 import { PerformanceTab } from "./tabs/PerformanceTab";
-import { OverviewTab } from "./tabs/OverviewTab"; // IMPORT NEW TAB
+import { OverviewTab } from "./tabs/OverviewTab"; 
 import OperationalDocumentInterface from "./OperationalDocumentInterface";
 
 interface Props {
@@ -48,26 +47,35 @@ export const MemberDetailSheet = ({ member, onClose, activeTab, setActiveTab }: 
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
           
           {/* Tabs Navigation */}
-          <div className="px-6 lg:px-8 h-20 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white z-20">
-             <div className="flex gap-4 lg:gap-8 overflow-x-auto no-scrollbar mask-gradient-right">
+          <div className="px-4 lg:px-8 h-16 lg:h-20 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white z-20 relative shadow-sm">
+             <div className="flex gap-6 lg:gap-8 overflow-x-auto no-scrollbar mask-gradient-right flex-1 pr-4">
                 {['overview', 'documents', 'curriculum', 'performance'].map(tab => (
                    <button 
                     key={tab} 
                     onClick={() => setActiveTab(tab as any)} 
-                    className="relative py-7 group outline-none shrink-0"
+                    className="relative py-5 lg:py-7 group outline-none shrink-0"
                    >
-                      <span className={cn("text-xs font-black uppercase tracking-[0.2em] transition-colors", activeTab === tab ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600")}>{tab}</span>
-                      {activeTab === tab && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#E51636] rounded-t-full shadow-sm" />}
+                      <span className={cn(
+                        "text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] transition-colors", 
+                        activeTab === tab ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600"
+                      )}>
+                        {tab}
+                      </span>
+                      {activeTab === tab && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#E51636] rounded-t-full shadow-sm" />}
                    </button>
                 ))}
              </div>
-             <button onClick={onClose} className="p-3 hover:bg-slate-50 rounded-full transition-colors shrink-0"><X className="w-6 h-6 text-slate-400" /></button>
+             
+             {/* Close Button */}
+             <button onClick={onClose} className="p-2 lg:p-3 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors shrink-0 border border-slate-100">
+                <X className="w-5 h-5 lg:w-6 lg:h-6 text-slate-400" />
+             </button>
           </div>
 
           {/* Tab Content Area */}
           <div className="flex-1 overflow-hidden relative bg-[#F8FAFC]">
               
-              {/* --- 1. OVERVIEW TAB (RESTORED) --- */}
+              {/* --- 1. OVERVIEW TAB --- */}
               {activeTab === 'overview' && <OverviewTab member={member} />}
               
               {/* --- 2. DOCUMENTS TAB --- */}
@@ -79,9 +87,9 @@ export const MemberDetailSheet = ({ member, onClose, activeTab, setActiveTab }: 
               {/* --- 4. PERFORMANCE TAB --- */}
               {activeTab === 'performance' && <PerformanceTab member={member} />}
 
-              {/* Floating Action Button (Mobile) or Footer Action (Desktop) could go here if needed globally */}
-              <div className="absolute bottom-6 right-6 lg:hidden">
-                  <button className="h-14 w-14 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform">
+              {/* Floating Action Button (Mobile) */}
+              <div className="absolute bottom-6 right-6 lg:hidden z-30">
+                  <button className="h-14 w-14 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-[0_10px_20px_-5px_rgba(229,22,54,0.4)] hover:scale-105 active:scale-95 transition-transform">
                       <Plus className="w-7 h-7" />
                   </button>
               </div>
