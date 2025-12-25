@@ -107,23 +107,21 @@ export function OverviewTab({ member }: Props) {
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 text-center">Unit Deployment Status</h4>
             
-            {/* Added extra padding top (pt-12) so shadow/scale doesn't clip */}
+            {/* Added px-8 to inner container and width-auto to ensure scroll works but padding is respected */}
             <div className="overflow-x-auto no-scrollbar pt-12 pb-6 -mx-6 px-6 scroll-smooth snap-x">
-                <div className="flex justify-between px-6 relative min-w-[600px] lg:min-w-full">
-                    {/* Connector Line */}
-                    <div className="absolute top-5 left-10 right-10 h-0.5 bg-slate-100" />
+                <div className="flex items-center gap-4 px-4 min-w-max mx-auto">
+                    {/* Background Line */}
+                    <div className="absolute left-10 right-10 top-[4.5rem] h-0.5 bg-slate-100 -z-10" />
                     
                     {STAGES.map((s, i) => { 
                         const currentIdx = STAGES.findIndex(x => x.id === member.status); 
                         const isDone = i < currentIdx; 
                         const isCurrent = i === currentIdx; 
                         
-                        // DATE LOGIC
                         let dateStr = "";
                         if (s.id === "Onboarding" && member.joined) {
                             dateStr = format(new Date(member.joined), "MMM yyyy");
                         } else if (member.promotionDates?.[s.id]) {
-                            // If we recorded the promotion date, use it
                              const d = new Date(member.promotionDates[s.id]);
                              if (isValid(d)) dateStr = format(d, "MMM yyyy");
                         } else if (isCurrent) {
@@ -133,16 +131,16 @@ export function OverviewTab({ member }: Props) {
                         }
 
                         return (
-                            <div key={s.id} className="relative z-10 flex flex-col items-center gap-3 group snap-center min-w-[80px]">
+                            <div key={s.id} className="relative z-10 flex flex-col items-center gap-3 group snap-center min-w-[90px]">
                                 <div className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shadow-lg z-10",
+                                    "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shadow-lg bg-white relative",
                                     isDone ? "bg-emerald-500 border-emerald-400 text-white" 
                                     : isCurrent ? "bg-white border-[#E51636] text-[#E51636] ring-4 ring-red-50 scale-125 shadow-xl" 
                                     : "bg-white border-slate-100 text-slate-200"
                                 )}>
                                     {isDone ? <Check className="w-5 h-5" /> : <span className="font-black text-xs">{i + 1}</span>}
                                 </div>
-                                <div className="flex flex-col items-center gap-0.5">
+                                <div className="flex flex-col items-center gap-0.5 text-center">
                                     <span className={cn(
                                         "text-[9px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors leading-none", 
                                         isCurrent ? "text-slate-900" : "text-slate-300"
