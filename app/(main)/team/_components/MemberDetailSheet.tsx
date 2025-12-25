@@ -45,12 +45,6 @@ function ClientPortal({ children }: { children: React.ReactNode }) {
   return mounted ? createPortal(children, document.body) : null;
 }
 
-// ... (ManualViewerModal, IntegratedRangePicker, WebAppDropdown remain exactly the same as previous) ...
-// For brevity, I am keeping the large helper components collapsed in this thought process 
-// but ensure you keep them in your file. 
-// If you are copy-pasting, ensure you have the helper components from the previous version.
-// I will include them below to be safe.
-
 function ManualViewerModal({ url, title, pages, onClose, color }: { url: string, title: string, pages: string, onClose: () => void, color: string }) {
     const [loading, setLoading] = useState(true);
     const dragControls = useDragControls();
@@ -259,7 +253,7 @@ export const MemberDetailSheet = ({ member: initialMember, onClose, activeTab, s
       const newDept = member.dept === "FOH" ? "BOH" : "FOH";
       const loadToast = toast.loading(`Transferring to ${newDept}...`);
       try {
-          await setDoc(doc(db, "profileOverrides", member.id), { dept: newDept }, { merge: true });
+          await updateDoc(doc(db, "teamMembers", member.id), { dept: newDept });
           toast.success(`Unit Updated: ${newDept}`, { id: loadToast });
       } catch(e) {
           toast.error("Transfer Failed", { id: loadToast });

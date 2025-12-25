@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion, LayoutGroup, Transition } from "framer-motion";
-import { Layers, X, ChevronDown, Filter, Check } from "lucide-react";
+import { Layers, X, ChevronDown, Filter, Check, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { STAGES, Status } from "../../calendar/_components/types";
+import { STAGES, Status, TeamMember } from "../../calendar/_components/types";
+import { useAppStore } from "@/lib/store/useStore"; // Import Store to check for unassigned
 
 // --- ANIMATION PHYSICS ---
 const spring: Transition = {
@@ -27,8 +28,12 @@ export default function TeamDynamicIsland({
   activeFilter,
   setActiveFilter,
 }: Props) {
+  const { team } = useAppStore();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Check for Unassigned Members
+  const unassignedCount = team.filter(m => m.dept === "Unassigned").length;
 
   // Close when clicking outside
   useEffect(() => {
@@ -68,8 +73,19 @@ export default function TeamDynamicIsland({
                         animate={{ opacity: 1, filter: "blur(0px)" }}
                         exit={{ opacity: 0, filter: "blur(4px)", position: "absolute", top: 0, left: 0, width: "100%" }}
                         transition={{ duration: 0.2 }}
-                        className="flex items-center gap-3 px-1.5 py-1.5 h-14"
+                        className="flex items-center gap-3 px-1.5 py-1.5 h-14 relative"
                     >
+                         {/* Notification Badge on Collapsed State */}
+                         {unassignedCount > 0 && (
+                             <motion.div 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white text-[9px] font-black text-white shadow-sm z-20"
+                             >
+                                 {unassignedCount}
+                             </motion.div>
+                         )}
+
                          <div className="w-10 h-10 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-md shadow-red-500/20 shrink-0">
                              <Layers className="w-5 h-5" />
                          </div>
@@ -120,7 +136,7 @@ export default function TeamDynamicIsland({
                                 key={f}
                                 onClick={() => setActiveFilter(f)}
                                 className={cn(
-                                  "flex-1 py-3 rounded-[16px] text-[10px] font-black uppercase tracking-widest relative z-10 transition-colors duration-200",
+                                  "flex-1 py-3 rounded-[16px] text-[10px] font-black uppercase tracking-widest relative z-10 transition-colors duration-200 flex items-center justify-center gap-1.5",
                                   isActive ? "text-white" : "text-slate-400 hover:text-slate-600"
                                 )}
                               >
@@ -132,10 +148,30 @@ export default function TeamDynamicIsland({
                                   />
                                 )}
                                 <span className="relative z-10">{f === 'ALL' ? 'All Units' : f}</span>
+                                
+                                {/* Inner Badge for Unassigned Count (Only on ALL tab) */}
+                                {f === 'ALL' && unassignedCount > 0 && (
+                                    <span className={cn(
+                                        "relative z-10 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm transition-colors",
+                                        isActive ? "bg-white text-[#E51636]" : "bg-red-100 text-red-600"
+                                    )}>
+                                        {unassignedCount}
+                                    </span>
+                                )}
                               </button>
                             );
                           })}
                         </div>
+                        
+                        {/* Unassigned Warning Strip */}
+                        {unassignedCount > 0 && (
+                            <div className="mx-1 px-3 py-2 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2">
+                                <AlertCircle className="w-3.5 h-3.5 text-red-500" />
+                                <span className="text-[9px] font-bold text-red-600 uppercase tracking-wide">
+                                    {unassignedCount} Members require Unit Assignment
+                                </span>
+                            </div>
+                        )}
 
                         <div className="h-px bg-slate-100 w-full" />
 

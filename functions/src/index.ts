@@ -19,7 +19,7 @@ export const syncTeamRoster = onSchedule(
     secrets: [lifelenzEmail, lifelenzPassword],
   },
   async (event) => {
-    console.log("🚀 Starting LifeLenz Scraper V6 (Manual Dept Control)...");
+    console.log("🚀 Starting LifeLenz Scraper V7 (Unassigned Default)...");
 
     let browser = null;
     let scrapedData: any[] = [];
@@ -97,9 +97,8 @@ export const syncTeamRoster = onSchedule(
                                 // Default values for NEW users only
                                 role: "Team Member",
                                 status: "Onboarding", 
-                                // We default to FOH as a placeholder, but we NEVER update this later.
-                                // You will change this manually in the app.
-                                dept: "FOH", 
+                                // UPDATED: Default to "Unassigned" so you can set it manually in the app
+                                dept: "Unassigned", 
                                 joined: node.duringFrom,
                                 image: node.image || "",
                                 stats: { speed: 50, accuracy: 50, hospitality: 50, knowledge: 50, leadership: 50 },
@@ -136,7 +135,6 @@ export const syncTeamRoster = onSchedule(
       
       const snapshot = await db.collection("teamMembers").get();
       const existingIds = new Set(snapshot.docs.map(doc => doc.id));
-      console.log(`ℹ️ Found ${existingIds.size} existing users in DB.`);
 
       const batch = db.batch();
       let count = 0;
@@ -148,7 +146,7 @@ export const syncTeamRoster = onSchedule(
         if (existingIds.has(member.id)) {
             // EXISTING USER:
             // Only update immutable profile data (Name, Email, Join Date)
-            // DO NOT update 'dept', 'role', or 'status' - these are managed manually now.
+            // WE DO NOT UPDATE 'dept', 'role', or 'status' so your manual changes stick.
             batch.set(docRef, {
                 name: member.name,
                 email: member.email,
@@ -157,9 +155,7 @@ export const syncTeamRoster = onSchedule(
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
         } else {
-            // NEW USER: 
-            // Create with defaults (Onboarding / FOH placeholder)
-            // You will move them and assign the correct Dept in the UI.
+            // NEW USER: Create with default "Unassigned"
             console.log(`✨ New Hire Detected: ${member.name}`);
             batch.set(docRef, {
                 ...member,
@@ -173,8 +169,6 @@ export const syncTeamRoster = onSchedule(
       
       if (count > 0) await batch.commit();
       console.log("✅ Sync Complete.");
-    } else {
-        console.warn("⚠️ No data was extracted.");
     }
   }
 );

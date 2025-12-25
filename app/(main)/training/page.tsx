@@ -10,14 +10,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Firebase Integration
+// Firebase & Store
 import { db, storage } from "@/lib/firebase";
 import { 
-  collection, query, where, onSnapshot, doc, 
-  updateDoc, addDoc, deleteDoc, serverTimestamp 
+  collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, doc
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
+import { useAppStore } from "@/lib/store/useStore";
 // Shared Types
 import { Department } from "../calendar/_components/types";
 import ClientPortal from "@/components/core/ClientPortal";
@@ -40,12 +39,15 @@ interface Section {
   order: number;
 }
 
-const CANVA_LINKS = {
+// FIX: Updated Type Definition for CANVA_LINKS to support dynamic keys
+const CANVA_LINKS: Record<string, string> = {
   FOH: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view",
-  BOH: "https://www.canva.com/design/DAG7ssYg444/FFZwbb8mLfLGiGrP2VeHiA/view"
+  BOH: "https://www.canva.com/design/DAG7ssYg444/FFZwbb8mLfLGiGrP2VeHiA/view",
+  // Fallback for Unassigned
+  Unassigned: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view" 
 };
 
-// --- CUSTOM PAGE RANGE COMPONENT ---
+// ... (PageRangeSelector remains unchanged) ...
 function PageRangeSelector({ start, end, onUpdate }: any) {
     const adjust = (field: 'pageStart' | 'pageEnd', amount: number) => {
         const currentVal = field === 'pageStart' ? start : end;
@@ -88,7 +90,6 @@ export default function TrainingBuilderPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   
-  // Mobile specific state for opening the viewer
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   const dragControls = useDragControls();
 
@@ -110,14 +111,15 @@ export default function TrainingBuilderPage() {
 
   const getEmbedUrl = () => {
     if (!activeSection || !activeSection.pageStart) return null;
-    const base = CANVA_LINKS[activeDept].split('?')[0];
+    // FIX: Safely access CANVA_LINKS with fallback
+    const link = CANVA_LINKS[activeDept] || CANVA_LINKS.FOH;
+    const base = link.split('?')[0];
     return `${base}?embed#${activeSection.pageStart}`;
   };
 
-  // --- INTELLIGENT SCROLL SPY ---
+  // ... (Scroll Spy logic remains same) ...
   useEffect(() => {
     const handleScroll = () => {
-        // Run on both mobile and desktop
         const viewportCenter = window.innerHeight / 2;
         let closestId = activeSectionId;
         let minDistance = Infinity;
@@ -137,22 +139,18 @@ export default function TrainingBuilderPage() {
 
         if (closestId && closestId !== activeSectionId) {
             setActiveSectionId(closestId);
-            // Only trigger loading if we are actually viewing the manual (desktop or mobile modal open)
             if (window.innerWidth >= 1024 || mobileViewerOpen) {
                 setIframeLoading(true);
             }
         }
     };
     
-    // Add listener
     window.addEventListener("scroll", handleScroll, { passive: true });
-    // Run once on mount/update to set initial active state
     handleScroll();
     
     return () => window.removeEventListener("scroll", handleScroll);
   }, [sections, activeSectionId, mobileViewerOpen]);
 
-  // When loading state changes, clear it after a delay (simulating iframe load if needed, mostly for UX feedback)
   useEffect(() => {
     if(iframeLoading) {
         const timer = setTimeout(() => setIframeLoading(false), 800);
@@ -160,6 +158,7 @@ export default function TrainingBuilderPage() {
     }
   }, [iframeLoading]);
 
+  // ... (addSection, updateSection, handleFileUpload remain same) ...
   const addSection = async () => {
     const nextOrder = sections.length > 0 ? (sections[sections.length - 1].order || 0) + 1 : 0;
     const lastPage = sections.length > 0 ? (Number(sections[sections.length - 1].pageEnd) || 0) : 0;
@@ -187,7 +186,6 @@ export default function TrainingBuilderPage() {
     } catch (error) { console.error(error); } finally { setIsProcessing(false); }
   };
 
-  // Handler for mobile card click
   const handleMobileCardClick = (sectionId: string) => {
       setActiveSectionId(sectionId);
       setMobileViewerOpen(true);
@@ -197,18 +195,13 @@ export default function TrainingBuilderPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-40 font-sans relative overflow-x-hidden">
       
-      {/* 
-        ===========================================
-        MOBILE EXECUTIVE HEADER (Dedicated)
-        ===========================================
-      */}
+      {/* MOBILE HEADER */}
       <div className="md:hidden fixed top-20 left-1/2 -translate-x-1/2 z-[110] w-[90%] max-w-sm">
         <motion.div 
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             className="bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] rounded-full p-1.5 flex items-center justify-between ring-1 ring-black/5"
         >
-            {/* Segmented Control */}
             <div className="flex bg-slate-100/50 p-1 rounded-full border border-slate-200/50">
                 <button 
                     onClick={() => setActiveDept("FOH")} 
@@ -229,8 +222,7 @@ export default function TrainingBuilderPage() {
                     <Utensils className="w-3.5 h-3.5" /> BOH
                 </button>
             </div>
-
-            {/* Phase Info (Intelligent Updating) */}
+            {/* ... Phase Info ... */}
             <div className="flex items-center gap-3 pr-4">
                 <div className="h-6 w-px bg-slate-200" />
                 <div className="flex flex-col items-end leading-none">
@@ -251,11 +243,7 @@ export default function TrainingBuilderPage() {
         </motion.div>
       </div>
 
-      {/* 
-        ===========================================
-        DESKTOP EXECUTIVE DYNAMIC ISLAND (Hover Expandable)
-        ===========================================
-      */}
+      {/* DESKTOP DYNAMIC ISLAND */}
       <div className="hidden md:flex fixed top-24 left-0 right-0 z-[120] justify-center pointer-events-none px-4" onMouseEnter={() => setIsIslandExpanded(true)} onMouseLeave={() => setIsIslandExpanded(false)}>
         <motion.div 
             layout animate={{ width: isIslandExpanded ? 780 : 380, height: 60 }} 
@@ -301,12 +289,10 @@ export default function TrainingBuilderPage() {
 
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-32 md:pt-48 grid grid-cols-12 gap-8 md:gap-12 items-stretch relative z-10">
          
-         {/* LEFT COLUMN: LIST (Full width on Mobile) */}
+         {/* LEFT COLUMN: LIST */}
          <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-6 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative">
             {sections.map((section, idx) => {
                const isActive = activeSectionId === section.id;
-               const auraColor = activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]";
-
                return (
                <div 
                   key={section.id} 
@@ -425,7 +411,8 @@ export default function TrainingBuilderPage() {
                   
                   <div className="px-7 py-4 bg-white/50 border-t border-slate-100 flex justify-between items-center shrink-0">
                       <span className="text-[9px] font-bold uppercase text-slate-300 tracking-widest leading-none">Trainingbook Command v4.0</span>
-                      <a href={CANVA_LINKS[activeDept]} target="_blank" className="flex items-center gap-2 text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest transition-all"><Maximize2 className="w-3 h-3" /> Fullscreen</a>
+                      {/* FIX: Use fallback link for Unassigned/Unknown depts */}
+                      <a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="flex items-center gap-2 text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest transition-all"><Maximize2 className="w-3 h-3" /> Fullscreen</a>
                   </div>
                </div>
             </div>
@@ -454,7 +441,7 @@ export default function TrainingBuilderPage() {
                         transition={{ type: "spring", damping: 25, stiffness: 300 }} 
                         drag="y"
                         dragControls={dragControls}
-                        dragListener={false} // DISALLOW dragging from body
+                        dragListener={false} 
                         dragConstraints={{ top: 0, bottom: 0 }}
                         dragElastic={0.05}
                         onDragEnd={(_, info) => {
@@ -462,7 +449,7 @@ export default function TrainingBuilderPage() {
                         }}
                         className="pointer-events-auto bg-white w-full h-[92vh] rounded-t-[40px] shadow-2xl relative flex flex-col overflow-hidden"
                       >
-                          {/* Drag Handle Area - ONLY THIS AREA TRIGGERS DRAG */}
+                          {/* Drag Handle Area */}
                           <div 
                               className="absolute top-0 left-0 right-0 h-10 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm cursor-grab active:cursor-grabbing touch-none"
                               onPointerDown={(e) => dragControls.start(e)}
@@ -482,7 +469,7 @@ export default function TrainingBuilderPage() {
                                 <button onClick={() => setMobileViewerOpen(false)} className="p-2.5 bg-slate-100 rounded-full active:scale-95 transition-all"><Minimize2 className="w-5 h-5 text-slate-500" /></button>
                           </div>
                           
-                          {/* Viewer Body - PURE SCROLL, NO DRAG */}
+                          {/* Viewer Body */}
                           <div className="flex-1 relative bg-slate-50 overflow-y-auto no-scrollbar touch-pan-y">
                              {iframeLoading && (
                                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50">
@@ -502,7 +489,7 @@ export default function TrainingBuilderPage() {
                               <div className="flex-1 max-w-[280px]">
                                 <PageRangeSelector start={activeSection?.pageStart} end={activeSection?.pageEnd} onUpdate={(u: any) => activeSectionId && updateSection(activeSectionId, u)} />
                               </div>
-                              <a href={CANVA_LINKS[activeDept]} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a>
+                              <a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a>
                           </div>
                       </motion.div>
                   </div>

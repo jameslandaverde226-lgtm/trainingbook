@@ -20,7 +20,7 @@ import {
 export type EventType = "Training" | "Goal" | "Deadline" | "Operation" | "OneOnOne";
 export type Priority = "Low" | "Medium" | "High";
 export type StickerType = "star" | "alert" | "fire" | "party" | "check";
-export type Department = "FOH" | "BOH";
+export type Department = "FOH" | "BOH" | "Unassigned";
 
 // UPDATED STATUS TYPE
 export type Status = 
