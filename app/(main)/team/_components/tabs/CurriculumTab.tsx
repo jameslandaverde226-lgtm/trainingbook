@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, Terminal, Layers, HardDrive, BookOpen, Loader2, Maximize2, ChevronLeft, ChevronDown, ChevronUp, Hash, Minimize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Corrected import path
+// FIX: Correct Import Path (3 levels up)
 import { TeamMember } from "../../../calendar/_components/types";
 
 import { useAppStore } from "@/lib/store/useStore";
@@ -62,7 +62,11 @@ export function CurriculumTab({ member }: Props) {
   const { curriculum } = useAppStore();
   const [selectedSection, setSelectedSection] = useState<any>(null);
 
-  const filteredCurriculum = useMemo(() => curriculum.filter(s => s.dept === member.dept), [curriculum, member.dept]);
+  // FIX: Case-Insensitive Match
+  const filteredCurriculum = useMemo(() => {
+      const targetDept = member.dept === 'Unassigned' ? 'FOH' : member.dept;
+      return curriculum.filter(s => s.dept?.toUpperCase() === targetDept?.toUpperCase());
+  }, [curriculum, member.dept]);
   
   const handleVerifyTask = async (taskId: string, sectionId: string) => {
       const currentCompleted = member.completedTaskIds || [];
@@ -91,7 +95,7 @@ export function CurriculumTab({ member }: Props) {
       return (
           <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
               <Layers className="w-12 h-12 opacity-20" />
-              <p className="text-xs font-bold uppercase tracking-widest">No Curriculum Assigned</p>
+              <p className="text-xs font-bold uppercase tracking-widest">No Curriculum Found for {member.dept}</p>
           </div>
       );
   }

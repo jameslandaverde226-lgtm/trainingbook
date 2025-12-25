@@ -2,13 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { ShieldCheck, MessageSquare, Link2, Medal, Zap, Target, Activity } from "lucide-react";
+import { ShieldCheck, MessageSquare, Link2, Medal, Zap, Target, Activity, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Corrected import paths
 import { TeamMember, CalendarEvent } from "../../../calendar/_components/types";
 import OneOnOneSessionModal from "../../../calendar/_components/OneOnOneSessionModal";
-
 import { useAppStore } from "@/lib/store/useStore";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
 import { AnimatePresence } from "framer-motion";
@@ -26,17 +23,32 @@ export function PerformanceTab({ member }: Props) {
 
   const timelineData = useMemo(() => {
     const history: any[] = [];
-    const assignedEvents = events.filter(e => e.teamMemberId === member.id || e.assignee === member.id);
+    
+    // FIX: Filter by ID matches even if role changes
+    const assignedEvents = events.filter(e => 
+        e.teamMemberId === member.id || e.assignee === member.id
+    );
     
     assignedEvents.forEach(e => {
         let category = 'MISSION';
-        if (e.type === 'Goal') category = 'GOAL';
+        
+        let description = e.description || "";
+        if (description.startsWith("[DOCUMENT LOG:")) {
+             const match = description.match(/\[DOCUMENT LOG: (.*?)\]/);
+             category = match ? match[1].toUpperCase() : 'DOCUMENT';
+             description = description.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
+        }
+        else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
         history.push({ 
-            id: e.id, date: e.startDate, title: e.title, category, 
-            rawEvent: e, description: e.description 
+            id: e.id, 
+            date: e.startDate, 
+            title: e.title, 
+            category, 
+            rawEvent: e, 
+            description: description 
         });
     });
 
@@ -52,7 +64,7 @@ export function PerformanceTab({ member }: Props) {
     }
 
     return history.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [events, member]);
+  }, [events, member]); // Reactive to global event store updates
 
   const handleUpdateEvent = async (updatedEvent: CalendarEvent) => { 
       try { 
@@ -94,6 +106,7 @@ export function PerformanceTab({ member }: Props) {
                         if (isStrategy) Icon = MessageSquare;
                         if (item.category === 'GOAL') Icon = Target;
                         if (item.category === 'SYSTEM') Icon = Link2;
+                        if (item.category.includes('INCIDENT') || item.category === 'DOCUMENT') Icon = FileText;
 
                         return (
                             <div key={idx} className="relative group cursor-pointer" onClick={() => handleItemClick(item)}>
