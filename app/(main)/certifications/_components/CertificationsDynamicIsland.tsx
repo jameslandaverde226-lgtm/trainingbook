@@ -28,10 +28,11 @@ const DraggableInventoryBadge = ({ badge, onDragStart, onDragEnd }: any) => {
             dragSnapToOrigin
             dragElastic={0.1}
             whileHover={{ scale: 1.05, y: -2 }}
-            // PointerEvents: none allows the drop target BELOW the dragged item to be detected
+            // CRITICAL FIX: pointerEvents: 'none' ensures the raycast sees the card BELOW the badge, not the badge itself.
             whileDrag={{ scale: 1.2, zIndex: 9999, cursor: "grabbing", pointerEvents: "none" }}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            // CRITICAL FIX: touch-none prevents the browser from scrolling while dragging on mobile
             className="group relative flex flex-col items-center gap-2 cursor-grab touch-none shrink-0"
         >
             <div 

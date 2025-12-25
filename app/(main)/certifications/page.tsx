@@ -249,10 +249,29 @@ export default function CertificationsPage() {
     setIsDragging(false);
     setHoveredMemberId(null);
     
-    // Hit Detection
-    const x = info.point.x;
-    const y = info.point.y;
-    const elements = document.elementsFromPoint(x, y);
+    // 1. ROBUST COORDINATE EXTRACTION
+    // We prioritize the native pointer event to get exactly where the user's finger/mouse is.
+    let clientX, clientY;
+    
+    // Check for Touch Event (Mobile)
+    if (event.changedTouches && event.changedTouches.length > 0) {
+        clientX = event.changedTouches[0].clientX;
+        clientY = event.changedTouches[0].clientY;
+    } 
+    // Check for Mouse Event (Desktop)
+    else if (event.clientX !== undefined && event.clientY !== undefined) {
+        clientX = event.clientX;
+        clientY = event.clientY;
+    } else {
+        // Fallback to Framer's info point if native event fails
+        clientX = info.point.x;
+        clientY = info.point.y;
+    }
+
+    // 2. RAYCAST
+    const elements = document.elementsFromPoint(clientX, clientY);
+    
+    // 3. FIND TARGET
     const card = elements.find(el => el.hasAttribute("data-member-id") || el.closest('[data-member-id]'));
     const targetElement = card?.hasAttribute("data-member-id") ? card : card?.closest('[data-member-id]');
     const targetId = targetElement?.getAttribute("data-member-id");
@@ -399,7 +418,9 @@ export default function CertificationsPage() {
                                                 isHoveredTarget 
                                                     ? "border-[#E51636] shadow-2xl scale-[1.02] z-30 ring-4 ring-red-50" 
                                                     : "border-slate-100 shadow-sm hover:shadow-lg hover:border-slate-200 hover:-translate-y-1",
-                                                isDragging && !isHoveredTarget && "opacity-50 grayscale blur-[1px] scale-95"
+                                                
+                                                // FIXED: Removed scale-95, just lowering opacity
+                                                isDragging && !isHoveredTarget && "opacity-40"
                                             )}
                                         >
                                             <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} />
