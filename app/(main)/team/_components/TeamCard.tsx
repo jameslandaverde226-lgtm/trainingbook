@@ -61,7 +61,6 @@ const TiltWrapper = ({ children, disabled, className, ...props }: any) => {
 const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDragEnd, isDragging, isDropTarget }: Props) => {
   const isFOH = member.dept === "FOH";
   const isBOH = member.dept === "BOH";
-  // If neither, it's Unassigned
   const isUnassigned = !isFOH && !isBOH;
 
   const hasImage = member.image && !member.image.includes('ui-avatars.com');
@@ -104,19 +103,20 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
 
   return (
     <TiltWrapper 
-      disabled={isMobile || isDragging}
+      disabled={isMobile || isDragging} // Disable tilt while dragging for performance
       className={cn(
-        "relative group w-full aspect-[3/4] perspective-1000 cursor-pointer select-none",
+        "relative group w-full aspect-[3/4] perspective-1000 cursor-pointer select-none touch-none", // Added touch-none
         isDropTarget && !isDragging && "z-50 scale-105"
       )}
       onClick={() => !isDragging && onClick(member)}
     >
        <motion.div
-         drag={!isMobile}
-         dragSnapToOrigin
-         dragElastic={0.05}
+         drag={!isMobile} // Disable drag on mobile if desired, or keep it.
+         dragSnapToOrigin // Snaps back if not dropped on a target
+         dragElastic={0.1}
          onDragStart={onDragStart}
          onDragEnd={onDragEnd}
+         whileDrag={{ scale: 1.05, zIndex: 100, cursor: "grabbing" }} // Visual feedback during drag
          style={{ filter: isDragging ? 'brightness(1.1)' : 'none', zIndex: isDragging ? 100 : 1 }}
          className="h-full w-full"
        >
@@ -137,7 +137,8 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                 : isBOH 
                     ? "bg-[#E51636] border-[#E51636] shadow-xl"
                     : "bg-slate-800 border-slate-700 shadow-xl", // Unassigned fallback
-          isDragging && "ring-4 ring-white/50 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] scale-105",
+          // Enhanced Drag Visuals
+          isDragging && "ring-4 ring-white/50 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] scale-105 rotate-2",
           isDropTarget && "ring-4 ring-emerald-400 scale-[1.02] border-emerald-400"
         )}>
           

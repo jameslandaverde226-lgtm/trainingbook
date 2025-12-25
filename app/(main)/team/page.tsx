@@ -303,12 +303,26 @@ export default function TeamBoardPage() {
 
     const handleMemberDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo, member: TeamMember) => {
         setMemberDraggingId(null);
-        const point = info.point;
-        const elementsBelow = document.elementsFromPoint(point.x, point.y);
-        const roleTarget = elementsBelow.find(el => el.hasAttribute('data-role-target'));
-        if (roleTarget) {
-            const newRole = roleTarget.getAttribute('data-role-target') as Status;
-            if (newRole && newRole !== member.status) handlePromoteMember(member.id, newRole);
+        
+        // Get drop coordinates
+        // @ts-ignore
+        const clientX = event.clientX || event.changedTouches?.[0]?.clientX;
+        // @ts-ignore
+        const clientY = event.clientY || event.changedTouches?.[0]?.clientY;
+
+        if (clientX && clientY) {
+            // Find what element is under the cursor
+            const elementsBelow = document.elementsFromPoint(clientX, clientY);
+            
+            // Look for our specific drop targets
+            const targetElement = elementsBelow.find(el => el.hasAttribute('data-role-id'));
+            
+            if (targetElement) {
+                const newRole = targetElement.getAttribute('data-role-id') as Status;
+                if (newRole && newRole !== member.status) {
+                    handlePromoteMember(member.id, newRole);
+                }
+            }
         }
     };
 
@@ -343,10 +357,10 @@ export default function TeamBoardPage() {
                                             <motion.div 
                                                 key={member.id} 
                                                 layout 
-                                                initial={{ opacity: 0, scale: 0.9 }} 
-                                                animate={{ opacity: 1, scale: 1 }} 
-                                                exit={{ opacity: 0, scale: 0.9 }} 
-                                                transition={{ duration: 0.2 }} 
+                                                initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }} 
+                                                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} 
+                                                exit={{ opacity: 0, scale: 0.5, filter: "blur(10px)", transition: { duration: 0.2 } }} 
+                                                transition={{ type: "spring", damping: 25, stiffness: 300 }} 
                                                 data-team-card-id={member.id} 
                                                 className="relative"
                                                 style={{ zIndex: memberDraggingId === member.id ? 100 : 1 }}
