@@ -3,15 +3,14 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import ClientPortal from "@/components/core/ClientPortal";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
-
-// --- IMPORT SUB-COMPONENTS ---
 import { MemberProfileHeader } from "./MemberProfileHeader";
 import { CurriculumTab } from "./tabs/CurriculumTab";
 import { PerformanceTab } from "./tabs/PerformanceTab";
+import { OverviewTab } from "./tabs/OverviewTab"; // IMPORT NEW TAB
 import OperationalDocumentInterface from "./OperationalDocumentInterface";
 
 interface Props {
@@ -29,17 +28,17 @@ export const MemberDetailSheet = ({ member, onClose, activeTab, setActiveTab }: 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }} 
-        className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md" 
+        className="fixed inset-0 z-[100] bg-[#0F172A]/80 backdrop-blur-md" 
         onClick={onClose} 
       />
       
       {/* Modal Card */}
       <motion.div 
-        initial={{ y: "100%", x: 0 }} 
-        animate={{ y: 0, x: 0 }} 
-        exit={{ y: "100%", x: 0 }} 
-        transition={{ type: "spring", damping: 30, stiffness: 250 }}
-        className="fixed inset-0 z-[110] bg-white shadow-2xl flex flex-col lg:flex-row overflow-hidden lg:inset-y-6 lg:right-6 lg:left-auto lg:w-full lg:max-w-[1400px] lg:rounded-[48px] lg:border border-white/20 ring-1 ring-black/5"
+        initial={{ y: "100%" }} 
+        animate={{ y: 0 }} 
+        exit={{ y: "100%" }} 
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className="fixed inset-0 z-[110] bg-white shadow-2xl flex flex-col lg:flex-row overflow-hidden lg:inset-y-6 lg:right-6 lg:left-auto lg:w-full lg:max-w-[1400px] lg:rounded-[48px] lg:border border-white/20 ring-1 ring-white/10"
       >
         
         {/* LEFT SIDEBAR: Avatar, Unit, Basic Info */}
@@ -49,8 +48,8 @@ export const MemberDetailSheet = ({ member, onClose, activeTab, setActiveTab }: 
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
           
           {/* Tabs Navigation */}
-          <div className="px-8 h-20 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white z-20">
-             <div className="flex gap-8 overflow-x-auto no-scrollbar">
+          <div className="px-6 lg:px-8 h-20 flex items-center justify-between border-b border-slate-100 shrink-0 bg-white z-20">
+             <div className="flex gap-4 lg:gap-8 overflow-x-auto no-scrollbar mask-gradient-right">
                 {['overview', 'documents', 'curriculum', 'performance'].map(tab => (
                    <button 
                     key={tab} 
@@ -58,7 +57,7 @@ export const MemberDetailSheet = ({ member, onClose, activeTab, setActiveTab }: 
                     className="relative py-7 group outline-none shrink-0"
                    >
                       <span className={cn("text-xs font-black uppercase tracking-[0.2em] transition-colors", activeTab === tab ? "text-slate-900" : "text-slate-400 group-hover:text-slate-600")}>{tab}</span>
-                      {activeTab === tab && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#E51636] rounded-t-full" />}
+                      {activeTab === tab && <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-[#E51636] rounded-t-full shadow-sm" />}
                    </button>
                 ))}
              </div>
@@ -66,22 +65,26 @@ export const MemberDetailSheet = ({ member, onClose, activeTab, setActiveTab }: 
           </div>
 
           {/* Tab Content Area */}
-          <div className="flex-1 overflow-hidden relative bg-slate-50/30">
-              {activeTab === 'overview' && (
-                  <div className="p-10 flex flex-col items-center justify-center h-full text-slate-300 gap-4">
-                      <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">🚧</span>
-                      </div>
-                      <p className="text-xs font-bold uppercase tracking-widest">Overview Dashboard Coming Soon</p>
-                  </div>
-              )}
+          <div className="flex-1 overflow-hidden relative bg-[#F8FAFC]">
               
+              {/* --- 1. OVERVIEW TAB (RESTORED) --- */}
+              {activeTab === 'overview' && <OverviewTab member={member} />}
+              
+              {/* --- 2. DOCUMENTS TAB --- */}
               {activeTab === 'documents' && <OperationalDocumentInterface member={member} currentUser="Director" />}
               
-              {/* These components now hold the logic that was "lost" from the main file */}
+              {/* --- 3. CURRICULUM TAB --- */}
               {activeTab === 'curriculum' && <CurriculumTab member={member} />}
               
+              {/* --- 4. PERFORMANCE TAB --- */}
               {activeTab === 'performance' && <PerformanceTab member={member} />}
+
+              {/* Floating Action Button (Mobile) or Footer Action (Desktop) could go here if needed globally */}
+              <div className="absolute bottom-6 right-6 lg:hidden">
+                  <button className="h-14 w-14 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 active:scale-95 transition-transform">
+                      <Plus className="w-7 h-7" />
+                  </button>
+              </div>
           </div>
 
         </div>
