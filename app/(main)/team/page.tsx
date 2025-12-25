@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { AnimatePresence, motion, LayoutGroup, PanInfo } from "framer-motion";
 import { 
   Users, Search, Zap, Loader2,
-  LayoutGrid, GalleryHorizontal, ChevronDown 
+  LayoutGrid, GalleryHorizontal 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -20,7 +20,7 @@ import { MemberDetailSheet } from "./_components/MemberDetailSheet";
 import TrainerRecruitmentModal from "./_components/TrainerRecruitmentModal";
 import TeamDynamicIsland from "./_components/TeamDynamicIsland";
 
-// --- PROMOTION HUD ---
+// --- PROMOTION HUD (Drop Target for Role Changes) ---
 function PromotionHUD({ 
     draggingMember, 
     onPromote 
@@ -28,7 +28,7 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
-    // Hide Admin from promotion target list if desired
+    // Hide Admin from promotion target list
     const visibleStages = STAGES.filter(s => s.id !== "Admin");
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
@@ -46,7 +46,7 @@ function PromotionHUD({
                             <Zap className="w-4 h-4 fill-current" />
                          </div>
                          <div className="flex flex-col">
-                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Deploying Member</span>
+                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Promoting Member</span>
                              <span className="text-xs font-bold text-slate-900">{draggingMember?.name}</span>
                          </div>
                     </div>
@@ -59,6 +59,7 @@ function PromotionHUD({
                         return (
                             <div 
                                 key={stage.id} 
+                                // Data attributes used for collision detection
                                 data-role-target={stage.id} 
                                 onMouseEnter={() => setHoveredStage(stage.id)}
                                 onMouseLeave={() => setHoveredStage(null)}
@@ -104,6 +105,7 @@ function PromotionHUD({
 export default function TeamBoardPage() {
     const { team, subscribeTeam, subscribeEvents } = useAppStore(); 
     
+    // Filters
     const [activeStage, setActiveStage] = useState<Status>("Team Member");
     const [activeFilter, setActiveFilter] = useState<"ALL" | "FOH" | "BOH">("ALL");
     const [viewMode, setViewMode] = useState<"grid" | "horizontal">("grid"); 
@@ -113,29 +115,36 @@ export default function TeamBoardPage() {
     const [visibleCount, setVisibleCount] = useState(12);
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
+    // Interaction State
     const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
     const [trainerDraggingId, setTrainerDraggingId] = useState<string | null>(null);
     const [isTrainerPanelOpen, setIsTrainerPanelOpen] = useState(false);
 
+    // Subscriptions
     useEffect(() => {
         const unsubTeam = subscribeTeam();
         const unsubEvents = subscribeEvents(); 
         return () => { unsubTeam(); unsubEvents(); };
     }, [subscribeTeam, subscribeEvents]);
 
+    // Reset pagination when filters change
     useEffect(() => {
         setVisibleCount(12);
     }, [activeStage, activeFilter, searchQuery]);
 
+    // --- FILTER LOGIC ---
     const filteredMembers = useMemo(() => {
         return team
             .filter(m => {
+                // 1. Role Match
                 const matchesStage = m.status === activeStage;
-                // FILTER LOGIC
+                // 2. Dept Filter (FOH/BOH) - This uses the data from your scraper
                 const matchesFilter = activeFilter === "ALL" || m.dept === activeFilter;
+                // 3. Search
                 const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
+                
                 return matchesStage && matchesFilter && matchesSearch;
             })
             .sort((a, b) => a.name.localeCompare(b.name));
@@ -155,8 +164,8 @@ export default function TeamBoardPage() {
                 }
             },
             {
-                root: null, // viewport
-                rootMargin: "200px", // Trigger loading 200px before reaching the bottom
+                root: null, 
+                rootMargin: "200px", 
                 threshold: 0.1,
             }
         );
@@ -171,6 +180,8 @@ export default function TeamBoardPage() {
             }
         };
     }, [visibleCount, filteredMembers.length]);
+
+    // --- HANDLERS ---
 
     const handleOpenTrainerModal = (member: TeamMember) => {
         setIsTrainerPanelOpen(true);
@@ -274,7 +285,7 @@ export default function TeamBoardPage() {
         <div className="min-h-screen bg-[#F8FAFC] pb-20 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
             <div className="absolute inset-0 pointer-events-none opacity-[0.4]" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-            {/* --- REPLACED: NEW DYNAMIC ISLAND COMPONENT --- */}
+            {/* DYNAMIC ISLAND FILTER */}
             <TeamDynamicIsland 
                 activeStage={activeStage} 
                 setActiveStage={setActiveStage}
@@ -282,12 +293,14 @@ export default function TeamBoardPage() {
                 setActiveFilter={setActiveFilter}
             />
 
+            {/* HEADER */}
             <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-48 px-4 md:px-8 space-y-6 relative z-10">
                 <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="space-y-1"><h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none uppercase">{activeStage}</h2></div>
                 </div>
             </div>
 
+            {/* GRID AREA */}
             <div className="mt-4 md:mt-8 relative z-10 px-0 md:px-8 max-w-[1400px] mx-auto">
                 {viewMode === "grid" ? (
                     <>
@@ -296,7 +309,17 @@ export default function TeamBoardPage() {
                                 <AnimatePresence mode="popLayout" initial={false}>
                                     {visibleMembers.length > 0 ? (
                                         visibleMembers.map((member) => (
-                                            <motion.div key={member.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.2 }} data-team-card-id={member.id} className="relative">
+                                            <motion.div 
+                                                key={member.id} 
+                                                layout 
+                                                initial={{ opacity: 0, scale: 0.9 }} 
+                                                animate={{ opacity: 1, scale: 1 }} 
+                                                exit={{ opacity: 0, scale: 0.9 }} 
+                                                transition={{ duration: 0.2 }} 
+                                                data-team-card-id={member.id} 
+                                                className="relative"
+                                                style={{ zIndex: memberDraggingId === member.id ? 100 : 1 }}
+                                            >
                                                 <TeamCard 
                                                     member={member} 
                                                     onClick={setSelectedMember} 
@@ -334,6 +357,7 @@ export default function TeamBoardPage() {
                 )}
             </div>
 
+            {/* MOBILE SEARCH BAR */}
             <div className="md:hidden fixed bottom-28 left-0 right-0 z-40 flex items-center pointer-events-none justify-center px-4">
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="pointer-events-auto flex items-center bg-white/90 backdrop-blur-2xl border border-white/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] rounded-full h-14 p-1.5 ring-1 ring-slate-900/5 w-full max-w-sm gap-2">
                     <button onClick={() => setViewMode(viewMode === 'grid' ? 'horizontal' : 'grid')} className="w-11 h-full bg-slate-100 rounded-full flex items-center justify-center text-slate-500 shadow-sm border border-slate-200 shrink-0 active:scale-95 transition-transform">
@@ -346,6 +370,7 @@ export default function TeamBoardPage() {
                 </motion.div>
             </div>
 
+            {/* MODALS & OVERLAYS */}
             <TrainerRecruitmentModal isOpen={isTrainerPanelOpen} onClose={() => setIsTrainerPanelOpen(false)} onDragStart={handleTrainerDragStart} onDragEnd={handleTrainerDragEnd} draggingId={trainerDraggingId} />
             <AnimatePresence>{memberDraggingId && <PromotionHUD draggingMember={team.find(m => m.id === memberDraggingId)} onPromote={handlePromoteMember} />}</AnimatePresence>
             <AnimatePresence>{selectedMember && <MemberDetailSheet member={selectedMember} activeTab={activeTab} setActiveTab={setActiveTab} onClose={() => setSelectedMember(null)} />}</AnimatePresence>
