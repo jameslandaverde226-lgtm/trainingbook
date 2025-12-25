@@ -40,7 +40,7 @@ const BadgeListItem = ({
     onAction, 
     onEdit, 
     onDelete, 
-    mode // 'inventory' (edit/delete) or 'earned' (view count)
+    mode 
 }: { 
     badge: Badge; 
     onAction: (b: Badge) => void; 
@@ -71,7 +71,7 @@ const BadgeListItem = ({
                     <IconComp className="w-6 h-6" style={{ color: badge.hex }} />
                 </div>
 
-                {/* CONTENT (Tap to Award) */}
+                {/* CONTENT */}
                 <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !isMenuOpen && onAction(badge)}>
                     <h4 className="text-sm font-[800] text-slate-900 truncate leading-tight">{badge.label}</h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate mt-0.5">
@@ -164,7 +164,6 @@ export default function CertificationsPage() {
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
   const [isMobileArmoryOpen, setIsMobileArmoryOpen] = useState(false); 
   
-  // Sheet State
   const [selectedMemberForAward, setSelectedMemberForAward] = useState<string | null>(null);
   const [sheetTab, setSheetTab] = useState<'earned' | 'award'>('earned');
 
@@ -229,7 +228,6 @@ export default function CertificationsPage() {
         
         toast.success(`${badge.label} Awarded`, { id: loadingToast });
         
-        // Switch back to "Earned" view to see the new badge
         if (window.innerWidth < 1024) {
             setSheetTab('earned');
         }
@@ -242,27 +240,39 @@ export default function CertificationsPage() {
   // --- DRAG HANDLERS ---
   const handleDragStart = () => {
     setIsDragging(true);
-    setIsArmoryExpanded(true); // Ensure source is visible
+    setIsArmoryExpanded(true); 
   };
 
   const handleDragEnd = async (event: any, info: any, badge: any) => {
     setIsDragging(false);
+    setHoveredMemberId(null);
     
-    // Hit Detection
+    // HIT DETECTION FIX: 
+    // We use document.elementsFromPoint on the pointer coordinates.
+    // We specifically look for the container with the `data-member-id` attribute.
     const x = info.point.x;
     const y = info.point.y;
-    const elements = document.elementsFromPoint(x, y);
-    const card = elements.find(el => el.hasAttribute("data-member-id"));
     
-    if (card) {
-        const targetId = card.getAttribute("data-member-id");
-        if (targetId) {
-            await awardBadge(targetId, badge);
-        }
+    // Get all elements at the drop point
+    const elements = document.elementsFromPoint(x, y);
+    
+    // Find the first element that is a valid team card (has data-member-id)
+    const card = elements.find(el => el.hasAttribute("data-member-id") || el.closest('[data-member-id]'));
+    
+    // Extract the ID from the card or its closest parent
+    const targetElement = card?.hasAttribute("data-member-id") ? card : card?.closest('[data-member-id]');
+    const targetId = targetElement?.getAttribute("data-member-id");
+    
+    if (targetId) {
+        await awardBadge(targetId, badge);
     }
   };
 
-  // --- CRUD HANDLERS ---
+  // --- DRAG UPDATE (Highlight Target) ---
+  // Optional: You can attach this to onDrag in `CertificationsDynamicIsland` if desired
+  // But typically onDragEnd logic is sufficient.
+  
+  // ... CRUD Handlers ...
   const openForge = (badge?: any) => {
     if (badge) {
         setEditingId(badge.id);
@@ -384,7 +394,6 @@ export default function CertificationsPage() {
                                     const isHoveredTarget = hoveredMemberId === member.id || selectedMemberForAward === member.id;
                                     const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
                                     
-                                    // GROUP BADGES FOR CARD DISPLAY
                                     const uniqueBadges = getUniqueBadges(member.badges || []);
                                     const hasBadges = uniqueBadges.length > 0;
                                     
@@ -406,7 +415,7 @@ export default function CertificationsPage() {
                                             
                                             {/* DROPPABLE OVERLAY */}
                                             {isDragging && (
-                                                <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/60 backdrop-blur-[1px]">
+                                                <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/60 backdrop-blur-[1px] pointer-events-none">
                                                     <div className="px-4 py-2 bg-[#004F71] text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl flex items-center gap-2">
                                                         <Target className="w-4 h-4" /> Drop to Award
                                                     </div>
@@ -440,7 +449,7 @@ export default function CertificationsPage() {
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{member.dept}</span>
                                                     </div>
                                                     
-                                                    {/* CARD BADGE PREVIEW */}
+                                                    {/* BEAUTIFUL BADGE PREVIEW */}
                                                     <div className="mt-3 flex flex-wrap gap-1.5 min-h-[28px]">
                                                         {hasBadges ? (
                                                             uniqueBadges.slice(0, 4).map((b: any, idx: number) => {
@@ -448,12 +457,13 @@ export default function CertificationsPage() {
                                                                 return (
                                                                     <div 
                                                                         key={idx} 
-                                                                        className="h-7 px-1.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center gap-1 shadow-sm"
+                                                                        // CHANGED: Pure white background for max contrast
+                                                                        className="h-7 px-1.5 rounded-lg bg-white border border-slate-200 flex items-center gap-1 shadow-sm"
                                                                         title={b.label}
                                                                     >
                                                                         <Icon className="w-3.5 h-3.5" style={{ color: b.hex }} />
                                                                         {b.count > 1 && (
-                                                                            <span className="text-[8px] font-black text-slate-500 leading-none">x{b.count}</span>
+                                                                            <span className="text-[8px] font-black text-slate-600 leading-none">x{b.count}</span>
                                                                         )}
                                                                     </div>
                                                                 )
@@ -482,7 +492,7 @@ export default function CertificationsPage() {
         </AnimatePresence>
       </div>
 
-      {/* --- FORGE MODAL (ARCHITECT) --- */}
+      {/* --- MODALS --- */}
       <AnimatePresence>
         {isArchitectOpen && (
             <ForgeModal 
@@ -497,7 +507,6 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
-      {/* --- MEMBER DETAIL SHEET (Mobile) --- */}
       <AnimatePresence>
         {isMobileArmoryOpen && activeMember && (
              <ClientPortal>
@@ -524,34 +533,15 @@ export default function CertificationsPage() {
                                  <button onClick={() => { setIsMobileArmoryOpen(false); setSelectedMemberForAward(null); }} className="h-8 w-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center active:scale-95 transition-all text-slate-400 hover:text-red-500 hover:border-red-200"><X className="w-4 h-4" /></button>
                              </div>
 
-                             {/* TABS */}
                              <div className="flex p-1 bg-slate-100 rounded-xl">
-                                 <button 
-                                    onClick={() => setSheetTab('earned')}
-                                    className={cn(
-                                        "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                                        sheetTab === 'earned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
-                                    )}
-                                 >
-                                     Trophy Case
-                                 </button>
-                                 <button 
-                                    onClick={() => setSheetTab('award')}
-                                    className={cn(
-                                        "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                                        sheetTab === 'award' ? "bg-[#004F71] text-white shadow-md" : "text-slate-400"
-                                    )}
-                                 >
-                                     Add Award
-                                 </button>
+                                 <button onClick={() => setSheetTab('earned')} className={cn("flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", sheetTab === 'earned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400")}>Trophy Case</button>
+                                 <button onClick={() => setSheetTab('award')} className={cn("flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all", sheetTab === 'award' ? "bg-[#004F71] text-white shadow-md" : "text-slate-400")}>Add Award</button>
                              </div>
                          </div>
 
-                         {/* CONTENT AREA */}
                          <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-20 custom-scrollbar">
                              {sheetTab === 'earned' ? (
-                                 // EARNED LIST
-                                 memberUniqueBadges.length > 0 ? (
+                                memberUniqueBadges.length > 0 ? (
                                     memberUniqueBadges.map((badge: any) => (
                                         <BadgeListItem 
                                             key={badge.id}
@@ -560,15 +550,14 @@ export default function CertificationsPage() {
                                             onAction={() => {}} 
                                         />
                                     ))
-                                 ) : (
+                                ) : (
                                     <div className="flex flex-col items-center justify-center py-12 text-slate-300 border-2 border-dashed border-slate-200 rounded-3xl mx-4">
                                         <Shield className="w-10 h-10 mb-2 opacity-50" />
                                         <span className="text-[10px] font-black uppercase tracking-widest">No Certifications Yet</span>
                                         <button onClick={() => setSheetTab('award')} className="mt-4 text-[10px] font-bold text-[#004F71] underline">Award First Badge</button>
                                     </div>
-                                 )
+                                )
                              ) : (
-                                 // INVENTORY LIST
                                  customAccolades.map(badge => (
                                      <BadgeListItem 
                                          key={badge.id}
@@ -587,40 +576,19 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
-      {/* --- DELETE CONFIRMATION MODAL --- */}
       <AnimatePresence>
         {deleteTargetId && (
             <ClientPortal>
+                {/* ... (Same Delete Modal) ... */}
                 <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-                    <motion.div 
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-                        className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-md"
-                        onClick={() => setDeleteTargetId(null)}
-                    />
-                    <motion.div 
-                        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                        className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl text-center border border-white/20"
-                    >
-                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100">
-                            <Trash2 className="w-8 h-8 text-red-500" />
-                        </div>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-md" onClick={() => setDeleteTargetId(null)} />
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl text-center border border-white/20">
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100"><Trash2 className="w-8 h-8 text-red-500" /></div>
                         <h3 className="text-xl font-[1000] text-slate-900 uppercase tracking-tight mb-2">Delete Module?</h3>
-                        <p className="text-xs font-medium text-slate-500 mb-8 leading-relaxed px-4">
-                            This action will permanently remove this certification template from the system.
-                        </p>
+                        <p className="text-xs font-medium text-slate-500 mb-8 leading-relaxed px-4">This action will permanently remove this certification template from the system.</p>
                         <div className="flex gap-3">
-                            <button 
-                                onClick={() => setDeleteTargetId(null)} 
-                                className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-slate-200 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button 
-                                onClick={confirmDeleteBadge} 
-                                className="flex-1 py-3.5 bg-[#E51636] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20"
-                            >
-                                Delete
-                            </button>
+                            <button onClick={() => setDeleteTargetId(null)} className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-slate-200 transition-colors">Cancel</button>
+                            <button onClick={confirmDeleteBadge} className="flex-1 py-3.5 bg-[#E51636] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20">Delete</button>
                         </div>
                     </motion.div>
                 </div>
