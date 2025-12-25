@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// 1. Import 'Variants' type
 import { motion, useDragControls, PanInfo, Variants } from "framer-motion";
 import { 
   X, Trash2, Fingerprint, Sparkles, Check, 
@@ -47,10 +46,8 @@ export default function ForgeModal({
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // Helper to find current icon component
     const CurrentIcon = TACTICAL_ICONS.find(i => i.id === draft.iconId)?.icon || Sparkles;
 
-    // 2. Explicitly type the variants object
     const variants: Variants = {
         mobileHidden: { y: "100%" },
         mobileVisible: { y: 0, transition: { type: "spring", damping: 25, stiffness: 300 } },
@@ -64,7 +61,6 @@ export default function ForgeModal({
                 "fixed inset-0 z-[200] flex justify-center pointer-events-none",
                 isMobile ? "items-end" : "items-center p-4"
             )}>
-                {/* Backdrop */}
                 <motion.div 
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }} 
@@ -73,7 +69,6 @@ export default function ForgeModal({
                     className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-xl pointer-events-auto"
                 />
 
-                {/* Main Modal Window */}
                 <motion.div 
                     variants={variants}
                     initial={isMobile ? "mobileHidden" : "desktopHidden"}
@@ -87,33 +82,37 @@ export default function ForgeModal({
                     onDragEnd={(_, info: PanInfo) => { if (isMobile && info.offset.y > 100) onClose(); }}
                     className={cn(
                         "relative bg-white shadow-2xl flex flex-col md:flex-row pointer-events-auto overflow-hidden",
-                        // Mobile Styles (Bottom Sheet)
-                        "w-full h-[92vh] rounded-t-[40px]",
-                        // Desktop Styles (Centered Modal)
-                        "md:w-full md:max-w-5xl md:h-[650px] md:rounded-[48px] md:border md:border-white/40 md:ring-1 md:ring-black/5"
+                        "w-full h-[92vh] rounded-t-[40px]", // Mobile
+                        "md:w-full md:max-w-5xl md:h-[650px] md:rounded-[48px] md:border md:border-white/40 md:ring-1 md:ring-black/5" // Desktop
                     )}
                 >
+                    {/* --- GLOBAL CLOSE BUTTON (Mobile & Desktop) --- */}
+                    <button 
+                        onClick={onClose} 
+                        className="absolute top-6 right-6 z-[60] p-2 bg-white/50 hover:bg-slate-100 backdrop-blur-md rounded-full text-slate-500 transition-colors md:top-8 md:right-8"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+
                     {/* --- MOBILE DRAG HANDLE --- */}
                     <div 
                         className="md:hidden absolute top-0 left-0 right-0 h-12 flex justify-center items-center z-50 cursor-grab active:cursor-grabbing touch-none"
                         onPointerDown={(e) => dragControls.start(e)}
                     >
-                        <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
+                        <div className="w-12 h-1.5 bg-slate-300 rounded-full opacity-50" />
                     </div>
 
-                    {/* --- LEFT COLUMN: THE ARTIFACT STAGE (Top on Mobile) --- */}
-                    <div className="w-full md:w-[45%] relative flex flex-col items-center justify-center p-8 pt-12 md:p-12 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-100 overflow-hidden shrink-0">
+                    {/* --- LEFT COLUMN: THE ARTIFACT STAGE --- */}
+                    <div className="w-full md:w-[45%] relative flex flex-col items-center justify-center p-8 pt-16 md:p-12 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-100 overflow-hidden shrink-0">
                         
-                        {/* Dynamic Background Ambience */}
                         <motion.div 
                             animate={{ backgroundColor: draft.hex }}
                             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] blur-[100px] opacity-15 pointer-events-none transition-colors duration-700"
                         />
                         <div className="absolute inset-0 bg-[radial-gradient(#cbd5e1_1px,transparent_1px)] [background-size:24px_24px] opacity-40 pointer-events-none" />
 
-                        {/* --- THE BADGE PREVIEW --- */}
+                        {/* PREVIEW */}
                         <div className="relative z-10 flex flex-col items-center w-full">
-                            
                             <motion.div 
                                 layoutId="preview-badge"
                                 className="w-32 h-32 md:w-40 md:h-40 rounded-[32px] md:rounded-[40px] flex items-center justify-center shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] transition-all duration-500 relative group"
@@ -122,14 +121,10 @@ export default function ForgeModal({
                                     boxShadow: `0 20px 60px -10px ${draft.hex}60`
                                 }}
                             >
-                                {/* Glass Glint */}
                                 <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent rounded-[32px] md:rounded-[40px] border border-white/20" />
-                                
-                                {/* Icon */}
                                 <CurrentIcon className="w-16 h-16 md:w-20 md:h-20 text-white drop-shadow-lg relative z-10 transform group-hover:scale-110 transition-transform duration-300" />
                             </motion.div>
 
-                            {/* --- MODULE NAME INPUT --- */}
                             <div className="mt-8 md:mt-12 w-full relative group/input text-center">
                                 <label className="block text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-2 group-focus-within/input:text-[#004F71] transition-colors">
                                     Module Designation
@@ -141,36 +136,30 @@ export default function ForgeModal({
                                         placeholder="UNTITLED"
                                         className="w-full text-center text-2xl md:text-3xl font-[1000] text-slate-900 placeholder:text-slate-200 bg-transparent outline-none uppercase tracking-tighter transition-all"
                                         maxLength={20}
-                                        autoFocus={!editingId}
+                                        autoFocus={!editingId && !isMobile} 
                                     />
                                     <PenLine className="absolute right-4 md:right-8 w-4 h-4 md:w-5 md:h-5 text-slate-200 opacity-0 group-hover/input:opacity-100 transition-opacity pointer-events-none" />
                                 </div>
-                                {/* Focus Underline */}
                                 <div className="h-1 w-8 bg-slate-200 rounded-full mx-auto mt-2 group-focus-within/input:w-16 group-focus-within/input:bg-[#004F71] transition-all duration-300" />
                             </div>
                         </div>
 
-                        {/* Delete Action */}
+                        {/* DELETE ACTION (Fixed Z-Index) */}
                         {editingId && onDelete && (
                             <button 
                                 onClick={() => onDelete(editingId)}
-                                className="absolute top-4 left-4 md:top-6 md:left-6 p-3 rounded-full text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all active:scale-90 z-20"
+                                className="absolute top-6 left-6 p-3 rounded-full text-slate-300 hover:bg-rose-50 hover:text-rose-500 transition-all active:scale-90 z-[70]"
                                 title="Delete Module"
                             >
-                                <Trash2 className="w-5 h-5" />
+                                <Trash2 className="w-6 h-6" />
                             </button>
                         )}
-                        
-                        {/* Close on Mobile (Desktop has right corner X) */}
-                        <button onClick={onClose} className="md:hidden absolute top-4 right-4 p-2 bg-slate-200/50 rounded-full text-slate-500 z-20">
-                            <X className="w-5 h-5" />
-                        </button>
                     </div>
 
-                    {/* --- RIGHT COLUMN: CONTROLS (Bottom on Mobile) --- */}
+                    {/* --- RIGHT COLUMN: CONTROLS --- */}
                     <div className="flex-1 flex flex-col min-h-0 bg-white relative">
                         
-                        {/* Desktop Header */}
+                        {/* Desktop Header Text (Only visible on desktop now) */}
                         <div className="hidden md:flex px-8 py-8 justify-between items-start shrink-0">
                             <div>
                                 <h2 className="text-2xl font-[1000] text-slate-900 tracking-tighter">Forge Module</h2>
@@ -178,23 +167,18 @@ export default function ForgeModal({
                                     Configure parameters & identity
                                 </p>
                             </div>
-                            <button onClick={onClose} className="p-2 -mr-2 text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded-full transition-colors">
-                                <X className="w-6 h-6" />
-                            </button>
                         </div>
 
                         {/* Scrollable Controls */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-6 md:px-8 md:pb-32 space-y-10">
                             
-                            {/* 1. COLOR DNA */}
+                            {/* COLOR DNA */}
                             <section>
                                 <div className="flex items-center gap-2 mb-4">
                                     <PaintBucket className="w-4 h-4 text-[#004F71]" />
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Color DNA</span>
                                 </div>
-                                
                                 <div className="space-y-4">
-                                    {/* Swatches */}
                                     <div className="flex flex-wrap gap-3">
                                         {PRESET_COLORS.map((c) => (
                                             <button 
@@ -216,8 +200,6 @@ export default function ForgeModal({
                                             </button>
                                         ))}
                                     </div>
-                                    
-                                    {/* Fine Tune Slider */}
                                     <div className="pt-1">
                                         <div className="h-3 rounded-full w-full bg-gradient-to-r from-red-500 via-green-500 to-blue-500 p-[2px] shadow-inner">
                                             <input 
@@ -231,13 +213,12 @@ export default function ForgeModal({
                                 </div>
                             </section>
 
-                            {/* 2. ICONOGRAPHY */}
+                            {/* ICONOGRAPHY */}
                             <section className="pb-24 md:pb-0">
                                 <div className="flex items-center gap-2 mb-4">
                                     <LayoutGrid className="w-4 h-4 text-[#004F71]" />
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Iconography</span>
                                 </div>
-
                                 <div className="space-y-6">
                                     {["Achievement", "Hospitality", "BOH", "Operational", "Creative"].map((cat) => (
                                         <div key={cat}>

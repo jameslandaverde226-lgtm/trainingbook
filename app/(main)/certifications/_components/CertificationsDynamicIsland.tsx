@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
 
 // --- CONSTANTS ---
-// Explicitly typed to satisfy Framer Motion's strict literal requirements
 const SPRING_TRANSITION: Transition = { 
     type: "spring", 
     stiffness: 500, 
@@ -65,13 +64,14 @@ export default function CertificationsDynamicIsland({
 }: Props) {
 
     return (
-        <div className="fixed top-6 md:top-8 left-0 right-0 z-[100] flex justify-center pointer-events-none px-4">
+        // CHANGED top-20/top-24 to top-28/top-32 to sit clearly below the main header
+        <div className="fixed top-24 md:top-28 left-0 right-0 z-[90] flex justify-center pointer-events-none px-4">
             <motion.div 
                 layout
                 transition={SPRING_TRANSITION}
                 className={cn(
                     "pointer-events-auto bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.2)] rounded-[32px] flex flex-col overflow-hidden ring-1 ring-black/5",
-                    // Width Logic: Snaps between auto (pill) and fixed widths (expanded)
+                    // Width Logic
                     isExpanded && activeView === 'armory' ? "w-[94vw] md:w-[600px]" : "w-fit"
                 )}
             >

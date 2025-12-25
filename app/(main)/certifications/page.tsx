@@ -1,11 +1,10 @@
-// --- FILE: ./app/(main)/certifications/page.tsx ---
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { 
   Search, Loader2, Sparkles, X, Layout, Pipette, Check, 
-  Trash2, Edit3, User, Users, RefreshCw, Star, Plus, MoreHorizontal, ArrowRight
+  Trash2, Edit3, User, Users, RefreshCw, Star, Plus, MoreHorizontal, ArrowRight, Shield, Award
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,21 +31,22 @@ interface Badge {
     desc?: string;
     hex: string;
     iconId: string;
+    count?: number; 
 }
 
-// --- SUB-COMPONENT: BADGE LIST ITEM (Beautiful & Interactive) ---
+// --- SUB-COMPONENT: BADGE LIST ITEM ---
 const BadgeListItem = ({ 
     badge, 
-    onAward, 
+    onAction, 
     onEdit, 
     onDelete, 
-    isSelectionMode 
+    mode // 'inventory' (edit/delete) or 'earned' (view count)
 }: { 
     badge: Badge; 
-    onAward: (b: Badge) => void; 
-    onEdit: (b: Badge) => void; 
-    onDelete: (id: string) => void;
-    isSelectionMode: boolean; // True if we are picking for a user
+    onAction: (b: Badge) => void; 
+    onEdit?: (b: Badge) => void; 
+    onDelete?: (id: string) => void;
+    mode: 'inventory' | 'earned';
 }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const IconComp = TACTICAL_ICONS.find(i => i.id === badge.iconId)?.icon || Star;
@@ -71,8 +71,8 @@ const BadgeListItem = ({
                     <IconComp className="w-6 h-6" style={{ color: badge.hex }} />
                 </div>
 
-                {/* CONTENT */}
-                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !isMenuOpen && onAward(badge)}>
+                {/* CONTENT (Tap to Award) */}
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !isMenuOpen && onAction(badge)}>
                     <h4 className="text-sm font-[800] text-slate-900 truncate leading-tight">{badge.label}</h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate mt-0.5">
                         {badge.desc || "Certification Module"}
@@ -81,95 +81,100 @@ const BadgeListItem = ({
 
                 {/* ACTIONS */}
                 <div className="flex items-center gap-2">
-                    {/* If menu is closed, show Award Button (if in selection mode) or Menu Trigger */}
-                    <AnimatePresence mode="wait" initial={false}>
-                        {!isMenuOpen ? (
-                            <motion.div 
-                                key="default"
-                                initial={{ opacity: 0, x: 10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -10 }}
-                                className="flex items-center gap-2"
+                    
+                    {/* MODE: EARNED (Show Count) */}
+                    {mode === 'earned' && badge.count && badge.count > 1 && (
+                        <div className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-black shadow-md">
+                            x{badge.count}
+                        </div>
+                    )}
+
+                    {/* MODE: INVENTORY (Show Add + Menu) */}
+                    {mode === 'inventory' && (
+                        <div className="flex items-center gap-2">
+                            {/* Primary Action: Award */}
+                             <button 
+                                onClick={() => onAction(badge)}
+                                className="h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform hover:bg-slate-800"
                             >
-                                {isSelectionMode && (
-                                    <button 
-                                        onClick={() => onAward(badge)}
-                                        className="h-10 w-10 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform hover:bg-slate-800"
-                                    >
-                                        <ArrowRight className="w-5 h-5" />
-                                    </button>
-                                )}
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(true); }}
-                                    className="h-10 w-10 rounded-full bg-slate-50 text-slate-400 border border-slate-200 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all"
-                                >
-                                    <MoreHorizontal className="w-5 h-5" />
-                                </button>
-                            </motion.div>
-                        ) : (
-                            /* EXPANDED MENU */
-                            <motion.div 
-                                key="menu"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 10 }}
-                                className="flex items-center gap-2 bg-white/80 backdrop-blur-md p-1 rounded-full border border-slate-100 shadow-lg absolute right-3 z-20"
-                            >
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onEdit(badge); setIsMenuOpen(false); }}
-                                    className="p-2.5 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"
-                                >
-                                    <Edit3 className="w-4 h-4" />
-                                </button>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); onDelete(badge.id); }}
-                                    className="p-2.5 bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                                <div className="w-px h-6 bg-slate-200 mx-1" />
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); }}
-                                    className="p-2.5 bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                <Plus className="w-5 h-5" />
+                            </button>
+
+                            {/* Secondary Action: Menu */}
+                            <div className="relative">
+                                <AnimatePresence mode="wait">
+                                    {!isMenuOpen ? (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setIsMenuOpen(true); }}
+                                            className="h-10 w-10 rounded-full bg-slate-50 text-slate-400 border border-slate-200 flex items-center justify-center hover:bg-slate-100 active:scale-95 transition-all"
+                                        >
+                                            <MoreHorizontal className="w-5 h-5" />
+                                        </button>
+                                    ) : (
+                                        <motion.div 
+                                            key="menu"
+                                            initial={{ opacity: 0, x: 10, scale: 0.9 }}
+                                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                                            exit={{ opacity: 0, x: 10, scale: 0.9 }}
+                                            className="flex items-center gap-2 absolute right-0 top-0 bottom-0 bg-white/80 backdrop-blur-md p-1 rounded-full border border-slate-100 shadow-xl z-20"
+                                            style={{ height: '40px', top: '0px' }} // Align perfectly with button height
+                                        >
+                                            <button onClick={(e) => { e.stopPropagation(); onEdit?.(badge); setIsMenuOpen(false); }} className="h-8 w-8 flex items-center justify-center bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100 transition-colors"><Edit3 className="w-3.5 h-3.5" /></button>
+                                            <button onClick={(e) => { e.stopPropagation(); onDelete?.(badge.id); }} className="h-8 w-8 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-100 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                                            <div className="w-px h-4 bg-slate-200 mx-0.5" />
+                                            <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); }} className="h-8 w-8 flex items-center justify-center bg-slate-100 text-slate-500 rounded-full hover:bg-slate-200"><X className="w-3.5 h-3.5" /></button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
     );
 }
 
+// --- HELPER: GROUP BADGES ---
+const getUniqueBadges = (badges: any[]) => {
+    if (!badges || badges.length === 0) return [];
+    const groups = new Map();
+    badges.forEach((b: any) => {
+        const key = b.id || b.label; 
+        if (!groups.has(key)) {
+            groups.set(key, { ...b, count: 0 });
+        }
+        groups.get(key).count += 1;
+    });
+    return Array.from(groups.values());
+};
+
 // --- PAGE CONTROLLER ---
 export default function CertificationsPage() {
-  const { team, loading, subscribeTeam, updateMemberLocal } = useAppStore(); // Ensure updateMemberLocal is imported
+  const { team, loading, subscribeTeam, updateMemberLocal } = useAppStore();
   
-  // -- VIEW STATES --
   const [activeView, setActiveView] = useState<"armory" | "eotm">("armory");
   const [isArmoryExpanded, setIsArmoryExpanded] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0); 
 
-  // -- FILTER & DRAG STATES --
   const [searchQuery, setSearchQuery] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [hoveredMemberId, setHoveredMemberId] = useState<string | null>(null);
   
-  // -- MODAL STATES --
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
   const [isMobileArmoryOpen, setIsMobileArmoryOpen] = useState(false); 
-  const [selectedMemberForAward, setSelectedMemberForAward] = useState<string | null>(null);
   
-  // -- DATA STATES (BADGES) --
+  // Sheet State
+  const [selectedMemberForAward, setSelectedMemberForAward] = useState<string | null>(null);
+  const [sheetTab, setSheetTab] = useState<'earned' | 'award'>('earned');
+
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null); 
   const [customAccolades, setCustomAccolades] = useState<any[]>([]);
   const [badgeDraft, setBadgeDraft] = useState({ 
     label: "", iconId: "Star", hex: "#E51636", desc: "Operational Excellence" 
   });
 
-  // --- 1. DATA SUBSCRIPTION ---
   useEffect(() => {
     const unsubTeam = subscribeTeam();
     const q = query(collection(db, "customAccolades"), orderBy("createdAt", "desc"));
@@ -183,13 +188,18 @@ export default function CertificationsPage() {
     team.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
   , [team, searchQuery]);
 
-  // --- 2. HANDLERS ---
+  const activeMember = useMemo(() => 
+    team.find(m => m.id === selectedMemberForAward)
+  , [team, selectedMemberForAward]);
+
+  const memberUniqueBadges = useMemo(() => 
+    activeMember ? getUniqueBadges(activeMember.badges || []) : []
+  , [activeMember]);
 
   const handleMemberClick = (memberId: string) => {
-      // On mobile, tap to select member then open armory
-      // On desktop, typically we drag badges, but we can also support click-to-open if needed.
       if (window.innerWidth < 1024) {
           setSelectedMemberForAward(memberId);
+          setSheetTab('earned'); // Default to viewing profile
           setIsMobileArmoryOpen(true);
       }
   };
@@ -198,20 +208,10 @@ export default function CertificationsPage() {
       const member = team.find(m => m.id === targetId);
       if (!member) return;
 
-      // 1. DEDUPLICATION CHECK
-      // Check if user already has a badge with this ID (assuming badge.id is the template ID)
       const currentBadges = member.badges || [];
-      const alreadyHas = currentBadges.some((b: any) => b.id === badge.id);
-
-      if (alreadyHas) {
-          toast.error(`${member.name} already has this certification.`);
-          return;
-      }
-
       const loadingToast = toast.loading(`Awarding to ${member.name}...`);
       
       try {
-        // Create the new badge object with a unique instance ID and timestamp
         const newBadgeEntry = { 
             ...badge, 
             awardedId: Math.random().toString(36).substr(2, 9), 
@@ -219,11 +219,8 @@ export default function CertificationsPage() {
         };
 
         const updatedBadges = [...currentBadges, newBadgeEntry];
-
-        // 2. OPTIMISTIC UPDATE (Instant UI Refresh)
         updateMemberLocal(targetId, { badges: updatedBadges });
 
-        // 3. FIREBASE WRITE
         const memberRef = doc(db, "profileOverrides", targetId); 
         await setDoc(memberRef, {
             badges: arrayUnion(newBadgeEntry), 
@@ -232,13 +229,11 @@ export default function CertificationsPage() {
         
         toast.success(`${badge.label} Awarded`, { id: loadingToast });
         
-        // If on mobile (sheet is open), close it for better flow
+        // Switch back to "Earned" view to see the new badge
         if (window.innerWidth < 1024) {
-            setSelectedMemberForAward(null);
-            setIsMobileArmoryOpen(false); 
+            setSheetTab('earned');
         }
       } catch (e) {
-        // Revert on failure
         updateMemberLocal(targetId, { badges: currentBadges });
         toast.error("Failed to award certification", { id: loadingToast });
       }
@@ -262,7 +257,6 @@ export default function CertificationsPage() {
     if (targetId) awardBadge(targetId, badge);
   };
 
-  // CRUD Handlers
   const openForge = (badge?: any) => {
     if (badge) {
         setEditingId(badge.id);
@@ -272,7 +266,6 @@ export default function CertificationsPage() {
         setBadgeDraft({ label: "", iconId: "Star", hex: "#E51636", desc: "Operational Excellence" });
     }
     setIsArchitectOpen(true);
-    // Keep mobile sheet open? No, Forge is a modal on top.
   };
 
   const handleSaveBadge = async () => {
@@ -287,14 +280,22 @@ export default function CertificationsPage() {
     setIsArchitectOpen(false);
   };
 
-  const handleDeleteBadge = async (id: string) => {
-    if (!confirm("Permanently delete this certification template?")) return;
-    await deleteDoc(doc(db, "customAccolades", id));
-    toast.success("Module Deleted");
-    setIsArchitectOpen(false); // If open in forge
+  const requestDeleteBadge = (id: string) => { setDeleteTargetId(id); };
+
+  const confirmDeleteBadge = async () => {
+    if (!deleteTargetId) return;
+    const loadToast = toast.loading("Decommissioning Module...");
+    try {
+        await deleteDoc(doc(db, "customAccolades", deleteTargetId));
+        toast.success("Module Deleted", { id: loadToast });
+        setIsArchitectOpen(false);
+    } catch (e) {
+        toast.error("Failed to delete", { id: loadToast });
+    } finally {
+        setDeleteTargetId(null);
+    }
   };
 
-  // --- RENDER ---
   return (
     <div className="min-h-screen bg-[#F8FAFC] relative font-sans select-none overflow-x-hidden pt-6 pb-40">
       
@@ -376,8 +377,10 @@ export default function CertificationsPage() {
                                     const isFOH = member.dept === "FOH";
                                     const isHoveredTarget = hoveredMemberId === member.id || selectedMemberForAward === member.id;
                                     const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-                                    const badges = member.badges || [];
-                                    const hasBadges = badges.length > 0;
+                                    
+                                    // GROUP BADGES FOR CARD DISPLAY
+                                    const uniqueBadges = getUniqueBadges(member.badges || []);
+                                    const hasBadges = uniqueBadges.length > 0;
                                     
                                     return (
                                         <motion.div 
@@ -407,9 +410,9 @@ export default function CertificationsPage() {
                                                             initials
                                                         )}
                                                     </div>
-                                                    {hasBadges && (
+                                                    {(member.badges?.length || 0) > 0 && (
                                                         <div className="absolute -bottom-1 -right-1 bg-amber-400 text-white text-[8px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-white shadow-sm">
-                                                            {badges.length}
+                                                            {member.badges?.length}
                                                         </div>
                                                     )}
                                                 </div>
@@ -422,13 +425,21 @@ export default function CertificationsPage() {
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{member.dept}</span>
                                                     </div>
                                                     
+                                                    {/* CARD BADGE PREVIEW */}
                                                     <div className="mt-3 flex flex-wrap gap-1.5 min-h-[28px]">
                                                         {hasBadges ? (
-                                                            badges.slice(0, 4).map((b: any, idx: number) => {
+                                                            uniqueBadges.slice(0, 4).map((b: any, idx: number) => {
                                                                 const Icon = TACTICAL_ICONS.find(i => i.id === b.iconId)?.icon || Star;
                                                                 return (
-                                                                    <div key={idx} className="w-7 h-7 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center shadow-sm" title={b.label}>
+                                                                    <div 
+                                                                        key={idx} 
+                                                                        className="h-7 px-1.5 rounded-lg bg-slate-50 border border-slate-100 flex items-center gap-1 shadow-sm"
+                                                                        title={b.label}
+                                                                    >
                                                                         <Icon className="w-3.5 h-3.5" style={{ color: b.hex }} />
+                                                                        {b.count > 1 && (
+                                                                            <span className="text-[8px] font-black text-slate-500 leading-none">x{b.count}</span>
+                                                                        )}
                                                                     </div>
                                                                 )
                                                             })
@@ -436,6 +447,11 @@ export default function CertificationsPage() {
                                                             <span className="text-[9px] font-bold text-slate-300 uppercase tracking-wider py-1.5 flex items-center gap-1">
                                                                 <Layout className="w-3 h-3" /> No Certs
                                                             </span>
+                                                        )}
+                                                        {uniqueBadges.length > 4 && (
+                                                            <div className="h-7 px-1.5 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center">
+                                                                <span className="text-[8px] font-black text-slate-500">+{uniqueBadges.length - 4}</span>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 </div>
@@ -469,76 +485,140 @@ export default function CertificationsPage() {
                 draft={badgeDraft}
                 setDraft={setBadgeDraft}
                 onSave={handleSaveBadge}
-                onDelete={editingId ? handleDeleteBadge : undefined}
+                onDelete={editingId ? requestDeleteBadge : undefined}
                 editingId={editingId}
             />
         )}
       </AnimatePresence>
 
-      {/* --- MOBILE ARMORY SHEET (UPDATED UI) --- */}
+      {/* --- MEMBER DETAIL SHEET (Mobile) --- */}
       <AnimatePresence>
-        {isMobileArmoryOpen && (
+        {isMobileArmoryOpen && activeMember && (
              <ClientPortal>
                 <div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none">
-                     <motion.div 
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
-                        exit={{ opacity: 0 }} 
-                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" 
-                        onClick={() => { setIsMobileArmoryOpen(false); setSelectedMemberForAward(null); }} 
-                     />
+                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" onClick={() => { setIsMobileArmoryOpen(false); setSelectedMemberForAward(null); }} />
                      
                      <motion.div 
                         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} 
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
                         className="pointer-events-auto bg-[#F8FAFC] w-full h-[85vh] rounded-t-[32px] shadow-2xl relative flex flex-col overflow-hidden"
                      >
-                         {/* Header */}
                          <div className="flex justify-center pt-3 pb-1 shrink-0 bg-white"><div className="w-12 h-1.5 bg-slate-200 rounded-full" /></div>
-                         <div className="px-6 pb-4 pt-2 border-b border-slate-100 flex justify-between items-start bg-white shrink-0">
-                             <div>
-                                 <h2 className="text-xl font-[1000] text-slate-900 tracking-tight leading-none mb-1">
-                                    {selectedMemberForAward ? "Award Badge" : "Armory"}
-                                 </h2>
-                                 {selectedMemberForAward && (
-                                     <div className="flex items-center gap-1.5">
-                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">TO:</span>
-                                         <span className="px-2 py-0.5 bg-[#004F71]/10 text-[#004F71] rounded-md text-[9px] font-black uppercase tracking-wider">
-                                            {team.find(m => m.id === selectedMemberForAward)?.name}
-                                         </span>
+                         <div className="px-6 pb-4 pt-2 border-b border-slate-100 flex flex-col gap-4 bg-white shrink-0">
+                             <div className="flex items-center justify-between">
+                                 <div className="flex items-center gap-3">
+                                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-xs overflow-hidden">
+                                        {activeMember.image ? <img src={activeMember.image} className="w-full h-full object-cover" /> : activeMember.name.charAt(0)}
                                      </div>
-                                 )}
+                                     <div>
+                                         <h2 className="text-lg font-[1000] text-slate-900 tracking-tight leading-none">{activeMember.name}</h2>
+                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{activeMember.role}</p>
+                                     </div>
+                                 </div>
+                                 <button onClick={() => { setIsMobileArmoryOpen(false); setSelectedMemberForAward(null); }} className="h-8 w-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center active:scale-95 transition-all text-slate-400 hover:text-red-500 hover:border-red-200"><X className="w-4 h-4" /></button>
                              </div>
-                             <div className="flex gap-2">
-                                <button onClick={() => openForge()} className="h-9 w-9 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center active:scale-95 transition-all text-slate-400 hover:text-[#004F71] hover:border-blue-200 shadow-sm"><Plus className="w-5 h-5" /></button>
-                                <button onClick={() => { setIsMobileArmoryOpen(false); setSelectedMemberForAward(null); }} className="h-9 w-9 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center active:scale-95 transition-all text-slate-400 hover:text-red-500 hover:border-red-200 shadow-sm"><X className="w-5 h-5" /></button>
+
+                             {/* TABS */}
+                             <div className="flex p-1 bg-slate-100 rounded-xl">
+                                 <button 
+                                    onClick={() => setSheetTab('earned')}
+                                    className={cn(
+                                        "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                        sheetTab === 'earned' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400"
+                                    )}
+                                 >
+                                     Trophy Case
+                                 </button>
+                                 <button 
+                                    onClick={() => setSheetTab('award')}
+                                    className={cn(
+                                        "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                                        sheetTab === 'award' ? "bg-[#004F71] text-white shadow-md" : "text-slate-400"
+                                    )}
+                                 >
+                                     Add Award
+                                 </button>
                              </div>
                          </div>
 
                          {/* CONTENT AREA */}
                          <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-20 custom-scrollbar">
-                             {customAccolades.map(badge => (
-                                 <BadgeListItem 
-                                     key={badge.id}
-                                     badge={badge}
-                                     isSelectionMode={!!selectedMemberForAward}
-                                     onAward={(b) => selectedMemberForAward ? awardBadge(selectedMemberForAward, b) : openForge(b)}
-                                     onEdit={() => openForge(badge)}
-                                     onDelete={() => handleDeleteBadge(badge.id)}
-                                 />
-                             ))}
-                             
-                             {/* Empty State */}
-                             {customAccolades.length === 0 && (
-                                <div className="flex flex-col items-center justify-center py-12 text-slate-300 border-2 border-dashed border-slate-200 rounded-3xl mx-4">
-                                    <Sparkles className="w-10 h-10 mb-2 opacity-50" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Inventory Empty</span>
-                                </div>
+                             {sheetTab === 'earned' ? (
+                                 // EARNED LIST
+                                 memberUniqueBadges.length > 0 ? (
+                                    memberUniqueBadges.map((badge: any) => (
+                                        <BadgeListItem 
+                                            key={badge.id}
+                                            badge={badge}
+                                            mode="earned"
+                                            onAction={() => {}} 
+                                        />
+                                    ))
+                                 ) : (
+                                    <div className="flex flex-col items-center justify-center py-12 text-slate-300 border-2 border-dashed border-slate-200 rounded-3xl mx-4">
+                                        <Shield className="w-10 h-10 mb-2 opacity-50" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">No Certifications Yet</span>
+                                        <button onClick={() => setSheetTab('award')} className="mt-4 text-[10px] font-bold text-[#004F71] underline">Award First Badge</button>
+                                    </div>
+                                 )
+                             ) : (
+                                 // INVENTORY LIST
+                                 customAccolades.map(badge => (
+                                     <BadgeListItem 
+                                         key={badge.id}
+                                         badge={badge}
+                                         mode="inventory"
+                                         onAction={() => awardBadge(activeMember.id, badge)}
+                                         onEdit={() => openForge(badge)}
+                                         onDelete={() => requestDeleteBadge(badge.id)}
+                                     />
+                                 ))
                              )}
                          </div>
                      </motion.div>
                 </div>
              </ClientPortal>
+        )}
+      </AnimatePresence>
+
+      {/* --- DELETE CONFIRMATION MODAL --- */}
+      <AnimatePresence>
+        {deleteTargetId && (
+            <ClientPortal>
+                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+                    <motion.div 
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+                        className="absolute inset-0 bg-[#0F172A]/80 backdrop-blur-md"
+                        onClick={() => setDeleteTargetId(null)}
+                    />
+                    <motion.div 
+                        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+                        className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl text-center border border-white/20"
+                    >
+                        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100">
+                            <Trash2 className="w-8 h-8 text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-[1000] text-slate-900 uppercase tracking-tight mb-2">Delete Module?</h3>
+                        <p className="text-xs font-medium text-slate-500 mb-8 leading-relaxed px-4">
+                            This action will permanently remove this certification template from the system.
+                        </p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setDeleteTargetId(null)} 
+                                className="flex-1 py-3.5 bg-slate-100 text-slate-500 font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-slate-200 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                onClick={confirmDeleteBadge} 
+                                className="flex-1 py-3.5 bg-[#E51636] text-white font-bold rounded-xl text-[10px] uppercase tracking-wider hover:bg-red-700 transition-colors shadow-lg shadow-red-900/20"
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            </ClientPortal>
         )}
       </AnimatePresence>
     </div>
