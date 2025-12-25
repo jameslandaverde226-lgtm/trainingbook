@@ -187,11 +187,9 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
       
       {/* --- MOBILE HEADER (Sticky Island) --- */}
-      {/* Moved 'top-20' to 'top-[72px]' to sit nicely below the global header on mobile */}
-      {/* Added margin bottom to push content down */}
       <div className="md:hidden sticky top-[72px] z-[40] w-full px-4 mb-8 flex justify-center pointer-events-none">
         <motion.div 
             initial={{ y: -10, opacity: 0 }}
@@ -286,7 +284,8 @@ export default function TrainingBuilderPage() {
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-0 md:pt-48 grid grid-cols-12 gap-8 md:gap-12 items-stretch relative z-10 pb-32">
          
          {/* LEFT COLUMN: LIST */}
-         <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-0 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative">
+         {/* UPDATED: Removed border/padding on mobile, added 'w-full' and centered flex logic */}
+         <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-0 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative flex flex-col items-center w-full">
             {sections.map((section, idx) => {
                const isActive = activeSectionId === section.id;
                return (
@@ -294,7 +293,7 @@ export default function TrainingBuilderPage() {
                   key={section.id} 
                   ref={el => { sectionRefs.current[section.id] = el; }} 
                   className={cn(
-                      "relative transition-all duration-500", 
+                      "relative transition-all duration-500 w-full max-w-2xl", // Constrain width on mobile
                       isActive ? "z-30" : "z-0"
                   )}
                >
@@ -319,7 +318,7 @@ export default function TrainingBuilderPage() {
                   <div 
                     onClick={() => handleMobileCardClick(section.id)}
                     className={cn(
-                        "bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm", 
+                        "bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", 
                         isActive 
                             ? "border-slate-200 scale-100 ring-1 ring-black/5" 
                             : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]"
@@ -371,7 +370,7 @@ export default function TrainingBuilderPage() {
                   </div>
                </div>
             )})}
-            <button onClick={addSection} className="w-full py-12 md:py-16 border-4 border-dashed rounded-[32px] md:rounded-[44px] font-black uppercase transition-all flex flex-col items-center justify-center gap-4 group border-slate-200 text-slate-300 hover:border-[#004F71] hover:text-[#004F71] hover:bg-white mb-32 md:mb-0">
+            <button onClick={addSection} className="w-full max-w-2xl py-12 md:py-16 border-4 border-dashed rounded-[32px] md:rounded-[44px] font-black uppercase transition-all flex flex-col items-center justify-center gap-4 group border-slate-200 text-slate-300 hover:border-[#004F71] hover:text-[#004F71] hover:bg-white mb-32 md:mb-0">
                 <div className={cn("p-4 rounded-full transition-all group-hover:scale-110 shadow-sm bg-slate-50 group-hover:bg-[#004F71] group-hover:text-white")}><Plus className="w-8 h-8" /></div>
                 <span className="text-lg md:text-xl tracking-tighter">Create New Phase</span>
             </button>
