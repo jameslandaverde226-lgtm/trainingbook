@@ -8,7 +8,7 @@ import {
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember, STAGES, CalendarEvent } from "../../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
 import { motion } from "framer-motion";
 
@@ -111,16 +111,29 @@ export function OverviewTab({ member }: Props) {
 
         {/* --- DEPLOYMENT STATUS TIMELINE --- */}
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 text-center">Unit Deployment Status</h4>
-            <div className="overflow-x-auto no-scrollbar pb-4 -mx-6 px-6 scroll-smooth snap-x">
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4 text-center">Unit Deployment Status</h4>
+            
+            {/* Added pt-8 to prevent top clipping, pb-4 for bottom labels */}
+            <div className="overflow-x-auto no-scrollbar pt-8 pb-4 -mx-6 px-6 scroll-smooth snap-x">
                 <div className="flex justify-between px-6 relative min-w-[600px] lg:min-w-full">
-                    {/* Connector Line */}
+                    {/* Connector Line - Moved down slightly to align with centers */}
                     <div className="absolute top-5 left-10 right-10 h-0.5 bg-slate-100" />
                     
                     {STAGES.map((s, i) => { 
                         const currentIdx = STAGES.findIndex(x => x.id === member.status); 
                         const isDone = i < currentIdx; 
                         const isCurrent = i === currentIdx; 
+                        
+                        // Date Logic
+                        let dateText = "";
+                        if (s.id === "Onboarding" && member.joined) {
+                             dateText = format(new Date(member.joined), "MMM yyyy");
+                        } else if (isCurrent) {
+                             dateText = "Current";
+                        } else if (isDone) {
+                             dateText = "Completed";
+                        }
+
                         return (
                             <div key={s.id} className="relative z-10 flex flex-col items-center gap-3 group snap-center">
                                 <div className={cn(
@@ -131,10 +144,21 @@ export function OverviewTab({ member }: Props) {
                                 )}>
                                     {isDone ? <Check className="w-5 h-5" /> : <span className="font-black text-xs">{i + 1}</span>}
                                 </div>
-                                <span className={cn(
-                                    "text-[9px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors", 
-                                    isCurrent ? "text-slate-900" : "text-slate-300"
-                                )}>{s.title}</span>
+                                <div className="flex flex-col items-center gap-0.5">
+                                    <span className={cn(
+                                        "text-[9px] font-bold uppercase tracking-widest whitespace-nowrap transition-colors leading-none", 
+                                        isCurrent ? "text-slate-900" : "text-slate-300"
+                                    )}>{s.title}</span>
+                                    
+                                    {dateText && (
+                                        <span className={cn(
+                                            "text-[8px] font-bold uppercase tracking-wide",
+                                            isCurrent ? "text-[#E51636]" : "text-slate-400"
+                                        )}>
+                                            {dateText}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         ) 
                     })}
