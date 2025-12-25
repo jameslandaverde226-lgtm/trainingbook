@@ -7,11 +7,12 @@ import { cn } from "@/lib/utils";
 import { STAGES, Status } from "../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore"; 
 
-// --- ANIMATION PHYSICS ---
-const spring: Transition = {
+// --- ANIMATION PHYSICS (Optimized for "Apple-like" feel) ---
+const transition: Transition = {
   type: "spring",
-  stiffness: 400,
+  stiffness: 350,
   damping: 30,
+  mass: 0.8
 };
 
 interface Props {
@@ -52,28 +53,31 @@ export default function TeamDynamicIsland({
         <motion.div
           ref={containerRef}
           layout
-          transition={spring}
+          initial={false}
+          transition={transition}
           onClick={() => !isOpen && setIsOpen(true)}
           className={cn(
-            "pointer-events-auto bg-white/95 backdrop-blur-2xl border shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] flex flex-col ring-1 ring-black/5 transform-gpu origin-top relative z-50 overflow-hidden",
+            "pointer-events-auto bg-white/95 backdrop-blur-2xl border shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] flex flex-col ring-1 ring-black/5 transform-gpu origin-top relative z-50 overflow-hidden",
             isOpen
               ? "rounded-[32px] w-full max-w-[420px] border-white/60" 
               : "rounded-full w-auto border-slate-200/60 cursor-pointer hover:scale-[1.02] hover:bg-white"
           )}
         >
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="popLayout" initial={false}>
                 {!isOpen ? (
                     // --- 1. COLLAPSED VIEW ---
                     <motion.div 
                         key="collapsed"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                        layout="position"
+                        initial={{ opacity: 0, filter: "blur(4px)" }}
+                        animate={{ opacity: 1, filter: "blur(0px)" }}
+                        exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.15 } }}
                         className="flex items-center gap-3 px-1.5 py-1.5 h-14 relative w-full"
                     >
                          {/* Notification Badge */}
                          {unassignedCount > 0 && (
                              <motion.div 
+                                layoutId="notification-badge"
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center border-2 border-white text-[9px] font-black text-white shadow-sm z-50 pointer-events-none"
@@ -82,48 +86,57 @@ export default function TeamDynamicIsland({
                              </motion.div>
                          )}
 
-                         <div className="w-10 h-10 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-md shadow-red-500/20 shrink-0">
+                         <motion.div layoutId="icon-container" className="w-10 h-10 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-md shadow-red-500/20 shrink-0">
                              <Layers className="w-5 h-5" />
-                         </div>
-                         <motion.div layout="position" className="flex flex-col justify-center pr-4 min-w-[120px]">
-                             <span className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">
-                                 {activeStageData?.title || "Roster"}
-                             </span>
-                             <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap">
-                                 {activeFilter === "ALL" ? "All Units" : `${activeFilter} Unit`}
-                             </span>
                          </motion.div>
-                         <div className="pr-2 opacity-40">
+                         
+                         <motion.div layout="position" className="flex flex-col justify-center pr-4 min-w-[120px]">
+                             <motion.span layoutId="title-text" className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">
+                                 {activeStageData?.title || "Roster"}
+                             </motion.span>
+                             <motion.span layoutId="subtitle-text" className="text-[9px] font-bold text-slate-400 whitespace-nowrap">
+                                 {activeFilter === "ALL" ? "All Units" : `${activeFilter} Unit`}
+                             </motion.span>
+                         </motion.div>
+                         
+                         <motion.div layoutId="chevron" className="pr-2 opacity-40">
                              <ChevronDown className="w-4 h-4" />
-                         </div>
+                         </motion.div>
                     </motion.div>
                 ) : (
                     // --- 2. EXPANDED VIEW ---
                     <motion.div 
                         key="expanded"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                        layout="position"
+                        initial={{ opacity: 0, filter: "blur(4px)" }}
+                        animate={{ opacity: 1, filter: "blur(0px)" }}
+                        exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.15 } }}
                         className="flex flex-col p-3 gap-4 min-w-[320px] w-full"
                     >
                         {/* Header Row */}
                         <div className="flex items-center justify-between px-2">
                              <div className="flex items-center gap-3">
-                                 <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
+                                 <motion.div layoutId="icon-container" className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
                                      <Filter className="w-4 h-4" />
-                                 </div>
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtering Roster</span>
+                                 </motion.div>
+                                 <motion.span layoutId="title-text" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Filtering Roster</motion.span>
                              </div>
-                             <button 
+                             <motion.button 
+                                layoutId="chevron"
                                 onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
                                 className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
                              >
                                  <X className="w-4 h-4" />
-                             </button>
+                             </motion.button>
                         </div>
 
                         {/* Unit Filter */}
-                        <div className="bg-slate-50 p-1 rounded-[20px] flex relative border border-slate-100">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="bg-slate-50 p-1 rounded-[20px] flex relative border border-slate-100"
+                        >
                           {(["ALL", "FOH", "BOH"] as const).map((f) => {
                             const isActive = activeFilter === f;
                             return (
@@ -139,37 +152,49 @@ export default function TeamDynamicIsland({
                                   <motion.div
                                     layoutId="activeFilterBg"
                                     className="absolute inset-0 bg-[#E51636] rounded-[16px] shadow-sm shadow-red-500/20"
-                                    transition={spring}
+                                    transition={transition}
                                   />
                                 )}
                                 <span className="relative z-10">{f === 'ALL' ? 'All Units' : f}</span>
                                 
                                 {f === 'ALL' && unassignedCount > 0 && (
-                                    <span className={cn(
-                                        "relative z-10 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm transition-colors",
-                                        isActive ? "bg-white text-[#E51636]" : "bg-red-100 text-red-600"
-                                    )}>
+                                    <motion.span 
+                                        layoutId="notification-badge"
+                                        className={cn(
+                                            "relative z-10 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm transition-colors",
+                                            isActive ? "bg-white text-[#E51636]" : "bg-red-100 text-red-600"
+                                        )}
+                                    >
                                         {unassignedCount}
-                                    </span>
+                                    </motion.span>
                                 )}
                               </button>
                             );
                           })}
-                        </div>
+                        </motion.div>
                         
                         {unassignedCount > 0 && (
-                            <div className="mx-1 px-3 py-2 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2">
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: "auto" }}
+                                className="mx-1 px-3 py-2 bg-red-50 border border-red-100 rounded-xl flex items-center gap-2"
+                            >
                                 <AlertCircle className="w-3.5 h-3.5 text-red-500" />
                                 <span className="text-[9px] font-bold text-red-600 uppercase tracking-wide">
                                     {unassignedCount} Members require Unit Assignment
                                 </span>
-                            </div>
+                            </motion.div>
                         )}
 
-                        <div className="h-px bg-slate-100 w-full" />
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-px bg-slate-100 w-full" />
 
                         {/* Roles Grid */}
-                        <div className="grid grid-cols-2 gap-2.5 px-1 pb-2">
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.15 }}
+                            className="grid grid-cols-2 gap-2.5 px-1 pb-2"
+                        >
                           {visibleStages.map((stage) => {
                             const isActive = activeStage === stage.id;
                             const Icon = stage.icon;
@@ -199,7 +224,7 @@ export default function TeamDynamicIsland({
                               </button>
                             );
                           })}
-                        </div>
+                        </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
