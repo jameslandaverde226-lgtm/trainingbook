@@ -10,8 +10,8 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
-// 1. IMPORT STORE
 import { useAppStore } from "@/lib/store/useStore"; 
+import Image from "next/image"; // OPTIMIZED IMAGE LOADER
 
 interface Props {
   member: TeamMember;
@@ -62,7 +62,6 @@ const TiltWrapper = ({ children, disabled, className, ...props }: any) => {
 };
 
 const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDragEnd, isDragging, isDropTarget }: Props) => {
-  // 2. USE STORE ACTION
   const { updateMemberLocal } = useAppStore();
   
   const isFOH = member.dept === "FOH";
@@ -73,6 +72,9 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
+  
+  // NEW: Image Loading State
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   // --- PROBATION LOGIC ---
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
@@ -90,7 +92,6 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
       setIsUploading(true);
       const file = e.target.files[0];
       
-      // 3. START TOAST
       const toastId = toast.loading("Processing Identity...");
       
       const storageRef = ref(storage, `team-avatars/${member.id}/${file.name}`);
@@ -98,16 +99,13 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
         
-        // 4. OPTIMISTIC UPDATE (Instant Feedback)
         updateMemberLocal(member.id, { image: url });
 
-        // 5. DB SYNC
         await setDoc(doc(db, "profileOverrides", member.id), {
           image: url,
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        // 6. SUCCESS TOAST
         toast.success("Identity Sync Complete", { id: toastId });
       } catch (error) {
         console.error("Upload failed", error);
@@ -164,20 +162,39 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
           <div className="absolute inset-0 z-0">
             {hasImage ? (
               <>
+                {/* SKELETON LOADER (Visible while image loads) */}
+                <div 
+                    className={cn(
+                        "absolute inset-0 bg-slate-800 transition-opacity duration-700 z-10",
+                        imageLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
+                    )}
+                >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" style={{ transform: 'skewX(-20deg)' }} />
+                </div>
+
+                {/* THE IMAGE */}
                 <img 
                     src={member.image} 
                     alt={member.name} 
-                    loading="lazy" 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                    loading="lazy"
+                    onLoad={() => setImageLoaded(true)}
+                    className={cn(
+                        "w-full h-full object-cover transition-all duration-1000",
+                        imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"
+                    )} 
                 />
+                
+                {/* Gradient Overlay for Text Readability */}
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90" />
               </>
             ) : (
                 <>
-                    {/* Noise Texture */}
+                    {/* NO IMAGE STATE - Enhanced Texture */}
                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
+                    
                     {/* Large Initials Watermark */}
-                    <div className="absolute -bottom-10 -right-10 text-[12rem] font-[1000] text-white/5 rotate-[-15deg] leading-none pointer-events-none">
+                    <div className="absolute -bottom-10 -right-10 text-[12rem] font-[1000] text-white/5 rotate-[-15deg] leading-none pointer-events-none select-none">
                         {member.name.charAt(0)}
                     </div>
                 </>
@@ -200,7 +217,6 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
                   {/* PROBATION GAUGE */}
                   {probation && probation.isActive && (
                      <div className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 backdrop-blur-md flex items-center gap-2 shadow-sm text-amber-200">
-                        {/* Tiny Pie Chart */}
                         <div className="relative w-3.5 h-3.5 flex items-center justify-center">
                             <svg className="w-full h-full -rotate-90">
                                 <circle cx="50%" cy="50%" r="40%" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-20" />
