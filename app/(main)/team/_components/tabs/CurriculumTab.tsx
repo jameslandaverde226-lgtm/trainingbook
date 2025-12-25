@@ -1,12 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Terminal, Layers, HardDrive, BookOpen, Loader2, Maximize2, ChevronLeft, ChevronDown, ChevronUp, Hash, Minimize2 } from "lucide-react";
+import { Check, Terminal, Layers, HardDrive, BookOpen, Loader2, Maximize2, ChevronLeft, ChevronDown, ChevronUp, Hash, Minimize2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// FIX: Correct Import Path (3 levels up)
 import { TeamMember } from "../../../calendar/_components/types";
-
 import { useAppStore } from "@/lib/store/useStore";
 import { doc, setDoc, serverTimestamp, collection, addDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -62,9 +59,12 @@ export function CurriculumTab({ member }: Props) {
   const { curriculum } = useAppStore();
   const [selectedSection, setSelectedSection] = useState<any>(null);
 
-  // FIX: Case-Insensitive Match
+  // Robust Filtering: Case-Insensitive, Trimmed
   const filteredCurriculum = useMemo(() => {
-      const targetDept = member.dept === 'Unassigned' ? 'FOH' : member.dept;
+      // If unassigned, return empty so we show the warning state
+      if (member.dept === "Unassigned") return [];
+      
+      const targetDept = member.dept;
       return curriculum.filter(s => s.dept?.toUpperCase() === targetDept?.toUpperCase());
   }, [curriculum, member.dept]);
   
@@ -91,6 +91,22 @@ export function CurriculumTab({ member }: Props) {
   const isFOH = member.dept === "FOH";
   const brandBg = isFOH ? 'bg-[#004F71]' : 'bg-[#E51636]';
 
+  // --- EMPTY STATE: UNASSIGNED ---
+  if (member.dept === "Unassigned") {
+      return (
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 p-8 text-center">
+              <div className="p-4 bg-amber-50 rounded-full border border-amber-100">
+                  <AlertTriangle className="w-8 h-8 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-1">Unit Assignment Required</h3>
+                <p className="text-xs text-slate-400 font-medium">Please assign this member to FOH or BOH to view their training path.</p>
+              </div>
+          </div>
+      );
+  }
+
+  // --- EMPTY STATE: NO DATA ---
   if (filteredCurriculum.length === 0) {
       return (
           <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">

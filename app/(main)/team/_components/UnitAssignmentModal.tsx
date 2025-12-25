@@ -1,9 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Coffee, Utensils, X, ShieldAlert, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Coffee, Utensils, X, ShieldAlert, ArrowRight } from "lucide-react";
 import ClientPortal from "@/components/core/ClientPortal";
-import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 
 interface Props {
@@ -64,7 +63,7 @@ export default function UnitAssignmentModal({ member, onAssign, onClose }: Props
                     <div className="p-8 bg-white grid grid-cols-2 gap-4">
                         <button 
                             onClick={() => onAssign("FOH")}
-                            className="group relative flex flex-col items-center justify-center p-6 rounded-[28px] border-2 border-slate-100 hover:border-[#004F71] hover:bg-blue-50/30 transition-all duration-300"
+                            className="group relative flex flex-col items-center justify-center p-6 rounded-[28px] border-2 border-slate-100 hover:border-[#004F71] hover:bg-blue-50/30 transition-all duration-300 active:scale-95"
                         >
                             <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 mb-4 group-hover:scale-110 transition-transform group-hover:shadow-md group-hover:border-blue-200">
                                 <Coffee className="w-7 h-7 text-[#004F71]" />
@@ -81,7 +80,7 @@ export default function UnitAssignmentModal({ member, onAssign, onClose }: Props
 
                         <button 
                             onClick={() => onAssign("BOH")}
-                            className="group relative flex flex-col items-center justify-center p-6 rounded-[28px] border-2 border-slate-100 hover:border-[#E51636] hover:bg-red-50/30 transition-all duration-300"
+                            className="group relative flex flex-col items-center justify-center p-6 rounded-[28px] border-2 border-slate-100 hover:border-[#E51636] hover:bg-red-50/30 transition-all duration-300 active:scale-95"
                         >
                             <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 mb-4 group-hover:scale-110 transition-transform group-hover:shadow-md group-hover:border-red-200">
                                 <Utensils className="w-7 h-7 text-[#E51636]" />
