@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera, Loader2, Mail, Calendar, ArrowLeftRight, TrendingUp, AlertCircle, Copy } from "lucide-react";
+import { Camera, Loader2, Mail, Calendar, ArrowLeftRight, TrendingUp, AlertCircle, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { TeamMember } from "../../calendar/_components/types";
@@ -27,6 +27,7 @@ export function MemberProfileHeader({ member }: Props) {
   const hasValidImage = member.image && !member.image.includes('ui-avatars.com');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -78,13 +79,21 @@ export function MemberProfileHeader({ member }: Props) {
       }
   };
 
+  const copyEmail = () => {
+      if (member.email) {
+          navigator.clipboard.writeText(member.email);
+          setCopied(true);
+          toast.success("Email copied to clipboard");
+          setTimeout(() => setCopied(false), 2000);
+      }
+  };
+
   return (
     <div className="w-full lg:w-[340px] bg-white lg:bg-slate-50 border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0 overflow-y-auto no-scrollbar relative z-30">
         
-        {/* --- MAIN CONTENT CONTAINER --- */}
         <div className="p-5 lg:p-8 flex flex-col items-center w-full">
             
-            {/* TOP ROW: AVATAR + NAME + PROGRESS (Mobile Optimized) */}
+            {/* TOP ROW: AVATAR + NAME + PROGRESS */}
             <div className="flex lg:flex-col items-center gap-5 w-full">
                 
                 {/* 1. AVATAR */}
@@ -143,7 +152,7 @@ export function MemberProfileHeader({ member }: Props) {
             </div>
 
             {/* SECOND ROW: METADATA & ACTIONS */}
-            <div className="w-full mt-6 lg:mt-8 grid grid-cols-1 gap-3">
+            <div className="w-full mt-6 lg:mt-8 space-y-3">
                 {/* Unit Button */}
                 <button 
                     onClick={toggleDepartment}
@@ -165,31 +174,37 @@ export function MemberProfileHeader({ member }: Props) {
                     <ArrowLeftRight className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 transition-opacity" />
                 </button>
 
-                {/* Info Grid - BEAUTIFIED */}
+                {/* Info Grid - IMPROVED LAYOUT */}
                 <div className="grid grid-cols-2 gap-3 w-full">
                     
-                    {/* EMAIL BLOCK */}
-                    <div className="flex flex-col p-3 bg-slate-50 border border-slate-100 rounded-2xl">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1.5 flex items-center gap-1.5">
-                            Email <Copy className="w-2.5 h-2.5 opacity-50" />
-                        </span>
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="text-[10px] font-bold text-slate-700 truncate" title={member.email}>
+                    {/* EMAIL BLOCK (Full Width) */}
+                    <button 
+                        onClick={copyEmail}
+                        className="col-span-2 flex flex-col items-start p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-100 rounded-2xl transition-colors group text-left relative overflow-hidden"
+                    >
+                        <div className="flex items-center justify-between w-full mb-1">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Email Address</span>
+                            {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3 text-slate-300 group-hover:text-[#004F71]" />}
+                        </div>
+                        <div className="flex items-center gap-2.5 w-full">
+                            <div className="p-1.5 bg-white rounded-md shadow-sm border border-slate-100 shrink-0">
+                                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-700 break-all leading-tight">
                                 {member.email || "No Email"}
                             </span>
                         </div>
-                    </div>
+                    </button>
 
                     {/* JOINED BLOCK */}
-                    <div className="flex flex-col p-3 bg-slate-50 border border-slate-100 rounded-2xl">
-                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1.5">
-                            Joined
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            <span className="text-[10px] font-bold text-slate-700 truncate">
-                                {member.joined ? format(new Date(member.joined), "MMM d, yyyy") : "N/A"}
+                    <div className="col-span-2 flex flex-col p-3.5 bg-slate-50 border border-slate-100 rounded-2xl">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1">Joined Team</span>
+                        <div className="flex items-center gap-2.5">
+                            <div className="p-1.5 bg-white rounded-md shadow-sm border border-slate-100">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                            <span className="text-[11px] font-bold text-slate-700">
+                                {member.joined ? format(new Date(member.joined), "MMMM do, yyyy") : "N/A"}
                             </span>
                         </div>
                     </div>

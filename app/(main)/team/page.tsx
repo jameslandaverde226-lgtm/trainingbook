@@ -114,9 +114,8 @@ export default function TeamBoardPage() {
     const [visibleCount, setVisibleCount] = useState(12);
     const loadMoreRef = useRef<HTMLDivElement>(null);
 
-    // --- KEY CHANGE: Use ID instead of Object to allow live updates ---
+    // Interaction State
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-    
     const [assignmentMember, setAssignmentMember] = useState<TeamMember | null>(null); 
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
@@ -194,7 +193,7 @@ export default function TeamBoardPage() {
         if (member.dept === "Unassigned") {
             setAssignmentMember(member);
         } else {
-            setSelectedMemberId(member.id); // Save ID, not object
+            setSelectedMemberId(member.id);
         }
     };
 
@@ -279,10 +278,12 @@ export default function TeamBoardPage() {
         }
     };
 
+    // --- PROMOTION LOGIC (UPDATED WITH DATE TRACKING) ---
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         setMemberDraggingId(null); 
         
         const toastId = toast.loading(`Promoting to ${newRole}...`);
+        const today = new Date().toISOString();
         
         // Optimistic Update
         updateMemberLocal(memberId, { status: newRole, role: newRole });
@@ -292,9 +293,11 @@ export default function TeamBoardPage() {
             const overrideRef = doc(db, "profileOverrides", memberId);
             const memberRef = doc(db, "teamMembers", memberId);
 
+            // Save the new role AND the date it happened
             batch.set(overrideRef, {
                 role: newRole, 
                 status: newRole, 
+                promotionDates: { [newRole]: today }, // Append to map
                 updatedAt: serverTimestamp()
             }, { merge: true });
 
@@ -336,6 +339,7 @@ export default function TeamBoardPage() {
         <div className="min-h-screen bg-[#F8FAFC] pb-20 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
             <div className="absolute inset-0 pointer-events-none opacity-[0.4]" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
+            {/* DYNAMIC ISLAND FILTER */}
             <TeamDynamicIsland 
                 activeStage={activeStage} 
                 setActiveStage={setActiveStage}
@@ -343,12 +347,14 @@ export default function TeamBoardPage() {
                 setActiveFilter={setActiveFilter}
             />
 
+            {/* HEADER */}
             <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-48 px-4 md:px-8 space-y-6 relative z-10">
                 <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="space-y-1"><h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none uppercase">{activeStage}</h2></div>
                 </div>
             </div>
 
+            {/* GRID AREA */}
             <div className="mt-4 md:mt-8 relative z-10 px-0 md:px-8 max-w-[1400px] mx-auto">
                 {viewMode === "grid" ? (
                     <>

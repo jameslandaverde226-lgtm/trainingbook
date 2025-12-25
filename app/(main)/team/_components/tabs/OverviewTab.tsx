@@ -3,12 +3,12 @@
 import { useMemo } from "react";
 import { 
   Zap, Users, Check, Award, Command, Activity, Target, 
-  ShieldAlert, CalendarClock, MessageSquare, Link2, Lightbulb 
+  ShieldAlert, CalendarClock, MessageSquare, Link2 
 } from "lucide-react";
 import { cn, getProbationStatus } from "@/lib/utils";
-import { TeamMember, STAGES, CalendarEvent } from "../../../calendar/_components/types";
+import { TeamMember, STAGES } from "../../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore";
-import { format, formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow, isValid } from "date-fns";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
 import { motion } from "framer-motion";
 
@@ -48,7 +48,6 @@ export function OverviewTab({ member }: Props) {
         
         {/* --- TOP ROW: MENTOR & PROBATION --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-            
             {/* 1. MENTOR CARD */}
             {member.pairing ? (
                 <div className="bg-white p-4 lg:p-5 rounded-[24px] lg:rounded-[28px] border border-slate-200 shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
@@ -96,13 +95,8 @@ export function OverviewTab({ member }: Props) {
                             <span className="text-[8px] font-bold text-amber-400 block uppercase">Left</span>
                         </div>
                     </div>
-                    {/* Progress Bar */}
                     <div className="h-1.5 w-full bg-amber-200/50 rounded-full overflow-hidden relative z-10">
-                        <motion.div 
-                            initial={{ width: 0 }} 
-                            animate={{ width: `${probation.percentage}%` }}
-                            className="h-full bg-amber-500 rounded-full"
-                        />
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${probation.percentage}%` }} className="h-full bg-amber-500 rounded-full" />
                     </div>
                     <CalendarClock className="absolute -bottom-4 -right-4 w-24 h-24 text-amber-500/5 rotate-12" />
                 </div>
@@ -111,12 +105,12 @@ export function OverviewTab({ member }: Props) {
 
         {/* --- DEPLOYMENT STATUS TIMELINE --- */}
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-4 text-center">Unit Deployment Status</h4>
+            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 text-center">Unit Deployment Status</h4>
             
-            {/* Added pt-8 to prevent top clipping, pb-4 for bottom labels */}
-            <div className="overflow-x-auto no-scrollbar pt-8 pb-4 -mx-6 px-6 scroll-smooth snap-x">
+            {/* Added extra padding top (pt-12) so shadow/scale doesn't clip */}
+            <div className="overflow-x-auto no-scrollbar pt-12 pb-6 -mx-6 px-6 scroll-smooth snap-x">
                 <div className="flex justify-between px-6 relative min-w-[600px] lg:min-w-full">
-                    {/* Connector Line - Moved down slightly to align with centers */}
+                    {/* Connector Line */}
                     <div className="absolute top-5 left-10 right-10 h-0.5 bg-slate-100" />
                     
                     {STAGES.map((s, i) => { 
@@ -124,22 +118,26 @@ export function OverviewTab({ member }: Props) {
                         const isDone = i < currentIdx; 
                         const isCurrent = i === currentIdx; 
                         
-                        // Date Logic
-                        let dateText = "";
+                        // DATE LOGIC
+                        let dateStr = "";
                         if (s.id === "Onboarding" && member.joined) {
-                             dateText = format(new Date(member.joined), "MMM yyyy");
+                            dateStr = format(new Date(member.joined), "MMM yyyy");
+                        } else if (member.promotionDates?.[s.id]) {
+                            // If we recorded the promotion date, use it
+                             const d = new Date(member.promotionDates[s.id]);
+                             if (isValid(d)) dateStr = format(d, "MMM yyyy");
                         } else if (isCurrent) {
-                             dateText = "Current";
+                             dateStr = "Current";
                         } else if (isDone) {
-                             dateText = "Completed";
+                             dateStr = "Completed";
                         }
 
                         return (
-                            <div key={s.id} className="relative z-10 flex flex-col items-center gap-3 group snap-center">
+                            <div key={s.id} className="relative z-10 flex flex-col items-center gap-3 group snap-center min-w-[80px]">
                                 <div className={cn(
-                                    "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shadow-lg",
+                                    "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all shadow-lg z-10",
                                     isDone ? "bg-emerald-500 border-emerald-400 text-white" 
-                                    : isCurrent ? "bg-white border-[#E51636] text-[#E51636] ring-4 ring-red-50 scale-110 shadow-xl" 
+                                    : isCurrent ? "bg-white border-[#E51636] text-[#E51636] ring-4 ring-red-50 scale-125 shadow-xl" 
                                     : "bg-white border-slate-100 text-slate-200"
                                 )}>
                                     {isDone ? <Check className="w-5 h-5" /> : <span className="font-black text-xs">{i + 1}</span>}
@@ -150,14 +148,12 @@ export function OverviewTab({ member }: Props) {
                                         isCurrent ? "text-slate-900" : "text-slate-300"
                                     )}>{s.title}</span>
                                     
-                                    {dateText && (
-                                        <span className={cn(
-                                            "text-[8px] font-bold uppercase tracking-wide",
-                                            isCurrent ? "text-[#E51636]" : "text-slate-400"
-                                        )}>
-                                            {dateText}
-                                        </span>
-                                    )}
+                                    <span className={cn(
+                                        "text-[8px] font-bold uppercase tracking-wide",
+                                        isCurrent ? "text-[#E51636]" : isDone ? "text-emerald-500" : "text-slate-300 opacity-0"
+                                    )}>
+                                        {dateStr}
+                                    </span>
                                 </div>
                             </div>
                         ) 
@@ -185,7 +181,7 @@ export function OverviewTab({ member }: Props) {
                         </div>
                     ) 
                 }) : (
-                    <div className="w-full text-center py-6 border-2 border-dashed border-slate-200 rounded-[20px] text-slate-300 bg-slate-50/50">
+                    <div className="w-full text-center py-8 border-2 border-dashed border-slate-200 rounded-[20px] text-slate-300 bg-slate-50/50">
                         <p className="text-[9px] font-bold uppercase tracking-widest">No badges awarded</p>
                     </div>
                 )}
