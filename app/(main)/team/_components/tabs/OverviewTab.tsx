@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { 
   Zap, Users, Check, Award, Command, Activity, Target, 
-  ShieldAlert, CalendarClock, MessageSquare, Link2, Lightbulb, Goal 
+  ShieldAlert, CalendarClock, MessageSquare, Link2, Lightbulb, Goal, BookOpen 
 } from "lucide-react";
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember, STAGES, CalendarEvent } from "../../../calendar/_components/types";
@@ -17,7 +17,8 @@ interface Props {
 }
 
 export function OverviewTab({ member }: Props) {
-  const { events } = useAppStore();
+  // 1. ADD: Destructure curriculum from store
+  const { events, curriculum } = useAppStore();
   const isFOH = member.dept === "FOH";
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
 
@@ -36,14 +37,39 @@ export function OverviewTab({ member }: Props) {
         if (desc.startsWith("[DOCUMENT LOG:")) desc = desc.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
 
         history.push({ 
-            id: e.id, date: e.startDate, title: e.title, category, 
-            description: desc, rawEvent: e, mentorName: e.assigneeName 
+            id: e.id, 
+            date: e.startDate, 
+            title: e.title, 
+            category, 
+            description: desc, 
+            rawEvent: e, 
+            mentorName: e.assigneeName 
         });
     });
-    return history.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8); 
-  }, [events, member.id]);
 
-  // Extract recent goals for the "Key Objectives" panel
+    // 2. ADD: Curriculum Logic (Same as Performance Tab)
+    if (member.completedTaskIds && member.completedTaskIds.length > 0) {
+        let completedNames: string[] = [];
+        curriculum.forEach(section => {
+             section.tasks?.forEach((t: any) => {
+                 if (member.completedTaskIds?.includes(t.id)) completedNames.push(t.title);
+             });
+        });
+
+        if (completedNames.length > 0) {
+             history.push({
+                 id: 'module-summary',
+                 date: new Date(), // Always fresh
+                 title: `${completedNames.length} Training Modules Verified`,
+                 category: 'MODULE',
+                 description: `Completed: ${completedNames.slice(0, 2).join(", ")}${completedNames.length > 2 ? "..." : ""}`
+             });
+        }
+    }
+
+    return history.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8); 
+  }, [events, member.id, curriculum, member.completedTaskIds]);
+
   const recentGoals = useMemo(() => {
       return timelineData.filter(i => i.category === 'GOAL' || i.category === '1-ON-1').slice(0, 3);
   }, [timelineData]);
@@ -177,7 +203,7 @@ export function OverviewTab({ member }: Props) {
             </div>
         </div>
 
-        {/* --- INTELLIGENCE & GOALS (GRID) --- */}
+        {/* --- INTELLIGENCE & ACTIVITY --- */}
         <div className="bg-white p-5 lg:p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-[#004F71] text-white rounded-xl shadow-md"><Command className="w-4 h-4" /></div>
@@ -189,7 +215,7 @@ export function OverviewTab({ member }: Props) {
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
-                {/* COLUMN 1: ACTIVITY STREAM (7 Columns) */}
+                {/* COLUMN 1: ACTIVITY STREAM */}
                 <div className="lg:col-span-7 space-y-5 relative pl-4 border-l-2 border-slate-100">
                     <div className="flex items-center gap-2 mb-1">
                         <Activity className="w-3.5 h-3.5 text-[#E51636]" />
@@ -201,7 +227,13 @@ export function OverviewTab({ member }: Props) {
                             <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full border-[3px] border-white bg-slate-200 group-hover:bg-[#E51636] transition-all shadow-sm z-10" />
                             <div className="space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <span className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase border", item.category === 'MISSION' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-100 text-slate-600 border-slate-200')}>{item.category}</span>
+                                    <span className={cn(
+                                        "px-2 py-0.5 rounded-md text-[8px] font-black uppercase border",
+                                        item.category === 'MODULE' ? 'bg-slate-100 text-slate-600 border-slate-200' : 
+                                        item.category === 'MISSION' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-50 text-slate-600 border-slate-100'
+                                    )}>
+                                        {item.category}
+                                    </span>
                                     <span className="text-[8px] font-bold text-slate-300 uppercase">{formatDistanceToNow(item.date)} ago</span>
                                 </div>
                                 <p className="text-xs lg:text-sm font-bold text-slate-800 leading-tight">{item.title}</p>
@@ -215,7 +247,7 @@ export function OverviewTab({ member }: Props) {
                     )}
                 </div>
 
-                {/* COLUMN 2: KEY OBJECTIVES (5 Columns) */}
+                {/* COLUMN 2: KEY OBJECTIVES */}
                 <div className="lg:col-span-5 space-y-4">
                     <div className="flex items-center gap-2 mb-1">
                         <Target className="w-3.5 h-3.5 text-[#004F71]" />
