@@ -7,10 +7,11 @@ import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { storage, db } from "@/lib/firebase"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-// CHANGED: Imported setDoc instead of updateDoc
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
+// 1. IMPORT STORE
+import { useAppStore } from "@/lib/store/useStore"; 
 
 interface Props {
   member: TeamMember;
@@ -61,6 +62,9 @@ const TiltWrapper = ({ children, disabled, className, ...props }: any) => {
 };
 
 const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDragEnd, isDragging, isDropTarget }: Props) => {
+  // 2. USE STORE ACTION
+  const { updateMemberLocal } = useAppStore();
+  
   const isFOH = member.dept === "FOH";
   const isBOH = member.dept === "BOH";
   const isUnassigned = !isFOH && !isBOH;
@@ -85,22 +89,29 @@ const TeamCardComponent = ({ member, onClick, onAssignClick, onDragStart, onDrag
     if (e.target.files && e.target.files[0]) {
       setIsUploading(true);
       const file = e.target.files[0];
+      
+      // 3. START TOAST
+      const toastId = toast.loading("Processing Identity...");
+      
       const storageRef = ref(storage, `team-avatars/${member.id}/${file.name}`);
       try {
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
         
-        // FIX: Use setDoc with merge: true. 
-        // This creates the 'profileOverrides' document if it doesn't exist yet.
+        // 4. OPTIMISTIC UPDATE (Instant Feedback)
+        updateMemberLocal(member.id, { image: url });
+
+        // 5. DB SYNC
         await setDoc(doc(db, "profileOverrides", member.id), {
           image: url,
           updatedAt: serverTimestamp()
         }, { merge: true });
 
-        toast.success("Identity Updated");
+        // 6. SUCCESS TOAST
+        toast.success("Identity Sync Complete", { id: toastId });
       } catch (error) {
         console.error("Upload failed", error);
-        toast.error("Upload Failed");
+        toast.error("Upload Failed", { id: toastId });
       } finally {
         setIsUploading(false);
       }
