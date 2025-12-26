@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { 
-  Check, HardDrive, BookOpen, Loader2, Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight 
+  Check, HardDrive, BookOpen, Loader2, Maximize2, 
+  Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, LayoutGrid, CheckCircle2, Expand 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../../calendar/_components/types";
@@ -61,6 +62,8 @@ export function CurriculumTab({ member }: Props) {
   const { curriculum, updateMemberLocal } = useAppStore();
   const [activeSection, setActiveSection] = useState<any | null>(null);
   const [manualSection, setManualSection] = useState<any | null>(null);
+  // Add state to track viewing larger image if needed, or keep it simple with just the card view
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   const filteredCurriculum = useMemo(() => {
       if (member.dept === "Unassigned") return [];
@@ -79,10 +82,10 @@ export function CurriculumTab({ member }: Props) {
       const newCompletedIds = wasCompleted ? currentIds.filter(id => id !== taskId) : [...currentIds, taskId];
       const newProgress = globalTotalTasks > 0 ? Math.round((newCompletedIds.length / globalTotalTasks) * 100) : 0;
 
-      // Optimistic Update
+      // Optimistic
       updateMemberLocal(member.id, { completedTaskIds: newCompletedIds, progress: newProgress });
 
-      // DB Sync
+      // DB
       const memberRef = doc(db, "profileOverrides", member.id);
       try {
           await setDoc(memberRef, { 
@@ -247,36 +250,20 @@ export function CurriculumTab({ member }: Props) {
                                     onClick={() => handleVerifyTask(task.id)}
                                     whileTap={{ scale: 0.98 }}
                                     className={cn(
-                                        "relative overflow-hidden flex items-center gap-4 md:gap-5 p-4 md:p-5 rounded-[20px] md:rounded-[24px] border text-left group transition-all duration-300 min-h-[100px] md:h-32",
-                                        // Dynamic Styling based on state
+                                        "relative overflow-hidden flex flex-col gap-3 p-4 md:p-5 rounded-[20px] md:rounded-[24px] border text-left group transition-all duration-300",
+                                        // Card Base Styles
                                         isCompleted 
                                             ? "bg-emerald-500 border-emerald-500 shadow-xl shadow-emerald-500/20" 
-                                            : hasImage 
-                                                ? "border-transparent shadow-md" // Image Mode
-                                                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg" // Text Mode
+                                            : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg"
                                     )}
                                  >
-                                     {/* --- BACKGROUND IMAGE LAYER --- */}
-                                     {hasImage && !isCompleted && (
-                                         <div className="absolute inset-0 z-0">
-                                             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/60 to-transparent z-10" />
-                                             <img 
-                                                src={task.image} 
-                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-                                                alt="task background"
-                                             />
-                                         </div>
-                                     )}
-
-                                     {/* --- CONTENT LAYER --- */}
-                                     <div className="relative z-10 flex items-center gap-4 w-full">
+                                     {/* TOP ROW: Title & Controls */}
+                                     <div className="flex items-center gap-4 md:gap-5 w-full relative z-10">
                                          <div className={cn(
                                              "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center border-[3px] shrink-0 transition-all duration-300 backdrop-blur-sm",
                                              isCompleted 
                                                 ? "bg-white border-white text-emerald-600 scale-110 shadow-sm" 
-                                                : hasImage
-                                                    ? "border-white/30 text-white/50 bg-white/10 group-hover:bg-white/20 group-hover:text-white"
-                                                    : "border-slate-200 text-slate-300 bg-slate-50 group-hover:border-slate-300"
+                                                : "border-slate-200 text-slate-300 bg-slate-50 group-hover:border-slate-300"
                                          )}>
                                              <Check className="w-5 h-5 md:w-6 md:h-6" strokeWidth={4} />
                                          </div>
@@ -284,27 +271,62 @@ export function CurriculumTab({ member }: Props) {
                                          <div className="flex-1 min-w-0">
                                              <span className={cn(
                                                  "text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] block mb-1 transition-colors",
-                                                 isCompleted ? "text-emerald-100" : hasImage ? "text-white/60" : "text-slate-400"
+                                                 isCompleted ? "text-emerald-100" : "text-slate-400"
                                              )}>
                                                  Module
                                              </span>
                                              <span className={cn(
                                                  "text-sm md:text-base font-bold block transition-colors leading-tight line-clamp-2",
-                                                 isCompleted || hasImage ? "text-white" : "text-slate-700"
+                                                 isCompleted ? "text-white" : "text-slate-700"
                                              )}>
                                                  {task.title}
                                              </span>
                                          </div>
 
                                          {!isCompleted && (
-                                            <div className={cn(
-                                                "transition-opacity absolute right-0",
-                                                hasImage ? "text-white/20 group-hover:text-white/60" : "text-slate-200 group-hover:text-slate-300"
-                                            )}>
+                                            <div className="transition-opacity absolute right-0 text-slate-200 group-hover:text-slate-300">
                                                 <Play className="w-12 h-12 -rotate-12 opacity-0 group-hover:opacity-100 transition-all duration-300" fill="currentColor" />
                                             </div>
                                          )}
                                      </div>
+
+                                     {/* BOTTOM ROW: Cinematic Banner Image (Only if exists & not complete) */}
+                                     {hasImage && !isCompleted && (
+                                         <motion.div 
+                                            layoutId={`image-${task.id}`}
+                                            className={cn(
+                                                "relative w-full overflow-hidden rounded-xl border shadow-sm cursor-zoom-in group/img transition-all bg-slate-100 mt-2",
+                                                // Cinematic Aspect Ratio
+                                                "aspect-[16/9] md:aspect-[21/9]",
+                                                isFOH ? "border-[#004F71]/10 hover:border-[#004F71]/40" : "border-[#E51636]/10 hover:border-[#E51636]/40"
+                                            )}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setViewingImage(task.image);
+                                            }}
+                                         >
+                                             {/* LAYER 1: BLURRED BACKGROUND FILL (Prevents whitespace) */}
+                                             <img 
+                                                src={task.image} 
+                                                alt=""
+                                                className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200"
+                                                aria-hidden="true"
+                                             />
+
+                                             {/* LAYER 2: MAIN IMAGE (Perfect fit) */}
+                                             <motion.img 
+                                                src={task.image} 
+                                                className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" 
+                                             />
+                                             
+                                             {/* HOVER OVERLAY */}
+                                             <div className="absolute inset-0 z-20 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 pointer-events-none">
+                                                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-full text-white border border-white/40 shadow-lg">
+                                                     <Expand className="w-4 h-4" />
+                                                 </div>
+                                             </div>
+                                         </motion.div>
+                                     )}
 
                                      {/* Completed Texture Overlay */}
                                      {isCompleted && (
@@ -327,6 +349,19 @@ export function CurriculumTab({ member }: Props) {
                     color={brandBg} 
                     onClose={() => setManualSection(null)} 
                 />
+            )}
+        </AnimatePresence>
+
+        {/* --- LIGHTBOX FOR TEAM MEMBERS --- */}
+        <AnimatePresence>
+            {viewingImage && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 pointer-events-none">
+                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl cursor-zoom-out pointer-events-auto" onClick={() => setViewingImage(null)} />
+                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-6xl max-h-[85vh] md:max-h-[90vh] pointer-events-auto flex items-center justify-center">
+                         <img src={viewingImage} className="w-full h-full object-contain rounded-2xl md:rounded-3xl shadow-2xl bg-black/5" />
+                         <button onClick={() => setViewingImage(null)} className="absolute -top-12 md:-top-4 md:-right-12 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md border border-white/10"><Minimize2 className="w-6 h-6" /></button>
+                     </motion.div>
+                </div>
             )}
         </AnimatePresence>
     </div>
