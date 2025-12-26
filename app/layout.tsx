@@ -9,22 +9,26 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "TrainingBook",
   description: "Operational Management System",
-  // --- ADD THIS SECTION ---
+  manifest: "/manifest.webmanifest",
   icons: {
     icon: "/planning.svg", 
     shortcut: "/planning.svg",
     apple: "/planning.svg", 
   },
-  // ------------------------
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TrainingBook",
+  },
 };
 
-// ... keep viewport and RootLayout unchanged ...
 export const viewport: Viewport = {
   themeColor: "#0F172A",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -39,11 +43,13 @@ export default function RootLayout({
            {children}
         </AuthGuard>
         
+        {/* Global Toast Config - Tactical Dark Mode Style */}
         <Toaster 
           position="bottom-right" 
           toastOptions={{
+            // Define default styles
             style: {
-              background: '#0F172A',
+              background: '#0F172A', // Slate 900
               color: '#fff',
               borderRadius: '16px',
               fontSize: '12px',
@@ -54,16 +60,31 @@ export default function RootLayout({
               letterSpacing: '0.05em',
               textTransform: 'uppercase',
             },
+            // Success State
             success: {
-                iconTheme: { primary: '#10b981', secondary: '#fff' },
-                style: { borderLeft: '4px solid #10b981' }
+                iconTheme: {
+                    primary: '#10b981', // Emerald 500
+                    secondary: '#fff',
+                },
+                style: {
+                    borderLeft: '4px solid #10b981',
+                }
             },
+            // Error State
             error: {
-                iconTheme: { primary: '#ef4444', secondary: '#fff' },
-                style: { borderLeft: '4px solid #ef4444' }
+                iconTheme: {
+                    primary: '#ef4444', // Red 500
+                    secondary: '#fff',
+                },
+                style: {
+                    borderLeft: '4px solid #ef4444',
+                }
             },
+            // Loading State
             loading: {
-                style: { borderLeft: '4px solid #3b82f6' }
+                style: {
+                    borderLeft: '4px solid #3b82f6', // Blue 500
+                }
             }
         }} />
       </body>
