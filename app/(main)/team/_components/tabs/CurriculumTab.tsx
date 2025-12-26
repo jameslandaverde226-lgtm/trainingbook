@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { 
-  Check, HardDrive, BookOpen, Loader2, Maximize2, 
-  Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, LayoutGrid, CheckCircle2 
+  Check, HardDrive, BookOpen, Loader2, Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../../calendar/_components/types";
@@ -80,10 +79,10 @@ export function CurriculumTab({ member }: Props) {
       const newCompletedIds = wasCompleted ? currentIds.filter(id => id !== taskId) : [...currentIds, taskId];
       const newProgress = globalTotalTasks > 0 ? Math.round((newCompletedIds.length / globalTotalTasks) * 100) : 0;
 
-      // Optimistic
+      // Optimistic Update
       updateMemberLocal(member.id, { completedTaskIds: newCompletedIds, progress: newProgress });
 
-      // DB
+      // DB Sync
       const memberRef = doc(db, "profileOverrides", member.id);
       try {
           await setDoc(memberRef, { 
@@ -131,7 +130,7 @@ export function CurriculumTab({ member }: Props) {
   return (
     <div className="p-6 md:p-8 space-y-6 md:space-y-8 pb-32 h-full overflow-y-auto custom-scrollbar relative bg-[#F8FAFC]">
         
-        {/* HEADER AREA - More compact on mobile */}
+        {/* HEADER AREA */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
             <div className="flex items-center gap-3">
                 <div className={cn("p-2.5 md:p-3 rounded-2xl text-white shadow-lg transition-colors", brandBg)}>
@@ -218,7 +217,7 @@ export function CurriculumTab({ member }: Props) {
                     layoutId={`card-${activeSection.id}`}
                     className="space-y-4 md:space-y-6"
                 >
-                    {/* Sticky Header Card */}
+                    {/* Header Card */}
                     <div className="bg-white border border-slate-200 rounded-[24px] md:rounded-[32px] p-5 md:p-6 shadow-sm flex flex-col gap-4">
                         <div className="flex justify-between items-start">
                             <div>
@@ -237,6 +236,8 @@ export function CurriculumTab({ member }: Props) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         {activeSection.tasks?.map((task: any) => {
                              const isCompleted = (member.completedTaskIds || []).includes(task.id);
+                             const hasImage = !!task.image;
+
                              return (
                                  <motion.button 
                                     key={task.id}
@@ -246,44 +247,68 @@ export function CurriculumTab({ member }: Props) {
                                     onClick={() => handleVerifyTask(task.id)}
                                     whileTap={{ scale: 0.98 }}
                                     className={cn(
-                                        "relative overflow-hidden flex items-center gap-4 md:gap-5 p-4 md:p-5 rounded-[20px] md:rounded-[24px] border-2 text-left group transition-all duration-300 min-h-[90px] md:h-28",
+                                        "relative overflow-hidden flex items-center gap-4 md:gap-5 p-4 md:p-5 rounded-[20px] md:rounded-[24px] border text-left group transition-all duration-300 min-h-[100px] md:h-32",
+                                        // Dynamic Styling based on state
                                         isCompleted 
                                             ? "bg-emerald-500 border-emerald-500 shadow-xl shadow-emerald-500/20" 
-                                            : "bg-white border-slate-100 hover:border-slate-300 hover:shadow-lg"
+                                            : hasImage 
+                                                ? "border-transparent shadow-md" // Image Mode
+                                                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg" // Text Mode
                                     )}
                                  >
-                                     <div className={cn(
-                                         "w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-[3px] shrink-0 transition-all duration-300 z-10",
-                                         isCompleted 
-                                            ? "bg-white border-white text-emerald-600 scale-110 shadow-sm" 
-                                            : "border-slate-200 text-transparent group-hover:border-slate-300 bg-slate-50"
-                                     )}>
-                                         <Check className="w-4 h-4 md:w-5 md:h-5" strokeWidth={4} />
-                                     </div>
-                                     
-                                     <div className="flex-1 min-w-0 z-10">
-                                         <span className={cn(
-                                             "text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] block mb-1 transition-colors",
-                                             isCompleted ? "text-emerald-100" : "text-slate-400"
-                                         )}>
-                                             Module
-                                         </span>
-                                         <span className={cn(
-                                             "text-xs md:text-sm font-bold block transition-colors leading-tight line-clamp-2",
-                                             isCompleted ? "text-white" : "text-slate-700"
-                                         )}>
-                                             {task.title}
-                                         </span>
-                                     </div>
-
-                                     {!isCompleted && (
-                                        <div className="opacity-0 group-hover:opacity-10 transition-opacity absolute right-4">
-                                            <Play className="w-12 h-12 md:w-16 md:h-16 -rotate-12" />
-                                        </div>
+                                     {/* --- BACKGROUND IMAGE LAYER --- */}
+                                     {hasImage && !isCompleted && (
+                                         <div className="absolute inset-0 z-0">
+                                             <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-900/60 to-transparent z-10" />
+                                             <img 
+                                                src={task.image} 
+                                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                                                alt="task background"
+                                             />
+                                         </div>
                                      )}
 
+                                     {/* --- CONTENT LAYER --- */}
+                                     <div className="relative z-10 flex items-center gap-4 w-full">
+                                         <div className={cn(
+                                             "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center border-[3px] shrink-0 transition-all duration-300 backdrop-blur-sm",
+                                             isCompleted 
+                                                ? "bg-white border-white text-emerald-600 scale-110 shadow-sm" 
+                                                : hasImage
+                                                    ? "border-white/30 text-white/50 bg-white/10 group-hover:bg-white/20 group-hover:text-white"
+                                                    : "border-slate-200 text-slate-300 bg-slate-50 group-hover:border-slate-300"
+                                         )}>
+                                             <Check className="w-5 h-5 md:w-6 md:h-6" strokeWidth={4} />
+                                         </div>
+                                         
+                                         <div className="flex-1 min-w-0">
+                                             <span className={cn(
+                                                 "text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] block mb-1 transition-colors",
+                                                 isCompleted ? "text-emerald-100" : hasImage ? "text-white/60" : "text-slate-400"
+                                             )}>
+                                                 Module
+                                             </span>
+                                             <span className={cn(
+                                                 "text-sm md:text-base font-bold block transition-colors leading-tight line-clamp-2",
+                                                 isCompleted || hasImage ? "text-white" : "text-slate-700"
+                                             )}>
+                                                 {task.title}
+                                             </span>
+                                         </div>
+
+                                         {!isCompleted && (
+                                            <div className={cn(
+                                                "transition-opacity absolute right-0",
+                                                hasImage ? "text-white/20 group-hover:text-white/60" : "text-slate-200 group-hover:text-slate-300"
+                                            )}>
+                                                <Play className="w-12 h-12 -rotate-12 opacity-0 group-hover:opacity-100 transition-all duration-300" fill="currentColor" />
+                                            </div>
+                                         )}
+                                     </div>
+
+                                     {/* Completed Texture Overlay */}
                                      {isCompleted && (
-                                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 to-transparent opacity-50" />
+                                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 to-transparent opacity-50 pointer-events-none" />
                                      )}
                                  </motion.button>
                              )
