@@ -11,12 +11,14 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { CalendarEvent, getEventLabel, STICKERS, StickerType } from "./types";
 import { useAppStore } from "@/lib/store/useStore";
+import ClientPortal from "@/components/core/ClientPortal";
 
 interface Props {
   event: CalendarEvent;
   onClose: () => void;
   onUpdate: (id: string, updates: any) => void;
-  onDelete: (id: string) => void;
+  onDelete?: (id: string) => void; // Made optional
+  isSystemEvent?: boolean;        // Added prop
 }
 
 const TRANSITION_SPRING = { type: "spring" as const, damping: 30, stiffness: 300, mass: 0.8 };
@@ -53,7 +55,7 @@ function ConfirmationModal({ isOpen, onClose, onConfirm, title, message }: any) 
     );
 }
 
-export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }: Props) {
+export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, isSystemEvent }: Props) {
   const { team } = useAppStore();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -78,10 +80,11 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
   // --- PARSE INTELLIGENT LOGS ---
   const isSystemLog = event.description?.startsWith("[SYSTEM LOG:") || event.description?.startsWith("[OFFICIAL ANNOUNCEMENT]") || event.type === 'Award' || event.type === 'Vote';
   const isDocLog = event.description?.startsWith("[DOCUMENT LOG:");
+  const isSystemAgent = event.assigneeName === "System" || isSystemEvent; // Check if assigned to System
   
   // DETERMINE IMMUTABILITY (Cannot Delete)
-  // Awards, Votes, Promotions, Assignments, Transfers are permanent system records.
-  const isImmutable = isSystemLog || isDocLog;
+  // Awards, Votes, Promotions, Assignments, Transfers, System Logs are permanent.
+  const isImmutable = isSystemLog || isDocLog || isSystemAgent;
 
   let logTitle = "Operational Context";
   let cleanDescription = event.description || "";
@@ -108,7 +111,7 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
   };
 
   return (
-    <>
+    <ClientPortal>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
       
       <motion.div 
@@ -214,13 +217,13 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
                     <Quote className="absolute top-4 right-4 w-10 h-10 text-slate-200 rotate-12" />
                     
                     {/* Log Header */}
-                    {(isSystemLog || isDocLog) && (
+                    {(isSystemLog || isDocLog || isSystemAgent) && (
                         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200/60">
                             <div className={cn("p-2 rounded-xl shadow-sm border", isSystemLog ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-white border-slate-100")}>
                                 {isSystemLog ? <Medal className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5 text-red-500" />}
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">{isSystemLog ? "SYSTEM LOG" : "OFFICIAL RECORD"}</span>
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">{isSystemLog ? "SYSTEM LOG" : isSystemAgent ? "SYSTEM RECORD" : "OFFICIAL RECORD"}</span>
                                 <span className="text-sm font-bold text-slate-900">{logTitle}</span>
                             </div>
                         </div>
@@ -243,10 +246,12 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
                     <span className="text-[9px] font-black uppercase tracking-widest hidden md:inline">Log Locked</span>
                  </div>
              ) : (
-                 <button onClick={() => setIsConfirmOpen(true)} className="flex items-center gap-2 px-4 py-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95">
-                    <Trash2 className="w-5 h-5" />
-                    <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Decommission</span>
-                 </button>
+                 onDelete && (
+                    <button onClick={() => setIsConfirmOpen(true)} className="flex items-center gap-2 px-4 py-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-95">
+                        <Trash2 className="w-5 h-5" />
+                        <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Decommission</span>
+                    </button>
+                 )
              )}
 
              {event.status !== 'Done' && (
@@ -256,8 +261,8 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete }:
              )}
         </div>
 
-        <ConfirmationModal isOpen={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} onConfirm={() => { setIsConfirmOpen(false); onDelete(event.id); }} title="Terminate Mission" message="Confirm permanent decommissioning." />
+        <ConfirmationModal isOpen={isConfirmOpen} onClose={() => setIsConfirmOpen(false)} onConfirm={() => { setIsConfirmOpen(false); if(onDelete) onDelete(event.id); }} title="Terminate Mission" message="Confirm permanent decommissioning." />
       </motion.div>
-    </>
+    </ClientPortal>
   );
 }

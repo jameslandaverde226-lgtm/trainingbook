@@ -675,7 +675,17 @@ export default function DashboardPage() {
         </div>
 
         {/* ... (Modals) ... */}
-        <AnimatePresence>{selectedEvent && <EventDetailSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />}</AnimatePresence>
+        <AnimatePresence>
+            {selectedEvent && (
+                <EventDetailSheet 
+                    event={selectedEvent} 
+                    onClose={() => setSelectedEvent(null)} 
+                    onDelete={selectedEvent.assigneeName === "System" ? undefined : handleDeleteEvent}
+                    onUpdate={handleUpdateEvent} 
+                    isSystemEvent={selectedEvent.assigneeName === "System"}
+                />
+            )}
+        </AnimatePresence>
         <AnimatePresence>{selected1on1 && <OneOnOneSessionModal event={selected1on1} onClose={() => setSelected1on1(null)} onUpdate={handleUpdate1on1} />}</AnimatePresence>
         <AnimatePresence>{activeKPI && <KPIModal title={activeKPI.title} items={activeKPI.items} color={activeKPI.color} icon={activeKPI.icon} onClose={() => setActiveKPI(null)} onItemClick={handleKPIItemClick} />}</AnimatePresence>
         
