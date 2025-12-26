@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+import type { Metadata, Viewport } from "next"; // <--- This import fixes your error
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthGuard from "@/components/core/AuthGuard";
@@ -9,12 +9,8 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "TrainingBook",
   description: "Operational Management System",
-  manifest: "/manifest.webmanifest",
-  icons: {
-    icon: "/planning.svg", 
-    shortcut: "/planning.svg",
-    apple: "/planning.svg", 
-  },
+  // We removed the manual 'manifest' link and 'icons' block here.
+  // Next.js will automatically find 'app/manifest.ts' and 'app/apple-icon.png'
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -43,13 +39,11 @@ export default function RootLayout({
            {children}
         </AuthGuard>
         
-        {/* Global Toast Config - Tactical Dark Mode Style */}
         <Toaster 
           position="bottom-right" 
           toastOptions={{
-            // Define default styles
             style: {
-              background: '#0F172A', // Slate 900
+              background: '#0F172A',
               color: '#fff',
               borderRadius: '16px',
               fontSize: '12px',
@@ -60,31 +54,16 @@ export default function RootLayout({
               letterSpacing: '0.05em',
               textTransform: 'uppercase',
             },
-            // Success State
             success: {
-                iconTheme: {
-                    primary: '#10b981', // Emerald 500
-                    secondary: '#fff',
-                },
-                style: {
-                    borderLeft: '4px solid #10b981',
-                }
+                iconTheme: { primary: '#10b981', secondary: '#fff' },
+                style: { borderLeft: '4px solid #10b981' }
             },
-            // Error State
             error: {
-                iconTheme: {
-                    primary: '#ef4444', // Red 500
-                    secondary: '#fff',
-                },
-                style: {
-                    borderLeft: '4px solid #ef4444',
-                }
+                iconTheme: { primary: '#ef4444', secondary: '#fff' },
+                style: { borderLeft: '4px solid #ef4444' }
             },
-            // Loading State
             loading: {
-                style: {
-                    borderLeft: '4px solid #3b82f6', // Blue 500
-                }
+                style: { borderLeft: '4px solid #3b82f6' }
             }
         }} />
       </body>

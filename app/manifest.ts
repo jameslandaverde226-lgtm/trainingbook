@@ -4,7 +4,7 @@ import type { MetadataRoute } from 'next'
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: 'TrainingBook Command',
-    short_name: 'TrainingBook',
+    short_name: 'Trainingbook',
     description: 'Operational Management System',
     start_url: '/',
     display: 'standalone',
