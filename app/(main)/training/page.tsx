@@ -190,17 +190,17 @@ export default function TrainingBuilderPage() {
     <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
       
       {/* --- MOBILE HEADER (Sticky Island) --- */}
-      <div className="md:hidden sticky top-[72px] z-[40] w-full px-4 mb-8 flex justify-center pointer-events-none">
+      <div className="md:hidden sticky top-[72px] z-[40] w-full px-4 mb-6 flex justify-center pointer-events-none">
         <motion.div 
             initial={{ y: -10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="pointer-events-auto bg-white/90 backdrop-blur-xl border border-white/60 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.1)] rounded-full p-1.5 flex items-center justify-between ring-1 ring-black/5 w-full max-w-sm"
+            className="pointer-events-auto bg-white/95 backdrop-blur-xl border border-slate-200/60 shadow-[0_8px_30px_-10px_rgba(0,0,0,0.12)] rounded-2xl p-2 flex items-center justify-between ring-1 ring-black/5 w-full max-w-sm"
         >
-            <div className="flex bg-slate-100/50 p-1 rounded-full border border-slate-200/50">
+            <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
                 <button 
                     onClick={() => setActiveDept("FOH")} 
                     className={cn(
-                        "px-4 py-2 text-[10px] font-black rounded-full transition-all flex items-center gap-1.5", 
+                        "px-4 py-2 text-[10px] font-black rounded-lg transition-all flex items-center gap-1.5", 
                         activeDept === "FOH" ? "bg-white text-[#004F71] shadow-sm ring-1 ring-black/5" : "text-slate-400"
                     )}
                 >
@@ -209,7 +209,7 @@ export default function TrainingBuilderPage() {
                 <button 
                     onClick={() => setActiveDept("BOH")} 
                     className={cn(
-                        "px-4 py-2 text-[10px] font-black rounded-full transition-all flex items-center gap-1.5", 
+                        "px-4 py-2 text-[10px] font-black rounded-lg transition-all flex items-center gap-1.5", 
                         activeDept === "BOH" ? "bg-white text-[#E51636] shadow-sm ring-1 ring-black/5" : "text-slate-400"
                     )}
                 >
@@ -217,17 +217,17 @@ export default function TrainingBuilderPage() {
                 </button>
             </div>
             
-            <div className="flex items-center gap-3 pr-4">
+            <div className="flex items-center gap-3 pr-3">
                 <div className="h-6 w-px bg-slate-200" />
                 <div className="flex flex-col items-end leading-none">
-                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Phase</span>
+                    <span className="text-[7px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Active Phase</span>
                     <AnimatePresence mode="popLayout">
                         <motion.span 
                             key={activeIndex}
                             initial={{ y: 10, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
                             exit={{ y: -10, opacity: 0 }}
-                            className={cn("text-xs font-black tabular-nums", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")}
+                            className={cn("text-sm font-black tabular-nums", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")}
                         >
                             {String(activeIndex + 1).padStart(2, '0')}
                         </motion.span>
@@ -281,10 +281,9 @@ export default function TrainingBuilderPage() {
         </motion.div>
       </div>
 
-      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-0 md:pt-48 grid grid-cols-12 gap-8 md:gap-12 items-stretch relative z-10 pb-32">
+      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-0 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-stretch relative z-10 pb-32">
          
          {/* LEFT COLUMN: LIST */}
-         {/* UPDATED: Removed border/padding on mobile, added 'w-full' and centered flex logic */}
          <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-0 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative flex flex-col items-center w-full">
             {sections.map((section, idx) => {
                const isActive = activeSectionId === section.id;
@@ -293,7 +292,7 @@ export default function TrainingBuilderPage() {
                   key={section.id} 
                   ref={el => { sectionRefs.current[section.id] = el; }} 
                   className={cn(
-                      "relative transition-all duration-500 w-full max-w-2xl", // Constrain width on mobile
+                      "relative transition-all duration-500 w-full max-w-2xl", 
                       isActive ? "z-30" : "z-0"
                   )}
                >
@@ -318,21 +317,21 @@ export default function TrainingBuilderPage() {
                   <div 
                     onClick={() => handleMobileCardClick(section.id)}
                     className={cn(
-                        "bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", 
+                        "bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", 
                         isActive 
                             ? "border-slate-200 scale-100 ring-1 ring-black/5" 
                             : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]"
                     )}
                   >
-                     <div className="flex justify-between items-start mb-6 md:mb-8 gap-4 md:gap-6">
+                     <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
                         <div className="flex-1 space-y-2 md:space-y-3">
-                           <div className="flex items-center gap-3">
-                              <div className={cn("flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner")}><CalendarClock className="w-3.5 h-3.5" /><input value={section.duration} onChange={e => updateSection(section.id, { duration: e.target.value })} onClick={(e) => e.stopPropagation()} className="bg-transparent border-none focus:outline-none w-20 p-0 font-black" /></div>
-                              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
+                           <div className="flex items-center gap-2 md:gap-3">
+                              <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner")}><CalendarClock className="w-3.5 h-3.5" /><input value={section.duration} onChange={e => updateSection(section.id, { duration: e.target.value })} onClick={(e) => e.stopPropagation()} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" /></div>
+                              <span className="text-[9px] md:text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
                            </div>
-                           <input value={section.title} onChange={e => updateSection(section.id, { title: e.target.value })} onClick={(e) => e.stopPropagation()} className="text-xl md:text-4xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter" />
+                           <input value={section.title} onChange={e => updateSection(section.id, { title: e.target.value })} onClick={(e) => e.stopPropagation()} className="text-lg md:text-4xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter" />
                         </div>
-                        <div className="flex items-start gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-start gap-2 md:gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
                             <div className="hidden md:block">
                                 <PageRangeSelector start={section.pageStart} end={section.pageEnd} onUpdate={(u: any) => updateSection(section.id, u)} />
                             </div>
@@ -340,18 +339,22 @@ export default function TrainingBuilderPage() {
                         </div>
                      </div>
                      
-                     <div className="space-y-3 md:space-y-2.5">
+                     <div className="space-y-2 md:space-y-2.5">
                         {section.tasks.map(task => (
-                           <div key={task.id} className="group bg-slate-50/50 rounded-xl md:rounded-2xl p-4 md:p-4 border border-transparent hover:border-slate-200 hover:bg-white transition-all flex items-center gap-3 md:gap-4" onClick={(e) => e.stopPropagation()}>
-                              <GripVertical className="w-4 h-4 text-slate-200" />
+                           <div key={task.id} className="group bg-slate-50/50 rounded-xl md:rounded-2xl p-3 md:p-4 border border-transparent hover:border-slate-200 hover:bg-white transition-all flex items-center gap-3 md:gap-4" onClick={(e) => e.stopPropagation()}>
+                              <GripVertical className="w-4 h-4 text-slate-200 shrink-0" />
                               <div className="flex-1"><input value={task.title} onChange={e => {
                                     const newTasks = section.tasks.map(t => t.id === task.id ? { ...t, title: e.target.value } : t);
                                     updateSection(section.id, { tasks: newTasks });
                                  }} className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300" placeholder="Enter objective..." /></div>
                               <div className="flex items-center gap-2">
                                  {task.image && <div onClick={() => setViewingImage(task.image!)} className="w-8 h-8 rounded-lg overflow-hidden border-2 border-white shadow-sm cursor-zoom-in shrink-0"><img src={task.image} className="w-full h-full object-cover" /></div>}
-                                 <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all opacity-0 group-hover:opacity-100 shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
-                                 <button onClick={() => updateDoc(doc(db, "curriculum", section.id), { tasks: section.tasks.filter(t => t.id !== task.id) })} className="p-2 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"><X className="w-4 h-4" /></button>
+                                 
+                                 {/* File Upload - Always visible on mobile, hover on desktop */}
+                                 <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all opacity-100 lg:opacity-0 lg:group-hover:opacity-100 shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
+                                 
+                                 {/* Delete Task - Always visible on mobile, hover on desktop */}
+                                 <button onClick={() => updateDoc(doc(db, "curriculum", section.id), { tasks: section.tasks.filter(t => t.id !== task.id) })} className="p-2 text-slate-300 hover:text-red-500 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 shrink-0"><X className="w-4 h-4" /></button>
                               </div>
                            </div>
                         ))}
@@ -363,7 +366,7 @@ export default function TrainingBuilderPage() {
                      </div>
                      
                      {/* Mobile Only: Tap to View Manual Prompt */}
-                     <div className="lg:hidden mt-6 flex justify-center text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 bg-slate-50 py-3 rounded-xl border border-slate-100">
+                     <div className="lg:hidden mt-4 md:mt-6 flex justify-center text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 bg-slate-50 py-3 rounded-xl border border-slate-100">
                          <span>Tap card to open manual</span>
                          <ChevronRight className="w-3 h-3" />
                      </div>
