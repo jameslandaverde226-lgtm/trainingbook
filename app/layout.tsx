@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next"; // Import Viewport
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthGuard from "@/components/core/AuthGuard";
@@ -9,6 +9,21 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "TrainingBook",
   description: "Operational Management System",
+  manifest: "/manifest.webmanifest", // Link to the auto-generated manifest
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TrainingBook",
+  },
+};
+
+// Add this Viewport export
+export const viewport: Viewport = {
+  themeColor: "#0F172A", // Matches your Slate 900 background
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false, // Makes it feel like a native app (no pinch zoom)
 };
 
 export default function RootLayout({
@@ -23,13 +38,12 @@ export default function RootLayout({
            {children}
         </AuthGuard>
         
-        {/* Global Toast Config - Tactical Dark Mode Style */}
+        {/* Global Toast Config */}
         <Toaster 
           position="bottom-right" 
           toastOptions={{
-            // Define default styles
             style: {
-              background: '#0F172A', // Slate 900
+              background: '#0F172A',
               color: '#fff',
               borderRadius: '16px',
               fontSize: '12px',
@@ -40,31 +54,16 @@ export default function RootLayout({
               letterSpacing: '0.05em',
               textTransform: 'uppercase',
             },
-            // Success State
             success: {
-                iconTheme: {
-                    primary: '#10b981', // Emerald 500
-                    secondary: '#fff',
-                },
-                style: {
-                    borderLeft: '4px solid #10b981',
-                }
+                iconTheme: { primary: '#10b981', secondary: '#fff' },
+                style: { borderLeft: '4px solid #10b981' }
             },
-            // Error State
             error: {
-                iconTheme: {
-                    primary: '#ef4444', // Red 500
-                    secondary: '#fff',
-                },
-                style: {
-                    borderLeft: '4px solid #ef4444',
-                }
+                iconTheme: { primary: '#ef4444', secondary: '#fff' },
+                style: { borderLeft: '4px solid #ef4444' }
             },
-            // Loading State
             loading: {
-                style: {
-                    borderLeft: '4px solid #3b82f6', // Blue 500
-                }
+                style: { borderLeft: '4px solid #3b82f6' }
             }
         }} />
       </body>
