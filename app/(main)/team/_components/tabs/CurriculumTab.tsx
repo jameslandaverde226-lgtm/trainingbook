@@ -8,7 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore";
-import { doc, setDoc, serverTimestamp, arrayUnion, arrayRemove } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, arrayUnion, arrayRemove, addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence, useDragControls, PanInfo } from "framer-motion";
@@ -62,7 +62,6 @@ export function CurriculumTab({ member }: Props) {
   const { curriculum, updateMemberLocal } = useAppStore();
   const [activeSection, setActiveSection] = useState<any | null>(null);
   const [manualSection, setManualSection] = useState<any | null>(null);
-  // Add state to track viewing larger image if needed, or keep it simple with just the card view
   const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   const filteredCurriculum = useMemo(() => {
@@ -75,26 +74,42 @@ export function CurriculumTab({ member }: Props) {
       return filteredCurriculum.reduce((acc, curr) => acc + (curr.tasks?.length || 0), 0);
   }, [filteredCurriculum]);
 
-  const handleVerifyTask = async (taskId: string) => {
+  const handleVerifyTask = async (taskId: string, taskTitle: string) => {
       const currentIds = member.completedTaskIds || [];
       const wasCompleted = currentIds.includes(taskId);
       
       const newCompletedIds = wasCompleted ? currentIds.filter(id => id !== taskId) : [...currentIds, taskId];
       const newProgress = globalTotalTasks > 0 ? Math.round((newCompletedIds.length / globalTotalTasks) * 100) : 0;
 
-      // Optimistic
+      // Optimistic Update
       updateMemberLocal(member.id, { completedTaskIds: newCompletedIds, progress: newProgress });
 
-      // DB
-      const memberRef = doc(db, "profileOverrides", member.id);
       try {
+          // 1. Update Member Profile
+          const memberRef = doc(db, "profileOverrides", member.id);
           await setDoc(memberRef, { 
               completedTaskIds: wasCompleted ? arrayRemove(taskId) : arrayUnion(taskId), 
               progress: newProgress,
               updatedAt: serverTimestamp() 
           }, { merge: true });
           
-          if (!wasCompleted) toast.success("Module Verified");
+          // 2. Log to Live Feed
+          if (!wasCompleted) {
+              await addDoc(collection(db, "events"), {
+                  title: `Module Verified: ${taskTitle}`,
+                  type: "Training",
+                  startDate: new Date(),
+                  status: "Done",
+                  priority: "Normal",
+                  assigneeId: "System",
+                  assigneeName: "System",
+                  teamMemberId: member.id,
+                  teamMemberName: member.name,
+                  description: `Completed training module: ${taskTitle}`,
+                  createdAt: serverTimestamp()
+              });
+              toast.success("Module Verified");
+          }
       } catch (e) {
           toast.error("Sync Failed");
           updateMemberLocal(member.id, { completedTaskIds: currentIds }); // Revert
@@ -247,7 +262,7 @@ export function CurriculumTab({ member }: Props) {
                                     layout
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    onClick={() => handleVerifyTask(task.id)}
+                                    onClick={() => handleVerifyTask(task.id, task.title)}
                                     whileTap={{ scale: 0.98 }}
                                     className={cn(
                                         "relative overflow-hidden flex flex-col gap-3 p-4 md:p-5 rounded-[20px] md:rounded-[24px] border text-left group transition-all duration-300",
