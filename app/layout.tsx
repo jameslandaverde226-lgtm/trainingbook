@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next"; // Import Viewport
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import AuthGuard from "@/components/core/AuthGuard";
@@ -9,21 +9,22 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "TrainingBook",
   description: "Operational Management System",
-  manifest: "/manifest.webmanifest", // Link to the auto-generated manifest
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "TrainingBook",
+  // --- ADD THIS SECTION ---
+  icons: {
+    icon: "/planning.svg", 
+    shortcut: "/planning.svg",
+    apple: "/planning.svg", 
   },
+  // ------------------------
 };
 
-// Add this Viewport export
+// ... keep viewport and RootLayout unchanged ...
 export const viewport: Viewport = {
-  themeColor: "#0F172A", // Matches your Slate 900 background
+  themeColor: "#0F172A",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // Makes it feel like a native app (no pinch zoom)
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -38,7 +39,6 @@ export default function RootLayout({
            {children}
         </AuthGuard>
         
-        {/* Global Toast Config */}
         <Toaster 
           position="bottom-right" 
           toastOptions={{
