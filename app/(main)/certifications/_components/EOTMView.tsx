@@ -10,10 +10,18 @@ import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { format } from "date-fns";
 import { useAppStore } from "@/lib/store/useStore";
-import { addDoc, collection, serverTimestamp, query, where, onSnapshot, orderBy, doc, setDoc } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, query, where, onSnapshot, orderBy, doc, setDoc, writeBatch, arrayUnion } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import ClientPortal from "@/components/core/ClientPortal";
+
+// --- STANDARD EOTM BADGE TEMPLATE ---
+const EOTM_BADGE = {
+    label: "Employee of the Month",
+    iconId: "Trophy", // Matches icon-library ID
+    hex: "#f59e0b",   // Gold/Amber color
+    desc: "Recognized for outstanding performance."
+};
 
 export default function EOTMView() {
     const { team, currentUser } = useAppStore();
@@ -71,10 +79,10 @@ export default function EOTMView() {
         return { foh: getLeader("FOH"), boh: getLeader("BOH") };
     }, [votes, team]);
 
-    // --- EXECUTE FINALIZE ---
+    // --- EXECUTE FINALIZE (UPDATED) ---
     const executeFinalize = async () => {
         setIsConfirmingFinalize(false); // Close modal
-        const loadToast = toast.loading("Tabulating results...");
+        const loadToast = toast.loading("Tabulating results & Awarding Badges...");
         
         try {
             const fohWinner = leaders.foh 
@@ -94,16 +102,81 @@ export default function EOTMView() {
                 finalizedAt: serverTimestamp()
             };
 
-            // 1. Commit to History
-            await setDoc(doc(db, "eotm_winners", currentMonthKey), historyData);
+            const batch = writeBatch(db);
 
-            // 2. INTELLIGENT EVENT LOGGING (High Priority Announcement)
-            // This pushes a prominent "Award" card to the live feed
-            await addDoc(collection(db, "events"), {
+            // 1. Commit to History
+            const historyRef = doc(db, "eotm_winners", currentMonthKey);
+            batch.set(historyRef, historyData);
+
+            // 2. AWARD BADGES TO WINNERS & CREATE INDIVIDUAL LOGS
+            
+            // FOH Winner
+            if (leaders.foh) {
+                const fohRef = doc(db, "profileOverrides", leaders.foh.id);
+                const badge = { 
+                    ...EOTM_BADGE, 
+                    id: Math.random().toString(36).substr(2, 9),
+                    awardedId: Math.random().toString(36).substr(2, 9),
+                    timestamp: new Date().toISOString(),
+                    desc: `Employee of the Month - ${format(new Date(), "MMMM yyyy")}`
+                };
+                batch.set(fohRef, { badges: arrayUnion(badge), updatedAt: serverTimestamp() }, { merge: true });
+
+                // Create dedicated log for FOH Winner's Profile
+                const fohEventRef = doc(collection(db, "events"));
+                batch.set(fohEventRef, {
+                    title: `EOTM Winner: ${format(new Date(), "MMM")}`,
+                    type: "Award",
+                    status: "Done",
+                    priority: "High",
+                    startDate: new Date(),
+                    endDate: new Date(),
+                    assignee: "System",
+                    assigneeName: "Command",
+                    teamMemberId: leaders.foh.id, // LINK TO MEMBER
+                    teamMemberName: leaders.foh.name,
+                    description: `[OFFICIAL RECOGNITION]\nAwarded Front of House Employee of the Month for ${format(new Date(), "MMMM")}.`,
+                    createdAt: serverTimestamp()
+                });
+            }
+
+            // BOH Winner
+            if (leaders.boh) {
+                const bohRef = doc(db, "profileOverrides", leaders.boh.id);
+                const badge = { 
+                    ...EOTM_BADGE, 
+                    id: Math.random().toString(36).substr(2, 9),
+                    awardedId: Math.random().toString(36).substr(2, 9),
+                    timestamp: new Date().toISOString(),
+                    desc: `Employee of the Month - ${format(new Date(), "MMMM yyyy")}`
+                };
+                batch.set(bohRef, { badges: arrayUnion(badge), updatedAt: serverTimestamp() }, { merge: true });
+
+                // Create dedicated log for BOH Winner's Profile
+                const bohEventRef = doc(collection(db, "events"));
+                batch.set(bohEventRef, {
+                    title: `EOTM Winner: ${format(new Date(), "MMM")}`,
+                    type: "Award",
+                    status: "Done",
+                    priority: "High",
+                    startDate: new Date(),
+                    endDate: new Date(),
+                    assignee: "System",
+                    assigneeName: "Command",
+                    teamMemberId: leaders.boh.id, // LINK TO MEMBER
+                    teamMemberName: leaders.boh.name,
+                    description: `[OFFICIAL RECOGNITION]\nAwarded Back of House Employee of the Month for ${format(new Date(), "MMMM")}.`,
+                    createdAt: serverTimestamp()
+                });
+            }
+
+            // 3. Create Global Announcement Log (For Dashboard)
+            const globalEventRef = doc(collection(db, "events"));
+            batch.set(globalEventRef, {
                 title: `EOTM Winners: ${format(new Date(), "MMM")}`,
                 type: "Award",
                 status: "Done",
-                priority: "High", // High priority highlights it red/gold in feed
+                priority: "High", 
                 startDate: new Date(),
                 endDate: new Date(),
                 assignee: "System",
@@ -112,7 +185,9 @@ export default function EOTMView() {
                 createdAt: serverTimestamp()
             });
 
-            toast.success("Cycle Finalized & Published", { id: loadToast });
+            await batch.commit();
+
+            toast.success("Cycle Finalized & Badges Awarded", { id: loadToast });
         } catch (e) {
             console.error(e);
             toast.error("Failed to finalize cycle", { id: loadToast });

@@ -23,6 +23,8 @@ export const syncTeamRoster = onSchedule(
 
     let browser = null;
     let scrapedData: any[] = [];
+    let logStatus = "SUCCESS";
+    let logMessage = "";
 
     try {
       console.log("1. Configuring Chromium...");
@@ -123,8 +125,10 @@ export const syncTeamRoster = onSchedule(
       console.log("10. Waiting for Data Stream (15 seconds)...");
       await new Promise((resolve) => setTimeout(resolve, 15000));
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ CRITICAL SCRAPER ERROR:", error);
+      logStatus = "ERROR";
+      logMessage = error.message || "Unknown error occurred";
     } finally {
       if (browser) await browser.close();
     }
@@ -138,6 +142,7 @@ export const syncTeamRoster = onSchedule(
 
       const batch = db.batch();
       let count = 0;
+      let newCount = 0;
 
       for (const member of scrapedData) {
         if (!member.email) continue;
@@ -157,6 +162,7 @@ export const syncTeamRoster = onSchedule(
         } else {
             // NEW USER: Create with default "Unassigned"
             console.log(`✨ New Hire Detected: ${member.name}`);
+            newCount++;
             batch.set(docRef, {
                 ...member,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -169,6 +175,21 @@ export const syncTeamRoster = onSchedule(
       
       if (count > 0) await batch.commit();
       console.log("✅ Sync Complete.");
+      
+      logMessage = `Sync Complete. Processed ${scrapedData.length} records. ${newCount} new hires added.`;
+    } else if (logStatus === "SUCCESS") {
+      logStatus = "WARNING";
+      logMessage = "Scraper ran but found 0 records.";
     }
+
+    // --- WRITE LOG TO FIRESTORE ---
+    await db.collection("systemLogs").add({
+        source: "LifeLenz Scraper",
+        status: logStatus,
+        message: logMessage,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    console.log("✅ Log Entry Created.");
   }
 );

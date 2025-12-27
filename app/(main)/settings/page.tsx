@@ -3,16 +3,18 @@
 import { useState, useEffect, useMemo } from "react";
 import { 
   User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save,
-  ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus, Lock, Unlock, FileKey, BarChart3, Users
+  ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus, Lock, Unlock, FileKey, BarChart3, Users,
+  Terminal, Server, AlertCircle, CheckCircle2, Activity
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore } from "@/lib/store/useStore"; 
 import { auth, db } from "@/lib/firebase"; 
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { ROLE_HIERARCHY, Status, PermissionSet, DEFAULT_PERMISSIONS } from "../calendar/_components/types"; 
 import { cn } from "@/lib/utils";
 import { PermissionToggle } from "./_components/PermissionToggle";
+import { format } from "date-fns";
 
 // --- PERMISSION LABELS MAP ---
 const PERMISSION_CONFIG: { key: keyof PermissionSet; label: string; desc: string; category: "ops" | "people" | "system" }[] = [
@@ -47,10 +49,13 @@ export default function SettingsPage() {
   const [rolePermissions, setRolePermissions] = useState<PermissionSet>(DEFAULT_PERMISSIONS["Team Member"]);
   const [isPermSaving, setIsPermSaving] = useState(false);
 
+  // --- LOGS STATE ---
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
+
   // --- HIERARCHY LOGIC ---
   const myLevel = ROLE_HIERARCHY[currentUser?.role || "Team Member"] || 0;
   const canCreateAccounts = myLevel >= 2;
-  const canManageRoles = myLevel >= 3; // Only Directors can manage roles
+  const canManageRoles = myLevel >= 3; 
 
   // Filter existing members
   const filteredMembers = useMemo(() => {
@@ -59,7 +64,7 @@ export default function SettingsPage() {
      );
   }, [team, memberSearch]);
 
-  // Filter members WHO HAVE ACCESS (for management list)
+  // Filter members WHO HAVE ACCESS
   const activeUsers = useMemo(() => {
       return team.filter(m => m.status !== "Team Member" && m.status !== "Onboarding" && m.status !== "Training");
   }, [team]);
@@ -76,15 +81,25 @@ export default function SettingsPage() {
   // Load Permissions on Role Change
   useEffect(() => {
     const loadPermissions = async () => {
-        // Using defaults for demo UI, but structured to support DB fetch
         setRolePermissions(DEFAULT_PERMISSIONS[selectedRole]);
     };
     loadPermissions();
   }, [selectedRole]);
 
+  // Load System Logs when on that tab
+  useEffect(() => {
+      if (activeTab === 'logs') {
+          const q = query(collection(db, "systemLogs"), orderBy("timestamp", "desc"), limit(20));
+          const unsub = onSnapshot(q, (snapshot) => {
+              setSystemLogs(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+          });
+          return () => unsub();
+      }
+  }, [activeTab]);
+
   // --- HANDLERS ---
   const handleTogglePermission = (key: keyof PermissionSet) => {
-      if (selectedRole === "Director") return; // Directors are always superusers
+      if (selectedRole === "Director") return; 
       setRolePermissions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -129,7 +144,7 @@ export default function SettingsPage() {
           const token = await auth.currentUser?.getIdToken();
           if (!token) throw new Error("Authentication Token Missing");
 
-          const res = await fetch('/api/admin/create-user', {
+          const res = await fetch('/api/create-user', {
               method: 'POST',
               headers: { 
                   'Content-Type': 'application/json',
@@ -198,7 +213,7 @@ export default function SettingsPage() {
                     { id: 'identity', label: 'Identity', icon: User, visible: true },
                     { id: 'ops', label: 'Operations', icon: Fingerprint, visible: canCreateAccounts }, 
                     { id: 'roles', label: 'Access Control', icon: FileKey, visible: canManageRoles }, 
-                    { id: 'security', label: 'Security', icon: Shield, visible: true },
+                    { id: 'logs', label: 'System Logs', icon: Terminal, visible: true },
                 ].filter(i => i.visible).map((item) => (
                     <button 
                         key={item.id}
@@ -280,7 +295,6 @@ export default function SettingsPage() {
                 {/* --- TAB: OPERATIONS (Create & Manage) --- */}
                 {activeTab === 'ops' && canCreateAccounts && (
                     <div className="space-y-6">
-                        
                         {/* 1. ONBOARDING CARD */}
                         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
                             <div className="mb-10 flex items-center justify-between">
@@ -343,7 +357,6 @@ export default function SettingsPage() {
                                         <input required type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all" />
                                     </div>
                                     
-                                    {/* --- CUSTOM DROPDOWN FOR CLEARANCE LEVEL --- */}
                                     <div className="space-y-2 relative">
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Clearance Level</label>
                                         <button 
@@ -453,6 +466,7 @@ export default function SettingsPage() {
                 {/* --- TAB: ROLES (RBAC) --- */}
                 {activeTab === 'roles' && canManageRoles && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
+                         {/* (Existing role content preserved) */}
                         <div className="mb-10">
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Access Protocols</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Configure capability matrix for each rank.</p>
@@ -549,6 +563,88 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 )}
+                
+                {/* --- TAB: SYSTEM LOGS (Renamed from Security) --- */}
+                {activeTab === 'logs' && (
+                    <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100 relative overflow-hidden">
+                        
+                        {/* Header */}
+                        <div className="mb-8 relative z-10 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">System Logs</h2>
+                                <p className="text-sm font-medium text-slate-400 mt-1">Real-time uplink from backend services.</p>
+                            </div>
+                            <div className="p-3 bg-slate-100 rounded-2xl">
+                                <Activity className="w-6 h-6 text-slate-400" />
+                            </div>
+                        </div>
+
+                        {/* Terminal / Log Viewer */}
+                        <div className="bg-slate-50 rounded-[24px] border border-slate-200 p-2 relative z-10 font-mono overflow-hidden shadow-inner">
+                            
+                            {/* Toolbar */}
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 bg-white/50 rounded-t-[18px]">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
+                                    <span className="ml-3 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Connection: Active</span>
+                                </div>
+                                <span className="text-[9px] font-black text-slate-300 uppercase">TrainingBook Kernel v4.2</span>
+                            </div>
+
+                            {/* Logs List */}
+                            <div className="p-3 space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
+                                {systemLogs.length > 0 ? systemLogs.map((log) => (
+                                    <div key={log.id} className="group flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
+                                        
+                                        {/* Status Icon */}
+                                        <div className={cn(
+                                            "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mt-0.5",
+                                            log.status === "SUCCESS" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                                        )}>
+                                            {log.status === "SUCCESS" ? (
+                                                <CheckCircle2 className="w-5 h-5" />
+                                            ) : (
+                                                <AlertCircle className="w-5 h-5" />
+                                            )}
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3 mb-1.5">
+                                                <span className={cn(
+                                                    "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
+                                                    log.status === "SUCCESS" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-red-50 border-red-100 text-red-700"
+                                                )}>
+                                                    {log.status}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                                                    {log.timestamp?.toDate ? format(log.timestamp.toDate(), "MMM dd • HH:mm:ss") : "Just now"}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-600 font-medium break-all leading-relaxed font-sans">
+                                                {log.message}
+                                            </p>
+                                        </div>
+
+                                        {/* Source Badge */}
+                                        <div className="shrink-0 hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                                            <Server className="w-3 h-3 text-slate-400" />
+                                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider">{log.source}</span>
+                                        </div>
+                                    </div>
+                                )) : (
+                                    <div className="py-20 flex flex-col items-center justify-center text-slate-400">
+                                        <Loader2 className="w-10 h-10 animate-spin mb-4 opacity-20" />
+                                        <p className="text-xs font-bold uppercase tracking-widest opacity-50">Waiting for uplink...</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             </div>
         </div>
       </div>

@@ -2,7 +2,7 @@
 
 import { useState, useRef, memo, useEffect, useMemo } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, PanInfo } from "framer-motion";
-import { Camera, Loader2, Link2, UserPlus, Crown, Sparkles, User, Activity, Clock, CheckCircle2 } from "lucide-react"; 
+import { Camera, Loader2, Link2, UserPlus, Crown, Sparkles, User, Activity, Clock, CheckCircle2, Award } from "lucide-react"; 
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { storage, db } from "@/lib/firebase"; 
@@ -86,6 +86,11 @@ const TeamCardComponent = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
   const progressTicks = Math.round((member.progress || 0) / 10);
+  
+  // Badge Logic
+  const badgeCount = member.badges?.length || 0;
+  const lastBadge = badgeCount > 0 ? member.badges![member.badges!.length - 1] : null;
+  const LastBadgeIcon = lastBadge ? (TACTICAL_ICONS.find(i => i.id === lastBadge.iconId)?.icon || Award) : null;
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
@@ -135,15 +140,13 @@ const TeamCardComponent = ({
          style={{ filter: isDragging ? 'brightness(1.1)' : 'none', zIndex: isDragging ? 100 : 1 }}
          className="h-full w-full relative"
        >
-        {/* --- ASSIGNMENT OVERLAY (Now placed at root of card motion div) --- */}
+        {/* --- ASSIGNMENT OVERLAY --- */}
         <AnimatePresence>
             {isDropTarget && (
                 <motion.div 
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }} 
                     exit={{ opacity: 0 }}
-                    // z-50 ensures it is on top of everything inside this card
-                    // pointer-events-none allows clicks to pass through to the wrapper onClick, BUT visual cue remains
                     className="absolute inset-0 z-50 bg-emerald-900/60 backdrop-blur-[2px] flex flex-col items-center justify-center text-white rounded-[32px] pointer-events-none"
                 >
                     <motion.div 
@@ -159,7 +162,7 @@ const TeamCardComponent = ({
             )}
         </AnimatePresence>
         
-        {/* --- NEW: WAITING FOR MENTOR OVERLAY --- */}
+        {/* --- WAITING FOR MENTOR OVERLAY --- */}
         <AnimatePresence>
             {isWaitingForMentor && (
                 <motion.div 
@@ -175,7 +178,6 @@ const TeamCardComponent = ({
         <div className={cn(
           "absolute -inset-2 rounded-[32px] blur-2xl transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-40",
           isFOH ? "bg-[#004F71]" : isBOH ? "bg-[#E51636]" : "bg-slate-500",
-          // TARGET GLOW
           isDropTarget && "opacity-80 bg-emerald-500 duration-300 animate-pulse"
         )} />
 
@@ -190,9 +192,7 @@ const TeamCardComponent = ({
                     ? "bg-[#E51636] border-[#E51636] shadow-xl"
                     : "bg-slate-800 border-slate-700 shadow-xl", 
           isDragging && "ring-4 ring-white/50 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] scale-105 rotate-2",
-          // TARGET BORDER
           isDropTarget && "ring-4 ring-emerald-500 border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.4)]",
-          // WAITING BORDER
           isWaitingForMentor && "ring-4 ring-amber-400 border-amber-400 shadow-2xl"
         )}>
           
@@ -249,11 +249,24 @@ const TeamCardComponent = ({
                      </div>
                   )}
               </div>
-              {!isDropTarget && (
-                <button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all backdrop-blur-md opacity-0 group-hover:opacity-100">
-                    {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
-                </button>
-              )}
+
+              {/* ACTION AREA (Top Right) */}
+              <div className="flex items-center gap-2">
+                  {/* BADGE COUNT PILL (NEW) */}
+                  {badgeCount > 0 && (
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 shadow-sm text-amber-200 group-hover:bg-white/20 transition-colors">
+                          {LastBadgeIcon && <LastBadgeIcon className="w-3 h-3 text-amber-400" />}
+                          <span className="text-[9px] font-black">{badgeCount}</span>
+                      </div>
+                  )}
+                  
+                  {/* Upload Button */}
+                  {!isDropTarget && (
+                    <button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all backdrop-blur-md opacity-0 group-hover:opacity-100">
+                        {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
+              </div>
             </div>
 
             <div className="space-y-4">

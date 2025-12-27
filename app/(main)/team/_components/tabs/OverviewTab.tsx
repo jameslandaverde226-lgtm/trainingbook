@@ -28,6 +28,7 @@ const getCategoryStyle = (type: string) => {
         case 'PROMOTION': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
         case 'TRANSFER': return 'bg-cyan-50 text-cyan-700 border-cyan-100';
         case 'ASSIGNMENT': return 'bg-sky-50 text-sky-700 border-sky-100';
+        case 'WINNER': return 'bg-amber-100 text-amber-800 border-amber-200'; // Added WINNER style
 
         case 'INCIDENT': return 'bg-red-50 text-red-700 border-red-100';
         case 'COMMENDATION': return 'bg-amber-50 text-amber-700 border-amber-100';
@@ -51,6 +52,7 @@ export function OverviewTab({ member }: Props) {
     assignedEvents.forEach(e => {
         let category = 'MISSION';
         let desc = e.description || "";
+        let title = e.title;
 
         if (desc.startsWith("[DOCUMENT LOG:")) {
              const match = desc.match(/\[DOCUMENT LOG: (.*?)\]/);
@@ -64,7 +66,15 @@ export function OverviewTab({ member }: Props) {
         }
         else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
-        else if (e.type === 'Award') category = 'AWARD';
+        else if (e.type === 'Award') {
+             // Differentiate general awards from EOTM Winner logs
+             if (title.startsWith("EOTM Winners")) {
+                 category = 'WINNER';
+                 // Optionally clean up the description to just show relevant info if needed
+             } else {
+                 category = 'AWARD';
+             }
+        }
         else if (e.type === 'Vote') category = 'VOTE';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
@@ -79,7 +89,7 @@ export function OverviewTab({ member }: Props) {
         }
 
         history.push({ 
-            id: e.id, date: e.startDate, title: e.title, category, 
+            id: e.id, date: e.startDate, title: title, category, 
             description: desc, rawEvent: e, mentorName: e.assigneeName 
         });
     });
@@ -111,7 +121,7 @@ export function OverviewTab({ member }: Props) {
 
   return (
     <div className="p-5 lg:p-10 space-y-6 lg:space-y-8 pb-32 h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
-        {/* ... Mentor & Probation Cards (Unchanged) ... */}
+        {/* ... Mentor & Probation Cards ... */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
             {member.pairing ? (
                 <div className="bg-white p-4 lg:p-5 rounded-[24px] lg:rounded-[28px] border border-slate-200 shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
@@ -119,7 +129,6 @@ export function OverviewTab({ member }: Props) {
                     <div className="flex items-center gap-4 pl-3">
                         <div className="relative">
                             <div className="w-12 h-12 rounded-2xl p-0.5 bg-gradient-to-br from-slate-100 to-slate-200 shadow-sm overflow-hidden flex items-center justify-center">
-                                {/* FIX: Check if image string is valid */}
                                 {member.pairing.image ? (
                                     <img src={member.pairing.image} className="w-full h-full rounded-[14px] object-cover" />
                                 ) : (
@@ -149,7 +158,7 @@ export function OverviewTab({ member }: Props) {
             )}
         </div>
 
-        {/* ... Deployment Status (Unchanged) ... */}
+        {/* ... Deployment Status ... */}
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 text-center">Unit Deployment Status</h4>
             <div className="overflow-x-auto no-scrollbar pt-12 pb-6 -mx-6 px-6 scroll-smooth snap-x">
@@ -178,10 +187,22 @@ export function OverviewTab({ member }: Props) {
             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 pl-2 snap-x">
                 {member.badges && member.badges.length > 0 ? member.badges.map((badge: any, i: number) => { 
                     const Icon = TACTICAL_ICONS.find(ic => ic.id === badge.iconId)?.icon || Award; 
+                    
+                    // UPDATED: PARSE DATE IF EOTM
+                    let subText = "";
+                    if (badge.label === "Employee of the Month" && badge.desc) {
+                         subText = badge.desc.replace("Employee of the Month - ", "");
+                    }
+
                     return (
                         <div key={i} className="min-w-[140px] p-4 rounded-[20px] bg-white border border-slate-100 shadow-sm flex flex-col items-center text-center gap-2 hover:shadow-md transition-all snap-center">
                             <div className="p-2.5 rounded-xl shadow-inner" style={{ backgroundColor: `${badge.hex}15`, color: badge.hex }}><Icon className="w-5 h-5" /></div>
-                            <span className="text-[9px] font-bold text-slate-800 uppercase tracking-tight line-clamp-1">{badge.label}</span>
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[9px] font-bold text-slate-800 uppercase tracking-tight line-clamp-1">{badge.label}</span>
+                                {subText && (
+                                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{subText}</span>
+                                )}
+                            </div>
                         </div>
                     ) 
                 }) : (

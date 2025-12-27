@@ -27,6 +27,7 @@ const getActivityConfig = (type: string) => {
         case '1-ON-1': return { icon: MessageSquare, color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', accent: 'border-l-purple-500' };
         // New System Types
         case 'AWARD': return { icon: Trophy, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500' };
+        case 'WINNER': return { icon: Crown, color: 'bg-amber-400', text: 'text-amber-800', bg: 'bg-amber-100', border: 'border-amber-300', accent: 'border-l-amber-500' }; // NEW WINNER STYLE
         case 'VOTE': return { icon: Vote, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', accent: 'border-l-slate-400' };
         
         // --- NEW ICONS ---
@@ -55,6 +56,8 @@ export function PerformanceTab({ member }: Props) {
   const timelineData = useMemo(() => {
     const history: any[] = [];
     
+    // We want events where the member is EITHER the assignee (lead) OR the participant (teamMemberId)
+    // BUT for "Award" events (like EOTM), the 'assignee' is usually "System", so we check teamMemberId mainly.
     const relevantEvents = events.filter(e => 
         e.teamMemberId === member.id || (e.assignee === member.id && e.type === 'Goal')
     );
@@ -77,7 +80,16 @@ export function PerformanceTab({ member }: Props) {
         }
         else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
-        else if (e.type === 'Award') category = 'AWARD';
+        else if (e.type === 'Award') {
+             // DETECT EOTM WINNER
+             if (title.startsWith("EOTM Winners")) {
+                 category = 'WINNER';
+                 // Clean up description for the card view
+                 desc = "Awarded Employee of the Month for outstanding performance.";
+             } else {
+                 category = 'AWARD';
+             }
+        }
         else if (e.type === 'Vote') category = 'VOTE';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
