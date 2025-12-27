@@ -118,8 +118,13 @@ export function OverviewTab({ member }: Props) {
                     <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} />
                     <div className="flex items-center gap-4 pl-3">
                         <div className="relative">
-                            <div className="w-12 h-12 rounded-2xl p-0.5 bg-gradient-to-br from-slate-100 to-slate-200 shadow-sm">
-                                <img src={member.pairing.image} className="w-full h-full rounded-[14px] object-cover" />
+                            <div className="w-12 h-12 rounded-2xl p-0.5 bg-gradient-to-br from-slate-100 to-slate-200 shadow-sm overflow-hidden flex items-center justify-center">
+                                {/* FIX: Check if image string is valid */}
+                                {member.pairing.image ? (
+                                    <img src={member.pairing.image} className="w-full h-full rounded-[14px] object-cover" />
+                                ) : (
+                                    <span className="text-sm font-black text-slate-400">{member.pairing.name.charAt(0)}</span>
+                                )}
                             </div>
                             <div className="absolute -bottom-1 -right-1 bg-emerald-500 ring-2 ring-white rounded-full p-0.5"><Zap className="w-2.5 h-2.5 text-white fill-current" /></div>
                         </div>

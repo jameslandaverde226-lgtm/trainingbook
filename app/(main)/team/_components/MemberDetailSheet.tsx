@@ -19,6 +19,12 @@ import ClientPortal from "@/components/core/ClientPortal";
 import AdvancedCreateModal from "@/app/(main)/calendar/_components/AdvancedCreateModal";
 import toast from "react-hot-toast";
 
+// NEW IMPORTS FOR TABS
+import { OverviewTab } from "./tabs/OverviewTab";
+import { CurriculumTab } from "./tabs/CurriculumTab";
+import { PerformanceTab } from "./tabs/PerformanceTab";
+import OperationalDocumentInterface from "./OperationalDocumentInterface";
+
 // --- CONFIGURATION ---
 const COLLECTION_NAME = "profileOverrides"; 
 
@@ -31,38 +37,8 @@ interface Props {
 
 const TRANSITION = { type: "spring" as const, damping: 25, stiffness: 300 };
 
-// --- HELPER: INTELLIGENT STYLE RESOLVER ---
-const getLogStyle = (type: string, description: string) => {
-  if (description.includes("PROMOTION")) {
-    return {
-      theme: "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100/80 shadow-sm",
-      iconBg: "bg-amber-100 text-amber-600 border-amber-50",
-      icon: Crown,
-      label: "Rank Advancement",
-      accent: "text-amber-900"
-    };
-  }
-  if (description.includes("ASSIGNMENT") || description.includes("TRANSFER")) {
-    return {
-      theme: "bg-gradient-to-br from-slate-50 to-blue-50 border-blue-100/80 shadow-sm",
-      iconBg: "bg-blue-100 text-[#004F71] border-blue-50",
-      icon: Shield,
-      label: "Unit Reassignment",
-      accent: "text-[#004F71]"
-    };
-  }
-  // Default Operation
-  return {
-    theme: "bg-white border-slate-100 hover:border-slate-200 shadow-sm",
-    iconBg: "bg-slate-50 text-slate-400 border-white",
-    icon: Activity,
-    label: "Standard Operation",
-    accent: "text-slate-700"
-  };
-};
-
 export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: Props) {
-  const { events, team } = useAppStore(); 
+  const { events, team, currentUser } = useAppStore(); 
   
   const router = useRouter(); 
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
@@ -93,15 +69,7 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
     // 1. Optimistic Update
     setCurrentDept(newDept); 
 
-    const toastId = toast.loading(`Transferring to ${newDept}...`, {
-        style: {
-            borderRadius: '12px',
-            background: '#333',
-            color: '#fff',
-            fontSize: '12px',
-            fontWeight: 'bold',
-        },
-    });
+    const toastId = toast.loading(`Transferring to ${newDept}...`);
 
     try {
         // 2. Database Update
@@ -130,19 +98,13 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
     }
   };
 
-  // --- DERIVED METRICS ---
-  const memberEvents = useMemo(() => {
-    return events.filter(e => e.assignee === member.id || e.teamMemberId === member.id)
-      .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-  }, [events, member.id]);
-
   // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = "unset"; };
   }, []);
 
-  const joinedDate = format(new Date(), "MMMM d, yyyy");
+  const joinedDate = member.joined ? format(new Date(member.joined), "MMM d, yyyy") : "N/A";
 
   return (
     <ClientPortal>
@@ -238,7 +200,9 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Assigned Mentor</p>
-                            <p className="text-xs font-bold text-slate-400 italic">No Mentor Assigned</p>
+                            <p className="text-xs font-bold text-slate-400 italic">
+                                {member.pairing ? member.pairing.name : "No Mentor Assigned"}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -292,9 +256,7 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                         {/* Mini Progress Ring */}
                         <div className="relative w-10 h-10">
                             <svg className="w-full h-full -rotate-90">
-                                {/* Background Circle */}
                                 <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-slate-100" />
-                                {/* Progress Circle */}
                                 <circle 
                                     cx="20" cy="20" r="16" 
                                     stroke="currentColor" strokeWidth="3" 
@@ -352,7 +314,9 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                                     </div>
                                     <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-100">
                                         <Shield className="w-3.5 h-3.5 text-slate-400" />
-                                        <span className="text-[10px] font-bold text-slate-400 italic">No Mentor Assigned</span>
+                                        <span className="text-[10px] font-bold text-slate-400 italic">
+                                            {member.pairing ? member.pairing.name : "No Mentor Assigned"}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -393,13 +357,19 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                         <Plus className="w-3.5 h-3.5" />
                         <span>New Mission</span>
                     </button>
-                </div>
+                 </div>
             </div>
 
             {/* --- SCROLLABLE CONTENT --- */}
-            <div className="flex-1 overflow-y-auto p-5 md:p-10 space-y-6 md:space-y-8 bg-[#F8FAFC]">
-                 {/* Mobile "New Mission" Button */}
-                 <div className="md:hidden">
+            <div className="flex-1 overflow-y-auto p-0 md:p-0 bg-[#F8FAFC]"> 
+                {/* 
+                   UPDATED: Removed padding from parent to allow children full control (like OverviewTab's own padding). 
+                   But we need consistent padding for the tab content, so we can wrap them individually or pass classes.
+                   Here I removed p-5/p-10 to let tabs handle their internal layout if they want full height scrolling.
+                */}
+                
+                 {/* Mobile "New Mission" Button - Only visible on Overview ideally, but here for now */}
+                 <div className="md:hidden p-5 pb-0">
                     <button 
                         onClick={() => setIsAddEventOpen(true)}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#E51636] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-500/20 active:scale-95 transition-all"
@@ -409,167 +379,24 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                     </button>
                  </div>
 
-                {/* --- TAB: OVERVIEW --- */}
-                {activeTab === 'overview' && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 md:space-y-8 pb-20 md:pb-0">
-                        
-                        {/* Unit Status (Timeline) */}
-                        <div className="p-6 md:p-8 bg-white border border-slate-100 rounded-[24px] md:rounded-[32px] shadow-sm">
-                            <div className="flex items-center justify-between mb-8 md:mb-10">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Unit Deployment Status</span>
-                            </div>
-                            <div className="relative px-2 md:px-4">
-                                <div className="hidden md:block absolute top-[22px] left-10 right-10 h-[2px] bg-slate-100 z-0" />
-                                <div className="md:hidden absolute top-4 bottom-4 left-[19px] w-[2px] bg-slate-100 z-0" />
-                                <div className="grid grid-cols-1 md:grid-cols-5 gap-y-6 md:gap-0 relative z-10">
-                                    {[
-                                        { label: "Onboarding", date: "Apr 2022", done: true },
-                                        { label: "Training", date: "Completed", done: true },
-                                        { label: "Team Member", date: "Completed", done: true },
-                                        { label: "Team Leader", date: "Dec 2024", current: true },
-                                        { label: "Director", date: "Locked", locked: true },
-                                    ].map((step, i) => (
-                                        <div key={i} className="flex md:flex-col items-center md:text-center gap-4 md:gap-3">
-                                            <div className={cn(
-                                                "w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center border-[3px] transition-all shadow-sm bg-white relative z-10 shrink-0",
-                                                step.done ? "border-emerald-500 text-emerald-500" : 
-                                                step.current ? cn(themeColorBorder, themeColorText, "scale-110 shadow-lg ring-4", themeRing) : 
-                                                "border-slate-100 text-slate-200"
-                                            )}>
-                                                {step.done ? <CheckCircle2 className="w-5 h-5 fill-emerald-50" /> : 
-                                                 step.current ? <span className="font-black text-sm">{i + 1}</span> :
-                                                 <span className="font-black text-sm text-slate-200">{i + 1}</span>}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className={cn("text-[8px] font-black uppercase tracking-widest mb-0.5 md:mb-1", step.current ? themeColorText : "text-slate-900")}>{step.label}</p>
-                                                <p className="text-[7px] font-bold text-slate-400 uppercase tracking-wide truncate">{step.date}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* --- BEAUTIFIED INTELLIGENCE FEED --- */}
-                        <div className="p-6 md:p-8 bg-white border border-slate-100 rounded-[24px] md:rounded-[32px] shadow-sm flex flex-col md:flex-row gap-8 md:gap-10">
-                             <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20", themeColorBg)}>
-                                        <Activity className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Command Center</p>
-                                        <h3 className="text-xl font-[1000] text-slate-900">Intelligence</h3>
-                                    </div>
-                                </div>
-                                
-                                <div className="space-y-6 relative pl-2">
-                                    {/* Connector Line */}
-                                    <div className="absolute left-[19px] top-4 bottom-4 w-px bg-slate-100 z-0" />
+                {/* --- TAB ROUTER --- */}
+                <div className="h-full">
+                    {activeTab === 'overview' && (
+                        <OverviewTab member={member} />
+                    )}
 
-                                    {memberEvents.length > 0 ? (
-                                        memberEvents.slice(0, 5).map((event) => {
-                                            // 1. DATA CLEANING
-                                            const rawDesc = event.description || "";
-                                            const cleanDesc = rawDesc
-                                                .replace(/\[SYSTEM LOG: .*?\]/g, "")
-                                                .replace(/\[OFFICIAL.*?\]/g, "")
-                                                .trim();
-                                            
-                                            // 2. GET STYLE CONFIG
-                                            const style = getLogStyle(event.type, rawDesc);
-                                            const Icon = style.icon;
+                    {activeTab === 'curriculum' && (
+                        <CurriculumTab member={member} />
+                    )}
 
-                                            return (
-                                                <motion.div 
-                                                    initial={{ opacity: 0, x: -10 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    key={event.id} 
-                                                    className="relative z-10 pl-8 group"
-                                                >
-                                                    {/* Timeline Icon */}
-                                                    <div className={cn(
-                                                        "absolute left-0 top-0 w-9 h-9 rounded-full border-[4px] border-white flex items-center justify-center shadow-sm transition-transform group-hover:scale-110",
-                                                        style.iconBg
-                                                    )}>
-                                                        <Icon className="w-4 h-4" />
-                                                    </div>
+                    {activeTab === 'performance' && (
+                        <PerformanceTab member={member} />
+                    )}
 
-                                                    {/* The "Beauty" Card */}
-                                                    <div className={cn(
-                                                        "p-4 rounded-2xl border transition-all hover:shadow-md",
-                                                        style.theme
-                                                    )}>
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <span className={cn("text-[9px] font-black uppercase tracking-widest opacity-70", style.accent)}>
-                                                                {style.label}
-                                                            </span>
-                                                            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-wide">
-                                                                {format(new Date(event.startDate), "MMM d")}
-                                                            </span>
-                                                        </div>
-
-                                                        {/* Main Content */}
-                                                        <h4 className={cn("text-xs md:text-sm font-bold leading-snug", style.accent)}>
-                                                            {cleanDesc || event.title}
-                                                        </h4>
-                                                        
-                                                        {/* Decoration for Promotions */}
-                                                        {style.label === "Rank Advancement" && (
-                                                            <div className="mt-2 flex items-center gap-1.5">
-                                                                <span className="px-2 py-0.5 bg-white/60 rounded-md text-[8px] font-black text-amber-600 border border-amber-100 uppercase tracking-wider">
-                                                                    Official Record
-                                                                </span>
-                                                                <Sparkles className="w-3 h-3 text-amber-400 fill-current" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </motion.div>
-                                            );
-                                        })
-                                    ) : (
-                                        <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest pl-10 pt-2">No Recent Activity</div>
-                                    )}
-                                </div>
-                             </div>
-
-                             {/* RIGHT COLUMN: KEY OBJECTIVES */}
-                             <div className="w-full md:w-[35%] pt-6 md:pt-0 border-t md:border-t-0 border-slate-100 flex flex-col">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <Target className={cn("w-3 h-3", themeColorText)} />
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Key Objectives</span>
-                                </div>
-                                
-                                <div className="flex-1 bg-slate-50/50 border border-slate-100 rounded-2xl p-1 relative overflow-hidden group min-h-[160px]">
-                                     <div className="absolute inset-0 flex flex-col items-center justify-center text-center opacity-40 group-hover:opacity-60 transition-opacity">
-                                        <div className="w-16 h-16 border-2 border-dashed border-slate-300 rounded-full flex items-center justify-center mb-2">
-                                            <Target className="w-6 h-6 text-slate-300" />
-                                        </div>
-                                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">No Active Goals</span>
-                                     </div>
-                                </div>
-                             </div>
-                        </div>
-
-                         <div className="space-y-3">
-                             <div className="flex items-center gap-2 px-2">
-                                <Award className="w-4 h-4 text-amber-500" />
-                                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Validated Accolades</span>
-                             </div>
-                             <div className="h-20 border border-dashed border-slate-200 rounded-2xl flex items-center justify-center text-slate-300 text-[9px] font-bold uppercase tracking-widest bg-white">
-                                No Badges Awarded
-                             </div>
-                        </div>
-                    </motion.div>
-                )}
-
-                {activeTab !== 'overview' && (
-                    <div className="flex flex-col items-center justify-center h-64 text-center opacity-50">
-                        <FileText className="w-12 h-12 text-slate-300 mb-4" />
-                        <h3 className="text-lg font-black text-slate-900">Content Locked</h3>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Access Restricted</p>
-                    </div>
-                )}
+                    {activeTab === 'documents' && (
+                        <OperationalDocumentInterface member={member} currentUser={currentUser?.name || "Admin"} />
+                    )}
+                </div>
             </div>
         </div>
 
