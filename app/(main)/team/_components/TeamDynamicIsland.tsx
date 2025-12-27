@@ -49,7 +49,7 @@ export default function TeamDynamicIsland({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const visibleStages = STAGES.filter((s) => s.id !== "Admin");
+  const visibleStages = STAGES; 
   const activeStageData = STAGES.find((s) => s.id === activeStage);
 
   return (

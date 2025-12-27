@@ -29,7 +29,7 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
-    const visibleStages = STAGES.filter(s => s.id !== "Admin");
+    const visibleStages = STAGES;
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
     return (
