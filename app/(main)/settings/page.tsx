@@ -4,13 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import { 
   User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save,
   ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus, Lock, Unlock, FileKey, BarChart3, Users,
-  Terminal, Server, AlertCircle, CheckCircle2, Activity
+  Terminal, Server, AlertCircle, CheckCircle2, Activity, Mail, Crown, Star, Briefcase
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore } from "@/lib/store/useStore"; 
 import { auth, db } from "@/lib/firebase"; 
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot, updateDoc } from "firebase/firestore";
-import { updateProfile, updateEmail, updatePassword, signOut } from "firebase/auth"; // Added signOut
+import { updateProfile, updateEmail, updatePassword, signOut } from "firebase/auth"; 
 import toast from "react-hot-toast";
 import { ROLE_HIERARCHY, Status, PermissionSet, DEFAULT_PERMISSIONS } from "../calendar/_components/types"; 
 import { cn } from "@/lib/utils";
@@ -35,7 +35,7 @@ export default function SettingsPage() {
   // Tabs
   const [activeTab, setActiveTab] = useState('identity');
   
-  // Identity State - Added password field
+  // Identity State
   const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -65,9 +65,12 @@ export default function SettingsPage() {
      );
   }, [team, memberSearch]);
 
-  // Filter members WHO HAVE ACCESS
+  // --- UPDATED FILTER: Only show users who ACTUALLY have login access ---
   const activeUsers = useMemo(() => {
-      return team.filter(m => m.status !== "Team Member" && m.status !== "Onboarding" && m.status !== "Training");
+      return team.filter(m => m.hasLogin === true).sort((a, b) => {
+          // Sort by Rank High -> Low
+          return (ROLE_HIERARCHY[b.role] || 0) - (ROLE_HIERARCHY[a.role] || 0);
+      });
   }, [team]);
 
   useEffect(() => {
@@ -130,7 +133,6 @@ export default function SettingsPage() {
       toast.success(`Selected: ${member.name}`);
   };
 
-  // --- API PROVISIONING HELPER ---
   const provisionViaApi = async () => {
       if (!currentUser) return;
       if (!formData.password) throw new Error("Password required for initialization.");
@@ -152,7 +154,6 @@ export default function SettingsPage() {
       return data;
   };
 
-  // --- UPDATED SAVE PROFILE HANDLER ---
   const handleSaveProfile = async () => {
     if (!currentUser) return;
     
@@ -160,47 +161,36 @@ export default function SettingsPage() {
     const toastId = toast.loading("Deploying changes...");
 
     try {
-        // Try Standard Auth Update first
         if (auth.currentUser) {
             try {
                 const user = auth.currentUser;
                 const updates = [];
-
                 if (formData.email !== user.email) updates.push(updateEmail(user, formData.email));
                 if (formData.password) updates.push(updatePassword(user, formData.password));
                 if (formData.name !== user.displayName) updates.push(updateProfile(user, { displayName: formData.name }));
-
                 await Promise.all(updates);
                 
                 toast.success("Identity Updated", { id: toastId });
                 setFormData(prev => ({ ...prev, password: "" }));
             } catch (authError: any) {
-                // If token is expired or requires login, FALLBACK to API
                 if (authError.code === 'auth/user-token-expired' || authError.code === 'auth/requires-recent-login' || authError.code === 'auth/operation-not-allowed') {
                     console.log("Auth session stale, forcing API update...");
                     await provisionViaApi();
                     toast.success("Account Re-initialized. Please Log In.", { id: toastId });
-                    
-                    // Force logout to clean state
                     await signOut(auth);
                 } else {
                     throw authError;
                 }
             }
-        } 
-        // No Auth User (Backdoor Mode) -> Use API
-        else {
+        } else {
             await provisionViaApi();
             toast.success("Account Initialized. Please Log In.", { id: toastId });
         }
-
-        // Sync Firestore
         await updateDoc(doc(db, "teamMembers", currentUser.uid), {
             name: formData.name,
             email: formData.email,
             updatedAt: serverTimestamp()
         });
-
     } catch (error: any) {
         console.error(error);
         toast.error(error.message || "Update Failed", { id: toastId });
@@ -215,9 +205,6 @@ export default function SettingsPage() {
       
       setIsCreating(true);
       try {
-          // In backdoor mode, auth.currentUser might be null or invalid.
-          // We intentionally do NOT pass the token if it fails, relying on server-side admin privilege (if route is unprotected)
-          // or we rely on the route's internal Admin SDK.
           let token = "";
           try { token = await auth.currentUser?.getIdToken() || ""; } catch(e) {}
           
@@ -242,13 +229,43 @@ export default function SettingsPage() {
       }
   };
 
-  // Define available roles based on hierarchy
+  const handleRevokeAccess = async (userId: string) => {
+     if(!confirm("Are you sure you want to revoke login access? This cannot be undone from the dashboard.")) return;
+     try {
+         await updateDoc(doc(db, "teamMembers", userId), { hasLogin: false });
+         toast.success("Access Revoked");
+     } catch(e) {
+         toast.error("Failed to revoke");
+     }
+  };
+
   const availableRoles = [
       { id: "Team Member", label: "Team Member (Lvl 0)", level: 0 },
       { id: "Team Leader", label: "Team Leader (Lvl 1)", level: 1 },
       { id: "Assistant Director", label: "Assistant Director (Lvl 2)", level: 2 },
       { id: "Director", label: "Director (Lvl 3)", level: 3 },
   ].filter(r => r.level < myLevel || myLevel === 4); 
+
+  // --- HELPER: Role Styling ---
+  const getRoleStyle = (role: string) => {
+      switch(role) {
+          case 'Admin': return "bg-slate-900 text-white border-slate-700";
+          case 'Director': return "bg-[#004F71] text-white border-[#004F71]";
+          case 'Assistant Director': return "bg-blue-50 text-[#004F71] border-blue-100";
+          case 'Team Leader': return "bg-amber-50 text-amber-600 border-amber-100";
+          default: return "bg-slate-50 text-slate-500 border-slate-100";
+      }
+  };
+
+  const getRoleIcon = (role: string) => {
+      switch(role) {
+          case 'Admin': return Crown;
+          case 'Director': return Shield;
+          case 'Assistant Director': return Briefcase;
+          case 'Team Leader': return Star;
+          default: return User;
+      }
+  };
 
   if (!currentUser) return <div className="flex h-screen items-center justify-center bg-[#F8FAFC]"><Loader2 className="w-8 h-8 animate-spin text-[#E51636]" /></div>;
 
@@ -266,7 +283,6 @@ export default function SettingsPage() {
                 <h1 className="text-4xl md:text-5xl font-[1000] text-slate-900 tracking-tighter">Command Settings</h1>
             </div>
             
-            {/* Contextual Action Buttons */}
             {activeTab === 'identity' && (
                 <button onClick={handleSaveProfile} disabled={isSaving} className="px-8 py-4 bg-[#E51636] hover:bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.25em] shadow-lg shadow-red-500/20 transition-all flex items-center gap-3 active:scale-95 disabled:opacity-50">
                     {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -313,6 +329,7 @@ export default function SettingsPage() {
                 {/* --- TAB: IDENTITY --- */}
                 {activeTab === 'identity' && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
+                         {/* ... (Identity Content Same as Before) ... */}
                          <div className="mb-10">
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Operator Identity</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Manage your administrative profile.</p>
@@ -356,7 +373,6 @@ export default function SettingsPage() {
                                         </div>
                                     </div>
 
-                                    {/* PASSWORD FIELD ADDED */}
                                     <div className="space-y-2 col-span-1 md:col-span-2">
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">
                                             {auth.currentUser ? "Change Password" : "Set Initial Password"}
@@ -371,11 +387,6 @@ export default function SettingsPage() {
                                             />
                                             <KeyRound className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-[#E51636] transition-colors" />
                                         </div>
-                                        {!auth.currentUser && (
-                                            <p className="text-[10px] font-bold text-[#E51636] mt-1 pl-1">
-                                                * You are in Override Mode. Set a password to create your permanent login.
-                                            </p>
-                                        )}
                                     </div>
                                 </div>
 
@@ -394,9 +405,10 @@ export default function SettingsPage() {
                 {/* --- TAB: OPERATIONS (Create & Manage) --- */}
                 {activeTab === 'ops' && canCreateAccounts && (
                     <div className="space-y-6">
-                        {/* 1. ONBOARDING CARD */}
+                        {/* 1. ONBOARDING CARD (Same as before) */}
                         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
-                            <div className="mb-10 flex items-center justify-between">
+                             {/* ... (Create User Form - Unchanged) ... */}
+                             <div className="mb-10 flex items-center justify-between">
                                 <div>
                                     <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Personnel Onboarding</h2>
                                     <p className="text-sm font-medium text-slate-400 mt-1">Grant system access to existing team members.</p>
@@ -405,8 +417,6 @@ export default function SettingsPage() {
                                     <UserPlus className="w-6 h-6" />
                                 </div>
                             </div>
-
-                            {/* --- TEAM MEMBER SELECTOR --- */}
                             <div className="mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-200">
                                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 block flex items-center gap-2">
                                     <Search className="w-3 h-3" /> Select Team Member to Activate
@@ -438,9 +448,7 @@ export default function SettingsPage() {
                                     )}
                                 </div>
                             </div>
-
                             <div className="w-full h-px bg-slate-100 mb-8" />
-
                             <form onSubmit={handleCreateUser} className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
@@ -455,123 +463,121 @@ export default function SettingsPage() {
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Initial Password</label>
                                         <input required type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all" />
                                     </div>
-                                    
                                     <div className="space-y-2 relative">
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Clearance Level</label>
-                                        <button 
-                                            type="button"
-                                            onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all flex items-center justify-between"
-                                        >
+                                        <button type="button" onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all flex items-center justify-between">
                                             <span>{availableRoles.find(r => r.id === newUser.role)?.label || newUser.role}</span>
                                             <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", isRoleDropdownOpen && "rotate-180")} />
                                         </button>
-                                        
                                         <AnimatePresence>
                                             {isRoleDropdownOpen && (
-                                                <motion.div 
-                                                    initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}
-                                                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-30 overflow-hidden"
-                                                >
+                                                <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-30 overflow-hidden">
                                                     {availableRoles.map(role => (
-                                                        <button
-                                                            key={role.id}
-                                                            type="button"
-                                                            onClick={() => { setNewUser({...newUser, role: role.id as Status}); setIsRoleDropdownOpen(false); }}
-                                                            className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 flex items-center gap-2"
-                                                        >
-                                                            <span className={cn("w-2 h-2 rounded-full", newUser.role === role.id ? "bg-[#004F71]" : "bg-slate-200")} />
-                                                            {role.label}
+                                                        <button key={role.id} type="button" onClick={() => { setNewUser({...newUser, role: role.id as Status}); setIsRoleDropdownOpen(false); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 flex items-center gap-2">
+                                                            <span className={cn("w-2 h-2 rounded-full", newUser.role === role.id ? "bg-[#004F71]" : "bg-slate-200")} /> {role.label}
                                                         </button>
                                                     ))}
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
                                     </div>
-
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Unit Assignment</label>
                                         <div className="flex gap-4">
                                             {['FOH', 'BOH'].map(dept => (
-                                                <button 
-                                                    key={dept}
-                                                    type="button"
-                                                    onClick={() => setNewUser({...newUser, dept})}
-                                                    className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${newUser.dept === dept ? (dept === 'FOH' ? 'bg-[#004F71] text-white border-[#004F71]' : 'bg-[#E51636] text-white border-[#E51636]') : 'bg-white border-slate-200 text-slate-400'}`}
-                                                >
+                                                <button key={dept} type="button" onClick={() => setNewUser({...newUser, dept})} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${newUser.dept === dept ? (dept === 'FOH' ? 'bg-[#004F71] text-white border-[#004F71]' : 'bg-[#E51636] text-white border-[#E51636]') : 'bg-white border-slate-200 text-slate-400'}`}>
                                                     {dept}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <button 
-                                    type="submit"
-                                    disabled={isCreating}
-                                    className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
-                                >
-                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                    Initialize Operative
+                                <button type="submit" disabled={isCreating} className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Initialize Operative
                                 </button>
                             </form>
                         </div>
 
-                        {/* 2. MANAGE ACTIVE ACCOUNTS */}
+                        {/* 2. MANAGE ACTIVE ACCOUNTS (RE-DESIGNED) */}
                         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
                              <div className="mb-8 flex items-center justify-between">
                                 <div>
                                     <h2 className="text-xl font-[1000] text-slate-900 tracking-tight">Active Accounts</h2>
-                                    <p className="text-xs font-medium text-slate-400 mt-1">Users with system login access.</p>
+                                    <p className="text-xs font-medium text-slate-400 mt-1">Users with authenticated system login.</p>
                                 </div>
                                 <div className="p-2.5 bg-slate-100 text-slate-500 rounded-xl">
                                     <KeyRound className="w-5 h-5" />
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
-                                {activeUsers.length > 0 ? activeUsers.map(user => (
-                                    <div key={user.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center font-black text-sm text-slate-700 shadow-sm">
-                                                {user.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{user.role}</span>
-                                                    <span className="w-1 h-1 rounded-full bg-slate-300" />
-                                                    <span className="text-[9px] font-medium text-slate-400">{user.email}</span>
+                            <div className="space-y-3">
+                                {activeUsers.length > 0 ? activeUsers.map(user => {
+                                    const RoleIcon = getRoleIcon(user.role);
+                                    return (
+                                        <div key={user.id} className="group flex items-center p-4 bg-white border border-slate-100 rounded-3xl hover:shadow-md hover:border-slate-200 transition-all">
+                                            {/* Avatar Area */}
+                                            <div className="relative shrink-0">
+                                                <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden">
+                                                    {user.image && !user.image.includes('ui-avatars') ? (
+                                                        <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="text-lg font-black text-slate-300">{user.name.charAt(0)}</span>
+                                                    )}
+                                                </div>
+                                                <div className={cn("absolute -bottom-1 -right-1 p-1 rounded-full border-2 border-white", user.dept === 'FOH' ? "bg-[#004F71]" : "bg-[#E51636]")}>
+                                                    <RoleIcon className="w-2.5 h-2.5 text-white" />
                                                 </div>
                                             </div>
+
+                                            {/* Info Area */}
+                                            <div className="flex-1 ml-4 min-w-0">
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <h3 className="text-sm font-bold text-slate-900 truncate">{user.name}</h3>
+                                                    <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border", getRoleStyle(user.role))}>
+                                                        {user.role}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-slate-400">
+                                                    <Mail className="w-3 h-3" />
+                                                    <p className="text-[10px] font-medium truncate">{user.email}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions Area */}
+                                            <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                <button className="p-2.5 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors" title="Reset Password">
+                                                    <RefreshCw className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleRevokeAccess(user.id)}
+                                                    className="p-2.5 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" 
+                                                    title="Revoke Access"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <button className="p-2 text-slate-400 hover:text-slate-700 hover:bg-white rounded-lg transition-all" title="Reset Password">
-                                                <RefreshCw className="w-4 h-4" />
-                                            </button>
-                                            <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Revoke Login Access">
-                                                <UserMinus className="w-4 h-4" />
-                                            </button>
-                                        </div>
+                                    );
+                                }) : (
+                                    <div className="text-center py-12 text-slate-400 border-2 border-dashed border-slate-100 rounded-3xl">
+                                        <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                        <p className="text-xs font-bold uppercase tracking-widest">No active logins found</p>
                                     </div>
-                                )) : (
-                                    <div className="text-center py-8 text-slate-400 text-xs font-bold uppercase tracking-widest">No active login accounts</div>
                                 )}
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* --- TAB: ROLES (RBAC) --- */}
+                {/* --- TAB: ROLES & LOGS (Unchanged - Keeping Structure) --- */}
                 {activeTab === 'roles' && canManageRoles && (
-                    <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
-                         {/* (Existing role content preserved) */}
-                        <div className="mb-10">
+                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
+                         {/* (Role Content ...) */}
+                         <div className="mb-10">
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Access Protocols</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Configure capability matrix for each rank.</p>
                         </div>
-
-                        {/* ROLE SELECTOR */}
+                         {/* ROLE SELECTOR */}
                         <div className="flex p-1.5 bg-slate-100 rounded-2xl mb-8 overflow-x-auto no-scrollbar">
                             {["Team Member", "Team Leader", "Assistant Director", "Director"].map((role) => (
                                 <button
@@ -588,12 +594,9 @@ export default function SettingsPage() {
                                 </button>
                             ))}
                         </div>
-
-                        {/* PERMISSIONS GRID */}
                         <div className="space-y-8">
-                            
-                            {/* CATEGORY: OPERATIONS */}
-                            <div>
+                             {/* ... (Existing permission grids) ... */}
+                             <div>
                                 <div className="flex items-center gap-2 mb-4 px-1">
                                     <Fingerprint className="w-4 h-4 text-[#004F71]" />
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Operational Access</span>
@@ -611,9 +614,8 @@ export default function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
-
-                            {/* CATEGORY: PEOPLE */}
-                            <div>
+                            {/* ... (People & System categories) ... */}
+                             <div>
                                 <div className="flex items-center gap-2 mb-4 px-1">
                                     <Users className="w-4 h-4 text-[#E51636]" />
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Personnel Management</span>
@@ -631,8 +633,6 @@ export default function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
-
-                            {/* CATEGORY: SYSTEM */}
                             <div>
                                 <div className="flex items-center gap-2 mb-4 px-1">
                                     <Shield className="w-4 h-4 text-slate-900" />
@@ -651,23 +651,12 @@ export default function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
-
-                            {selectedRole === "Director" && (
-                                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-center gap-3 text-blue-600">
-                                    <Lock className="w-4 h-4" />
-                                    <span className="text-[10px] font-bold uppercase tracking-wide">Director Clearance is Immutable</span>
-                                </div>
-                            )}
-
                         </div>
-                    </div>
+                     </div>
                 )}
-                
-                {/* --- TAB: SYSTEM LOGS --- */}
+
                 {activeTab === 'logs' && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100 relative overflow-hidden">
-                        
-                        {/* Header */}
                         <div className="mb-8 relative z-10 flex items-center justify-between">
                             <div>
                                 <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">System Logs</h2>
@@ -677,11 +666,7 @@ export default function SettingsPage() {
                                 <Activity className="w-6 h-6 text-slate-400" />
                             </div>
                         </div>
-
-                        {/* Terminal / Log Viewer */}
                         <div className="bg-slate-50 rounded-[24px] border border-slate-200 p-2 relative z-10 font-mono overflow-hidden shadow-inner">
-                            
-                            {/* Toolbar */}
                             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 bg-white/50 rounded-t-[18px]">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
@@ -691,43 +676,19 @@ export default function SettingsPage() {
                                 </div>
                                 <span className="text-[9px] font-black text-slate-300 uppercase">TrainingBook Kernel v4.2</span>
                             </div>
-
-                            {/* Logs List */}
                             <div className="p-3 space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
                                 {systemLogs.length > 0 ? systemLogs.map((log) => (
                                     <div key={log.id} className="group flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
-                                        
-                                        {/* Status Icon */}
-                                        <div className={cn(
-                                            "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mt-0.5",
-                                            log.status === "SUCCESS" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
-                                        )}>
-                                            {log.status === "SUCCESS" ? (
-                                                <CheckCircle2 className="w-5 h-5" />
-                                            ) : (
-                                                <AlertCircle className="w-5 h-5" />
-                                            )}
+                                        <div className={cn("shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mt-0.5", log.status === "SUCCESS" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600")}>
+                                            {log.status === "SUCCESS" ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                                         </div>
-
-                                        {/* Content */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3 mb-1.5">
-                                                <span className={cn(
-                                                    "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
-                                                    log.status === "SUCCESS" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-red-50 border-red-100 text-red-700"
-                                                )}>
-                                                    {log.status}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-                                                    {log.timestamp?.toDate ? format(log.timestamp.toDate(), "MMM dd • HH:mm:ss") : "Just now"}
-                                                </span>
+                                                <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border", log.status === "SUCCESS" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-red-50 border-red-100 text-red-700")}>{log.status}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{log.timestamp?.toDate ? format(log.timestamp.toDate(), "MMM dd • HH:mm:ss") : "Just now"}</span>
                                             </div>
-                                            <p className="text-xs text-slate-600 font-medium break-all leading-relaxed font-sans">
-                                                {log.message}
-                                            </p>
+                                            <p className="text-xs text-slate-600 font-medium break-all leading-relaxed font-sans">{log.message}</p>
                                         </div>
-
-                                        {/* Source Badge */}
                                         <div className="shrink-0 hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
                                             <Server className="w-3 h-3 text-slate-400" />
                                             <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider">{log.source}</span>
