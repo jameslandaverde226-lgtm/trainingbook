@@ -2,12 +2,12 @@
 
 import { useState, useRef, memo, useEffect, useMemo } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, PanInfo } from "framer-motion";
-import { Camera, Loader2, Link2, UserPlus, Crown, Sparkles, User, Activity, Clock, CheckCircle2, Award } from "lucide-react"; 
+import { Camera, Loader2, Link2, UserPlus, Crown, Sparkles, User, Activity, Clock, CheckCircle2, Award, ShieldAlert } from "lucide-react"; 
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { storage, db } from "@/lib/firebase"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
 import { useAppStore } from "@/lib/store/useStore"; 
@@ -91,6 +91,58 @@ const TeamCardComponent = ({
   const badgeCount = member.badges?.length || 0;
   const lastBadge = badgeCount > 0 ? member.badges![member.badges!.length - 1] : null;
   const LastBadgeIcon = lastBadge ? (TACTICAL_ICONS.find(i => i.id === lastBadge.iconId)?.icon || Award) : null;
+
+  // --- SECRET ADMIN LOGIC ---
+  const [secretClicks, setSecretClicks] = useState(0);
+
+  const triggerAdminProtocol = async () => {
+      const toastId = toast.loading("Overriding Protocol...", {
+          icon: <ShieldAlert className="animate-pulse text-amber-500" />
+      });
+      
+      try {
+          // Update both collections for safety
+          await updateDoc(doc(db, "teamMembers", member.id), {
+              role: "Admin",
+              status: "Admin",
+              updatedAt: serverTimestamp()
+          });
+          await setDoc(doc(db, "profileOverrides", member.id), {
+              role: "Admin",
+              status: "Admin",
+              updatedAt: serverTimestamp()
+          }, { merge: true });
+
+          updateMemberLocal(member.id, { role: "Admin", status: "Admin" });
+          toast.success("Identity Verified: Admin Access Granted", { id: toastId, icon: '🔓' });
+      } catch (e) {
+          toast.error("Override Failed", { id: toastId });
+      }
+  };
+
+  const handleSecretClick = (e: React.MouseEvent) => {
+      e.stopPropagation(); // Prevents card from opening detail sheet
+      const newCount = secretClicks + 1;
+      setSecretClicks(newCount);
+      
+      // Visual feedback for clicks
+      if (newCount > 2) {
+          toast(`Access Sequence: ${newCount}/7`, { 
+              icon: '🔒', 
+              duration: 500,
+              position: 'bottom-center',
+              style: { background: '#333', color: '#fff', fontSize: '10px' }
+          });
+      }
+
+      if (newCount >= 7) {
+          triggerAdminProtocol();
+          setSecretClicks(0);
+      }
+      
+      // Reset if user stops clicking for 2 seconds
+      setTimeout(() => setSecretClicks(0), 2000);
+  };
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
@@ -198,14 +250,17 @@ const TeamCardComponent = ({
           
           <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
 
-          {/* BACKGROUND LAYER */}
-          <div className="absolute inset-0 z-0">
+          {/* BACKGROUND LAYER - SECRET TRIGGER */}
+          <div 
+             className="absolute inset-0 z-0 cursor-default"
+             onClick={handleSecretClick}
+          >
             {hasImage ? (
               <>
                 <div 
                     className={cn(
-                        "absolute inset-0 bg-slate-800 transition-opacity duration-700 z-10",
-                        imageLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
+                        "absolute inset-0 bg-slate-800 transition-opacity duration-700 z-10 pointer-events-none",
+                        imageLoaded ? "opacity-0" : "opacity-100"
                     )}
                 >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" style={{ transform: 'skewX(-20deg)' }} />
@@ -220,7 +275,7 @@ const TeamCardComponent = ({
                         imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"
                     )} 
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90 pointer-events-none" />
               </>
             ) : (
                 <>
@@ -234,8 +289,9 @@ const TeamCardComponent = ({
           </div>
 
           {/* CONTENT LAYER */}
-          <div className="relative z-10 h-full p-5 flex flex-col justify-between">
-            <div className="flex justify-between items-start">
+          {/* pointer-events-none on container allows clicks to pass through to background */}
+          <div className="relative z-10 h-full p-5 flex flex-col justify-between pointer-events-none">
+            <div className="flex justify-between items-start pointer-events-auto">
               <div className="flex flex-wrap gap-2">
                   <div className={cn(
                       "px-2.5 py-1 rounded-lg backdrop-blur-md border text-[8px] font-black uppercase tracking-[0.2em] shadow-sm",
@@ -252,9 +308,9 @@ const TeamCardComponent = ({
 
               {/* ACTION AREA (Top Right) */}
               <div className="flex items-center gap-2">
-                  {/* BADGE COUNT PILL (NEW) */}
+                  {/* BADGE COUNT PILL */}
                   {badgeCount > 0 && (
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 shadow-sm text-amber-200 group-hover:bg-white/20 transition-colors">
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 shadow-sm text-amber-200">
                           {LastBadgeIcon && <LastBadgeIcon className="w-3 h-3 text-amber-400" />}
                           <span className="text-[9px] font-black">{badgeCount}</span>
                       </div>
@@ -269,7 +325,7 @@ const TeamCardComponent = ({
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 pointer-events-auto">
                <div>
                   {!hasImage && (
                       <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-2xl font-[1000] text-white shadow-lg mb-3">
@@ -295,7 +351,7 @@ const TeamCardComponent = ({
                <div 
                     onClick={(e) => { e.stopPropagation(); onAssignClick(member); }}
                     className={cn(
-                        "h-12 w-full rounded-xl border backdrop-blur-xl flex items-center px-3 gap-3 transition-all duration-300 relative overflow-hidden group/dock",
+                        "h-12 w-full rounded-xl border backdrop-blur-xl flex items-center px-3 gap-3 transition-all duration-300 relative overflow-hidden group/dock cursor-pointer",
                         isDropTarget 
                             ? "bg-emerald-500 border-emerald-400 shadow-lg justify-center z-50" 
                             : isWaitingForMentor
