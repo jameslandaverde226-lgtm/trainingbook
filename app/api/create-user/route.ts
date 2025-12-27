@@ -3,55 +3,65 @@ import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: Request) {
   try {
-    // 1. Initialize Admin SDK (Triggers initAdmin from lib)
     const adminAuth = getAdminAuth();
     const adminDb = getAdminDb();
-
-    // 2. Parse Request
     const { name, email, password, role, linkedMemberId } = await request.json();
 
     if (!email || !password || !linkedMemberId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // 3. Create or Update User
+    console.log(`[API] Processing user: ${linkedMemberId} (${email})`);
+
+    // --- 1. CHECK IF USER EXISTS ---
+    let userRecord;
     try {
-      await adminAuth.createUser({
-        uid: linkedMemberId, 
-        email,
-        password,
-        displayName: name,
-      });
+      userRecord = await adminAuth.getUser(linkedMemberId);
+      console.log(`[API] Found existing user: ${userRecord.uid}. Updating...`);
     } catch (error: any) {
-      if (error.code === 'auth/uid-already-exists' || error.code === 'auth/email-already-exists') {
-        console.log(`User ${linkedMemberId} exists. Updating credentials...`);
-        await adminAuth.updateUser(linkedMemberId, {
-          email,
-          password,
-          displayName: name,
-        });
+      if (error.code === 'auth/user-not-found') {
+        console.log(`[API] User not found. Creating new...`);
+        userRecord = null;
       } else {
         throw error;
       }
     }
 
-    // 4. Set Claims
+    // --- 2. CREATE OR UPDATE ---
+    if (userRecord) {
+      // UPDATE EXISTING
+      await adminAuth.updateUser(linkedMemberId, {
+        email,
+        password,
+        displayName: name,
+      });
+    } else {
+      // CREATE NEW
+      // Note: We deliberately set the UID to match the teamMember ID
+      userRecord = await adminAuth.createUser({
+        uid: linkedMemberId,
+        email,
+        password,
+        displayName: name,
+      });
+    }
+
+    // --- 3. SET CLAIMS & FIRESTORE ---
     await adminAuth.setCustomUserClaims(linkedMemberId, { role });
 
-    // 5. Update Firestore
     await adminDb.collection('teamMembers').doc(linkedMemberId).set({
       email,
       status: role,
       hasLogin: true, 
+      updatedAt: new Date()
     }, { merge: true });
 
-    return NextResponse.json({ success: true, uid: linkedMemberId });
+    return NextResponse.json({ success: true, uid: linkedMemberId, action: userRecord ? "updated" : "created" });
 
   } catch (error: any) {
-    console.error('API Error:', error);
+    console.error('[API] Create/Update Error:', error);
     return NextResponse.json({ 
-      error: error.message || "Internal Server Error", 
-      details: "Check server logs."
+      error: error.message || "Failed to process user account." 
     }, { status: 500 });
   }
 }
