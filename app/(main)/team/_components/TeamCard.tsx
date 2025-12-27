@@ -72,11 +72,13 @@ const TeamCardComponent = ({
     isDropTarget,
     isWaitingForMentor
 }: Props) => {
-  const { updateMemberLocal, currentUser } = useAppStore(); // Get currentUser to check permissions
+  const { updateMemberLocal, currentUser } = useAppStore();
   
   const isFOH = member.dept === "FOH";
   const isBOH = member.dept === "BOH";
   const isUnassigned = !isFOH && !isBOH;
+  
+  // Clean Permissions Check
   const isAdmin = currentUser?.role === "Admin" || currentUser?.role === "Director";
 
   const hasImage = member.image && !member.image.includes('ui-avatars.com');
@@ -88,72 +90,24 @@ const TeamCardComponent = ({
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
   const progressTicks = Math.round((member.progress || 0) / 10);
   
-  // Badge Logic
   const badgeCount = member.badges?.length || 0;
   const lastBadge = badgeCount > 0 ? member.badges![member.badges!.length - 1] : null;
   const LastBadgeIcon = lastBadge ? (TACTICAL_ICONS.find(i => i.id === lastBadge.iconId)?.icon || Award) : null;
 
-  // --- SECRET ADMIN LOGIC ---
-  const [secretClicks, setSecretClicks] = useState(0);
-
-  const triggerAdminProtocol = async () => {
-      const toastId = toast.loading("Overriding Protocol...", {
-          icon: <ShieldAlert className="animate-pulse text-amber-500" />
-      });
-      
-      try {
-          await updateDoc(doc(db, "teamMembers", member.id), {
-              role: "Admin",
-              status: "Admin",
-              updatedAt: serverTimestamp()
-          });
-          await setDoc(doc(db, "profileOverrides", member.id), {
-              role: "Admin",
-              status: "Admin",
-              updatedAt: serverTimestamp()
-          }, { merge: true });
-
-          updateMemberLocal(member.id, { role: "Admin", status: "Admin" });
-          toast.success("Identity Verified: Admin Access Granted", { id: toastId, icon: '🔓' });
-      } catch (e) {
-          toast.error("Override Failed", { id: toastId });
-      }
-  };
-
-  const handleSecretClick = (e: React.MouseEvent) => {
-      e.stopPropagation(); 
-      const newCount = secretClicks + 1;
-      setSecretClicks(newCount);
-      if (newCount > 2) {
-          toast(`Access Sequence: ${newCount}/7`, { 
-              icon: '🔒', duration: 500, position: 'bottom-center',
-              style: { background: '#333', color: '#fff', fontSize: '10px' }
-          });
-      }
-      if (newCount >= 7) {
-          triggerAdminProtocol();
-          setSecretClicks(0);
-      }
-      setTimeout(() => setSecretClicks(0), 2000);
-  };
-
   // --- IMPERSONATION LOGIC ---
   const handleImpersonate = (e: React.MouseEvent) => {
       e.stopPropagation();
-      
-      // Directly update the Zustand store to simulate a login
       useAppStore.setState({
           currentUser: {
               uid: member.id,
               email: member.email,
               name: member.name,
-              role: member.role as any, // Cast to Status type
+              role: member.role as any,
               image: member.image
           }
       });
-      
-      toast.success(`Welcome back, ${member.name.split(' ')[0]}`, {
-          icon: '👋',
+      toast.success(`Simulating View: ${member.name.split(' ')[0]}`, {
+          icon: '👀',
           style: { background: '#0F172A', color: '#fff' }
       });
   };
@@ -206,7 +160,7 @@ const TeamCardComponent = ({
          style={{ filter: isDragging ? 'brightness(1.1)' : 'none', zIndex: isDragging ? 100 : 1 }}
          className="h-full w-full relative"
        >
-        {/* --- ASSIGNMENT OVERLAY --- */}
+        {/* --- OVERLAYS --- */}
         <AnimatePresence>
             {isDropTarget && (
                 <motion.div 
@@ -228,7 +182,6 @@ const TeamCardComponent = ({
             )}
         </AnimatePresence>
         
-        {/* --- WAITING FOR MENTOR OVERLAY --- */}
         <AnimatePresence>
             {isWaitingForMentor && (
                 <motion.div 
@@ -240,7 +193,6 @@ const TeamCardComponent = ({
             )}
         </AnimatePresence>
 
-        {/* AMBIENT GLOW */}
         <div className={cn(
           "absolute -inset-2 rounded-[32px] blur-2xl transition-opacity duration-500 pointer-events-none opacity-0 group-hover:opacity-40",
           isFOH ? "bg-[#004F71]" : isBOH ? "bg-[#E51636]" : "bg-slate-500",
@@ -264,11 +216,8 @@ const TeamCardComponent = ({
           
           <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
 
-          {/* BACKGROUND LAYER - SECRET TRIGGER */}
-          <div 
-             className="absolute inset-0 z-0 cursor-default"
-             onClick={handleSecretClick}
-          >
+          {/* BACKGROUND LAYER - STATIC */}
+          <div className="absolute inset-0 z-0 cursor-default">
             {hasImage ? (
               <>
                 <div 
@@ -319,9 +268,8 @@ const TeamCardComponent = ({
                   )}
               </div>
 
-              {/* ACTION AREA (Top Right) */}
+              {/* ACTION AREA */}
               <div className="flex items-center gap-2">
-                  {/* BADGE COUNT PILL */}
                   {badgeCount > 0 && (
                       <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/10 backdrop-blur-md border border-white/10 shadow-sm text-amber-200">
                           {LastBadgeIcon && <LastBadgeIcon className="w-3 h-3 text-amber-400" />}
@@ -329,18 +277,18 @@ const TeamCardComponent = ({
                       </div>
                   )}
 
-                  {/* IMPERSONATION BUTTON (ADMIN ONLY) */}
+                  {/* IMPERSONATION BUTTON */}
                   {isAdmin && (
                     <button 
                         onClick={handleImpersonate}
                         className="p-2 rounded-full bg-white/10 hover:bg-emerald-500 hover:text-white text-white/70 transition-all backdrop-blur-md opacity-0 group-hover:opacity-100"
-                        title="Sign In as User"
+                        title="Simulate User View"
                     >
                         <LogIn className="w-3.5 h-3.5" />
                     </button>
                   )}
                   
-                  {/* Upload Button */}
+                  {/* UPLOAD BUTTON */}
                   {!isDropTarget && (
                     <button onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all backdrop-blur-md opacity-0 group-hover:opacity-100">
                         {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}

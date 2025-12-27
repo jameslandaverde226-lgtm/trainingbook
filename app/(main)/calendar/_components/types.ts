@@ -17,13 +17,11 @@ import {
 
 // --- 1. SHARED BASE TYPES ---
 
-// UPDATED: Added 'Award' and 'Vote'
 export type EventType = "Training" | "Goal" | "Deadline" | "Operation" | "OneOnOne" | "Award" | "Vote";
 export type Priority = "Low" | "Medium" | "High";
 export type StickerType = "star" | "alert" | "fire" | "party" | "check";
 export type Department = "FOH" | "BOH" | "Unassigned";
 
-// UPDATED STATUS TYPE
 export type Status = 
   | "Admin"              // Level 4 (System Owner)
   | "Director"           // Level 3 (Store Manager)
@@ -81,7 +79,7 @@ export interface TeamMember {
     moduleProgress: number;
     tasks: { id: string; label: string; completed: boolean }[];
   };
-  hasLogin?: boolean; // Flag to check if user has dashboard access
+  hasLogin?: boolean;
 }
 
 // --- 3. CALENDAR EVENT TYPES ---
@@ -122,7 +120,6 @@ export interface LayoutItem {
 
 // --- 4. DOMAIN CONSTANTS ---
 
-// UPDATED LIST
 export const EVENT_TYPES: EventType[] = ["Training", "Goal", "Deadline", "Operation", "OneOnOne", "Award", "Vote"];
 export const PRIORITIES: Priority[] = ["High", "Medium", "Low"];
 
@@ -134,6 +131,7 @@ export const STICKERS: { id: StickerType; icon: string; label: string; color: st
   { id: "check", icon: "✅", label: "Verify", color: "bg-emerald-100 border-emerald-200" },
 ];
 
+// UPDATED: "Admin" removed from UI stages so it doesn't show up in filters
 export const STAGES: { id: Status; title: string; icon: any }[] = [
     { id: "Onboarding", title: "Onboarding", icon: Layers },
     { id: "Training", title: "Training", icon: GraduationCap },
@@ -141,10 +139,9 @@ export const STAGES: { id: Status; title: string; icon: any }[] = [
     { id: "Team Leader", title: "Team Leader", icon: Star },
     { id: "Assistant Director", title: "Asst. Director", icon: Briefcase },
     { id: "Director", title: "Director", icon: Crown },
-    { id: "Admin", title: "Admin", icon: Crown },
 ];
 
-// --- 5. UI HELPERS ---
+// ... (Rest of file unchanged) ...
 
 export const getEventLabel = (type: EventType) => {
   switch (type) {
@@ -153,8 +150,8 @@ export const getEventLabel = (type: EventType) => {
     case "Deadline": return "Hard Deadline";
     case "Operation": return "Unit Operation";
     case "OneOnOne": return "1-on-1 Session";
-    case "Award": return "Certification"; // New
-    case "Vote": return "Community Ballot"; // New
+    case "Award": return "Certification"; 
+    case "Vote": return "Community Ballot"; 
     default: return type;
   }
 };
@@ -169,16 +166,14 @@ export const getTypeColor = (type: EventType, isGhost: boolean = false) => {
     case "Deadline": return "bg-red-50 text-red-700 border-red-100";
     case "Operation": return "bg-slate-100 text-slate-700 border-slate-200";
     case "OneOnOne": return "bg-purple-50 text-purple-700 border-purple-100";
-    case "Award": return "bg-amber-50 text-amber-700 border-amber-100"; // Gold/Amber for Awards
-    case "Vote": return "bg-gray-50 text-gray-500 border-gray-200"; // Subtle for Votes
+    case "Award": return "bg-amber-50 text-amber-700 border-amber-100"; 
+    case "Vote": return "bg-gray-50 text-gray-500 border-gray-200"; 
     default: return "bg-gray-50 text-gray-700 border-gray-200";
   }
 };
 
-// --- 6. AUTHORIZATION & PERMISSIONS ---
-
 export const ROLE_HIERARCHY: Record<string, number> = {
-  "Admin": 4,              // Highest Rank
+  "Admin": 4,              
   "Director": 3,           
   "Assistant Director": 2, 
   "Team Leader": 1,        
@@ -187,28 +182,19 @@ export const ROLE_HIERARCHY: Record<string, number> = {
   "Onboarding": 0
 };
 
-// Permission Structure for RBAC
 export interface PermissionSet {
-    // Operations
     canCreateEvents: boolean;
     canEditEvents: boolean;
     canDeleteEvents: boolean;
-    
-    // Team Management
     canViewFullRoster: boolean;
     canCreateUsers: boolean;
     canEditUsers: boolean;
     canPromoteUsers: boolean;
-    
-    // Intelligence & Data
     canViewSensitiveDocs: boolean;
     canViewAnalytics: boolean;
-    
-    // System
     canAccessSettings: boolean;
 }
 
-// Default Permission Matrix (Can be overridden by Firestore)
 export const DEFAULT_PERMISSIONS: Record<Status, PermissionSet> = {
     "Admin": {
         canCreateEvents: true, canEditEvents: true, canDeleteEvents: true,
@@ -252,8 +238,7 @@ export const canPerformAction = (userRole: string, requiredLevel: number) => {
   return level >= requiredLevel;
 };
 
-// --- 7. GRID MATH & LAYOUT LOGIC ---
-
+// ... (Layout Logic Unchanged) ...
 const normalizeDate = (d: Date) => startOfDay(isValid(d) ? d : new Date());
 
 const calculateSpan = (event: CalendarEvent, weekStartDay: Date) => {
