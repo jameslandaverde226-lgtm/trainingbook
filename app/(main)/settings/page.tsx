@@ -9,7 +9,8 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore } from "@/lib/store/useStore"; 
 import { auth, db } from "@/lib/firebase"; 
-import { doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, collection, query, orderBy, limit, onSnapshot, updateDoc } from "firebase/firestore";
+import { updateProfile, updateEmail, updatePassword } from "firebase/auth"; 
 import toast from "react-hot-toast";
 import { ROLE_HIERARCHY, Status, PermissionSet, DEFAULT_PERMISSIONS } from "../calendar/_components/types"; 
 import { cn } from "@/lib/utils";
@@ -34,8 +35,8 @@ export default function SettingsPage() {
   // Tabs
   const [activeTab, setActiveTab] = useState('identity');
   
-  // Identity State
-  const [formData, setFormData] = useState({ name: "", email: "" });
+  // Identity State - Added password field
+  const [formData, setFormData] = useState({ name: "", email: "", password: "" });
   const [isSaving, setIsSaving] = useState(false);
 
   // Operations State
@@ -71,10 +72,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (currentUser) {
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: currentUser.name || "",
         email: currentUser.email || ""
-      });
+      }));
     }
   }, [currentUser]);
 
@@ -128,11 +130,81 @@ export default function SettingsPage() {
       toast.success(`Selected: ${member.name}`);
   };
 
+  // --- UPDATED SAVE PROFILE HANDLER ---
   const handleSaveProfile = async () => {
+    if (!currentUser) return; // Guard clause to satisfy TypeScript
+    
     setIsSaving(true);
-    await new Promise(r => setTimeout(r, 1000));
-    toast.success("Profile Updated");
-    setIsSaving(false);
+    const toastId = toast.loading("Deploying changes...");
+
+    try {
+        // SCENARIO 1: AUTHENTICATED USER (Standard Update)
+        if (auth.currentUser) {
+            const user = auth.currentUser;
+            const updates = [];
+
+            // Update Email
+            if (formData.email !== user.email) {
+                updates.push(updateEmail(user, formData.email));
+            }
+            // Update Password
+            if (formData.password) {
+                updates.push(updatePassword(user, formData.password));
+            }
+            // Update Display Name
+            if (formData.name !== user.displayName) {
+                updates.push(updateProfile(user, { displayName: formData.name }));
+            }
+
+            await Promise.all(updates);
+
+            // Sync with Firestore Profile
+            await updateDoc(doc(db, "teamMembers", currentUser.uid), {
+                name: formData.name,
+                email: formData.email,
+                updatedAt: serverTimestamp()
+            });
+            await setDoc(doc(db, "profileOverrides", currentUser.uid), {
+                name: formData.name,
+                email: formData.email,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            toast.success("Identity Updated", { id: toastId });
+            setFormData(prev => ({ ...prev, password: "" })); // Clear password
+        } 
+        // SCENARIO 2: BACKDOOR ADMIN (Provisioning)
+        else {
+            if (!formData.password) throw new Error("Password required to initialize account.");
+            
+            const res = await fetch('/api/create-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.name,
+                    email: formData.email,
+                    password: formData.password,
+                    role: currentUser.role, 
+                    linkedMemberId: currentUser.uid
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Provisioning failed");
+
+            toast.success("Account Initialized. Please Log In.", { id: toastId });
+        }
+
+    } catch (error: any) {
+        console.error(error);
+        if (error.code === 'auth/requires-recent-login') {
+            toast.error("Security: Re-login required to change password.", { id: toastId });
+        } else {
+            toast.error(error.message || "Update Failed", { id: toastId });
+        }
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -142,13 +214,12 @@ export default function SettingsPage() {
       setIsCreating(true);
       try {
           const token = await auth.currentUser?.getIdToken();
-          if (!token) throw new Error("Authentication Token Missing");
-
+          
           const res = await fetch('/api/create-user', {
               method: 'POST',
               headers: { 
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}` 
+                  'Authorization': token ? `Bearer ${token}` : '' 
               },
               body: JSON.stringify(newUser)
           });
@@ -273,10 +344,32 @@ export default function SettingsPage() {
                                         <div className="relative">
                                             <input 
                                                 value={formData.email}
-                                                disabled 
-                                                className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl px-5 py-4 text-sm font-bold text-slate-500 outline-none cursor-not-allowed"
+                                                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all"
                                             />
                                         </div>
+                                    </div>
+
+                                    {/* PASSWORD FIELD ADDED */}
+                                    <div className="space-y-2 col-span-1 md:col-span-2">
+                                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">
+                                            {auth.currentUser ? "Change Password" : "Set Initial Password"}
+                                        </label>
+                                        <div className="relative group">
+                                            <input 
+                                                type="password"
+                                                value={formData.password}
+                                                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                                placeholder={auth.currentUser ? "Enter new password to change..." : "Create password to enable login..."}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all"
+                                            />
+                                            <KeyRound className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-[#E51636] transition-colors" />
+                                        </div>
+                                        {!auth.currentUser && (
+                                            <p className="text-[10px] font-bold text-[#E51636] mt-1 pl-1">
+                                                * You are in Override Mode. Set a password to create your permanent login.
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -291,6 +384,8 @@ export default function SettingsPage() {
                         </div>
                     </div>
                 )}
+
+                {/* ... (Other Tabs Remain Unchanged) ... */}
 
                 {/* --- TAB: OPERATIONS (Create & Manage) --- */}
                 {activeTab === 'ops' && canCreateAccounts && (
@@ -564,7 +659,7 @@ export default function SettingsPage() {
                     </div>
                 )}
                 
-                {/* --- TAB: SYSTEM LOGS (Renamed from Security) --- */}
+                {/* --- TAB: SYSTEM LOGS --- */}
                 {activeTab === 'logs' && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100 relative overflow-hidden">
                         
