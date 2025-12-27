@@ -1,4 +1,3 @@
-// --- FILE: ./lib/store/useStore.ts ---
 import { create } from "zustand";
 import { db, auth } from "@/lib/firebase";
 import { collection, onSnapshot, query, doc, getDoc } from "firebase/firestore";
@@ -34,7 +33,6 @@ interface AppState {
   logout: () => Promise<void>;
   checkAuth: () => void;
 
-  // Optimistic Update Helper
   updateMemberLocal: (id: string, updates: Partial<TeamMember>) => void;
 }
 
@@ -66,7 +64,6 @@ export const useAppStore = create<AppState>((set) => ({
       const promises = snapshot.docs.map(async (d) => {
         try {
           const memberData = d.data();
-          
           let finalStatus = memberData.status || "Team Member";
           let finalRole = memberData.role || "Team Member";
 
@@ -77,8 +74,7 @@ export const useAppStore = create<AppState>((set) => ({
             
             if (overrideSnap.exists()) {
                const overrideData = overrideSnap.data();
-               Object.assign(memberData, overrideData); // Merges fields like 'badges'
-               
+               Object.assign(memberData, overrideData);
                if (overrideData.status) finalStatus = overrideData.status;
                if (overrideData.role) finalRole = overrideData.role;
             }
@@ -95,19 +91,17 @@ export const useAppStore = create<AppState>((set) => ({
             progress: memberData.progress || 0,
             dept: memberData.dept || "Unassigned",
             image: memberData.image || "",
-            badges: memberData.badges || [] // Ensure badges array exists
+            badges: memberData.badges || []
           } as TeamMember;
 
         } catch (e) {
-          console.error("Error parsing team member:", d.id, e);
           return null;
         }
       });
 
       const results = await Promise.all(promises);
       const validMembers = results.filter((m): m is TeamMember => m !== null);
-
-      set({ team: validMembers, loading: false }); // Ensure loading is set to false here
+      set({ team: validMembers, loading: false });
     });
   },
 
@@ -118,16 +112,14 @@ export const useAppStore = create<AppState>((set) => ({
         id: doc.id,
         ...doc.data()
       }));
-      // Sort by 'order' field to ensure correct sequence
       data.sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       set({ curriculum: data });
     });
   },
 
   login: async (email, password) => {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const uid = userCredential.user.uid;
-    set({ currentUser: { uid, email, name: "Admin", role: "Director" } });
+    await signInWithEmailAndPassword(auth, email, password);
+    // Note: checkAuth listener will handle setting the state
   },
 
   logout: async () => {
@@ -135,11 +127,51 @@ export const useAppStore = create<AppState>((set) => ({
     set({ currentUser: null });
   },
 
+  // --- FIXED CHECKAUTH FUNCTION ---
   checkAuth: () => {
-    auth.onAuthStateChanged((user) => {
+    auth.onAuthStateChanged(async (user) => {
       if (user) {
+        // Default fallback values
+        let profileName = user.displayName || "User";
+        let profileRole: Status = "Team Member";
+        let profileImage = user.photoURL || "";
+
+        try {
+            // 1. Fetch real data from TeamMembers collection using the UID
+            const memberRef = doc(db, "teamMembers", user.uid);
+            const memberSnap = await getDoc(memberRef);
+            
+            // 2. Fetch any overrides (like roles promoted via UI)
+            const overrideRef = doc(db, "profileOverrides", user.uid);
+            const overrideSnap = await getDoc(overrideRef);
+
+            if (memberSnap.exists()) {
+                const data = memberSnap.data();
+                profileName = data.name || profileName;
+                profileImage = data.image || profileImage;
+                // Use stored status as role
+                if (data.status) profileRole = data.status as Status;
+            }
+
+            if (overrideSnap.exists()) {
+                const data = overrideSnap.data();
+                // Overrides take precedence
+                if (data.role) profileRole = data.role as Status;
+                if (data.status) profileRole = data.status as Status; // Ensure status sync
+                if (data.image) profileImage = data.image;
+            }
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+        }
+
         set({ 
-          currentUser: { uid: user.uid, email: user.email || "", name: "Admin", role: "Director" },
+          currentUser: { 
+              uid: user.uid, 
+              email: user.email || "", 
+              name: profileName, 
+              role: profileRole,
+              image: profileImage
+          },
           authLoading: false
         });
       } else {
