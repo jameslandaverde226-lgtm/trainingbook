@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { AnimatePresence, motion, LayoutGroup, PanInfo } from "framer-motion";
 import { 
   Users, Search, Zap, Loader2,
-  LayoutGrid, GalleryHorizontal 
+  LayoutGrid, GalleryHorizontal, ArrowRight, ScanFace 
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -37,7 +37,7 @@ function PromotionHUD({
             initial={{ y: 100, opacity: 0, x: "-50%" }} 
             animate={{ y: 0, opacity: 1, x: "-50%" }} 
             exit={{ y: 100, opacity: 0, x: "-50%" }}
-            className="fixed bottom-6 left-1/2 z-[140] w-[95%] max-w-2xl px-0 pointer-events-none"
+            className="fixed bottom-32 md:bottom-12 left-1/2 z-[140] w-[90%] max-w-2xl px-0 pointer-events-none"
         >
             <div className="pointer-events-auto bg-white/90 backdrop-blur-3xl border border-white/60 rounded-[32px] p-3 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.2)] flex flex-col gap-3 ring-1 ring-white/50">
                 <div className="flex items-center justify-between px-4 py-1">
@@ -102,13 +102,17 @@ function PromotionHUD({
 
 // --- MAIN PAGE ---
 export default function TeamBoardPage() {
-    const { team, subscribeTeam, subscribeEvents, subscribeCurriculum, updateMemberLocal } = useAppStore(); 
+    // 1. GET CURRENT USER
+    const { team, subscribeTeam, subscribeEvents, subscribeCurriculum, updateMemberLocal, currentUser } = useAppStore(); 
     
     // Filters
     const [activeStage, setActiveStage] = useState<Status>("Team Member");
     const [activeFilter, setActiveFilter] = useState<"ALL" | "FOH" | "BOH">("ALL");
-    const [viewMode, setViewMode] = useState<"grid" | "horizontal">("grid"); 
+    const [viewMode, setViewMode] = useState<"grid" | "gallery">("grid"); 
     const [searchQuery, setSearchQuery] = useState("");
+    
+    // 2. NEW STATE: MY PAIRINGS FILTER
+    const [showMyPairings, setShowMyPairings] = useState(false);
     
     // Pagination / Infinite Scroll
     const [visibleCount, setVisibleCount] = useState(12);
@@ -119,13 +123,17 @@ export default function TeamBoardPage() {
     const [assignmentMember, setAssignmentMember] = useState<TeamMember | null>(null); 
     const [activeTab, setActiveTab] = useState<"overview" | "curriculum" | "performance" | "documents">("overview");
     const [memberDraggingId, setMemberDraggingId] = useState<string | null>(null);
-    const [trainerDraggingId, setTrainerDraggingId] = useState<string | null>(null);
+    
+    // TRAINER ASSIGNMENT STATE
+    const [activeLeaderId, setActiveLeaderId] = useState<string | null>(null);
     const [isTrainerPanelOpen, setIsTrainerPanelOpen] = useState(false);
     
-    // UPDATED: Using Ref for synchronous locking to prevent double-fires
+    // NEW STATE: Track which member clicked "Assign Mentor" to highlight their card
+    const [recipientMemberId, setRecipientMemberId] = useState<string | null>(null);
+    
     const isProcessingRef = useRef(false);
 
-    // Derived active member (Reactive!)
+    // Derived active member
     const selectedMember = useMemo(() => 
         team.find(m => m.id === selectedMemberId) || null, 
     [team, selectedMemberId]);
@@ -135,30 +143,30 @@ export default function TeamBoardPage() {
         const unsubTeam = subscribeTeam();
         const unsubEvents = subscribeEvents(); 
         const unsubCurriculum = subscribeCurriculum();
-        
-        return () => { 
-            unsubTeam(); 
-            unsubEvents(); 
-            unsubCurriculum();
-        };
+        return () => { unsubTeam(); unsubEvents(); unsubCurriculum(); };
     }, [subscribeTeam, subscribeEvents, subscribeCurriculum]);
 
-    // Reset pagination when filters change
     useEffect(() => {
         setVisibleCount(12);
     }, [activeStage, activeFilter, searchQuery]);
 
-    // --- FILTER LOGIC ---
+    // 3. UPDATE FILTER LOGIC
     const filteredMembers = useMemo(() => {
         return team
             .filter(m => {
                 const matchesStage = m.status === activeStage;
                 const matchesFilter = activeFilter === "ALL" || m.dept === activeFilter;
                 const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
-                return matchesStage && matchesFilter && matchesSearch;
+                
+                // My Pairings Logic
+                const matchesPairing = showMyPairings 
+                    ? m.pairing?.id === currentUser?.uid 
+                    : true;
+
+                return matchesStage && matchesFilter && matchesSearch && matchesPairing;
             })
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [team, activeStage, activeFilter, searchQuery]);
+    }, [team, activeStage, activeFilter, searchQuery, showMyPairings, currentUser]); // Added dependencies
 
     const visibleMembers = useMemo(() => {
         return filteredMembers.slice(0, visibleCount);
@@ -172,37 +180,124 @@ export default function TeamBoardPage() {
                     setVisibleCount((prev) => prev + 12);
                 }
             },
-            {
-                root: null, 
-                rootMargin: "200px", 
-                threshold: 0.1,
-            }
+            { root: null, rootMargin: "200px", threshold: 0.1 }
         );
 
-        if (loadMoreRef.current) {
-            observer.observe(loadMoreRef.current);
-        }
-
-        return () => {
-            if (loadMoreRef.current) {
-                observer.unobserve(loadMoreRef.current);
-            }
-        };
+        if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+        return () => { if (loadMoreRef.current) observer.unobserve(loadMoreRef.current); };
     }, [visibleCount, filteredMembers.length]);
+
+    // --- SHARED: LINK LOGIC ---
+    const linkMemberAndLeader = async (targetId: string, leaderId: string) => {
+        if (isProcessingRef.current) return;
+        
+        const leader = team.find(m => m.id === leaderId);
+        const targetMember = team.find(m => m.id === targetId);
+        
+        if (!leader || !targetMember) return;
+
+        isProcessingRef.current = true;
+        const loadToast = toast.loading(`Linking ${leader.name} to ${targetMember.name}...`);
+        
+        // 1. OPTIMISTIC UPDATE (Instant UI Change)
+        // This forces the "TeamCard" to re-render with the new mentor immediately
+        updateMemberLocal(targetMember.id, {
+            pairing: { 
+                id: leader.id, 
+                name: leader.name, 
+                role: leader.role, 
+                image: leader.image 
+            }
+        });
+
+        try {
+            // 2. Database Update
+            await setDoc(doc(db, "profileOverrides", targetMember.id), {
+                pairing: { id: leader.id, name: leader.name, role: leader.role, image: leader.image },
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+
+            await addDoc(collection(db, "events"), {
+                type: "Operation",
+                title: "Mentorship Uplink",
+                status: "Done",
+                priority: "High",
+                startDate: new Date(),
+                endDate: new Date(),
+                assignee: leader.id,
+                assigneeName: leader.name,
+                teamMemberId: targetMember.id,
+                teamMemberName: targetMember.name,
+                description: `Official mentorship link established with ${leader.name}.`,
+                createdAt: serverTimestamp()
+            });
+
+            toast.success("Mentorship Uplink Established", { id: loadToast });
+            
+            // RESET ALL STATES
+            setActiveLeaderId(null);
+            setRecipientMemberId(null);
+            setIsTrainerPanelOpen(false);
+        } catch (e) {
+            // Revert on failure
+            updateMemberLocal(targetMember.id, { pairing: targetMember.pairing }); 
+            toast.error("Failed", { id: loadToast });
+        } finally {
+            isProcessingRef.current = false;
+        }
+    };
 
     // --- HANDLERS ---
 
-    const handleMemberClick = (member: TeamMember) => {
-        if (member.dept === "Unassigned") {
-            setAssignmentMember(member);
-        } else {
-            setSelectedMemberId(member.id);
+    // 1. OPEN RECRUITMENT DOCK (Triggered from Card "Assign Mentor" click)
+    const openRecruitment = (member: TeamMember) => {
+        setActiveLeaderId(null);
+        setRecipientMemberId(member.id); // Highlight this card
+        setIsTrainerPanelOpen(true);
+    };
+
+    // 2. SELECT LEADER (Triggered from Dock)
+    const handleSelectLeader = (leader: TeamMember | null) => {
+        if (!leader) {
+            setActiveLeaderId(null);
+            return;
         }
+
+        // CASE A: We already clicked "Assign Mentor" on a card (recipientMemberId exists)
+        // So we finish the link immediately.
+        if (recipientMemberId) {
+            linkMemberAndLeader(recipientMemberId, leader.id);
+            return;
+        }
+
+        // CASE B: Standard flow (Pick leader first, then drag/click member to assign)
+        if (activeLeaderId === leader.id) {
+            setActiveLeaderId(null);
+        } else {
+            setActiveLeaderId(leader.id);
+        }
+    };
+
+    // 3. MEMBER CLICK HANDLER (Dual Function: Assign OR Open Profile)
+    const handleMemberClick = async (targetMember: TeamMember) => {
+        // A. If unit assignment needed, prioritize that
+        if (targetMember.dept === "Unassigned") {
+            setAssignmentMember(targetMember);
+            return;
+        }
+
+        // B. IF WE ARE IN RECRUITMENT MODE AND HAVE A LEADER SELECTED
+        if (activeLeaderId) {
+            linkMemberAndLeader(targetMember.id, activeLeaderId);
+            return;
+        }
+
+        // C. DEFAULT BEHAVIOR (Open Profile)
+        setSelectedMemberId(targetMember.id);
     };
 
     const handleUnitAssign = async (dept: "FOH" | "BOH") => {
         if (!assignmentMember || isProcessingRef.current) return;
-        
         isProcessingRef.current = true;
         updateMemberLocal(assignmentMember.id, { dept });
 
@@ -213,7 +308,6 @@ export default function TeamBoardPage() {
                 updatedAt: serverTimestamp()
             });
 
-            // LOG: INITIAL ASSIGNMENT
             await addDoc(collection(db, "events"), {
                 title: `Unit Assignment: ${dept}`,
                 type: "Operation",
@@ -238,118 +332,34 @@ export default function TeamBoardPage() {
         }
     };
 
-    const handleOpenTrainerModal = (member: TeamMember) => {
-        setIsTrainerPanelOpen(true);
-    };
-
-    const handleTrainerDragStart = (trainerId: string) => setTrainerDraggingId(trainerId);
-
-    const handleAssignTrainer = async (trainer: TeamMember, memberId: string) => {
-        if (isProcessingRef.current) return;
-        isProcessingRef.current = true;
-
-        const member = team.find(m => m.id === memberId);
-        if (member) {
-            const loadToast = toast.loading("Establishing Link...");
-            try {
-                await setDoc(doc(db, "profileOverrides", memberId), {
-                    pairing: {
-                        id: trainer.id,
-                        name: trainer.name,
-                        role: trainer.role,
-                        image: trainer.image
-                    },
-                    updatedAt: serverTimestamp()
-                }, { merge: true });
-
-                await addDoc(collection(db, "events"), {
-                    type: "Operation",
-                    title: "Mentorship Uplink",
-                    status: "Done",
-                    priority: "High",
-                    startDate: new Date(),
-                    endDate: new Date(),
-                    assignee: trainer.id,
-                    assigneeName: trainer.name,
-                    teamMemberId: memberId,
-                    teamMemberName: member.name,
-                    description: `Official mentorship link established with ${trainer.name}. Training protocols synchronized.`,
-                    createdAt: serverTimestamp()
-                });
-
-                toast.success(`Linked: ${trainer.name} -> ${member.name}`, { id: loadToast });
-                setIsTrainerPanelOpen(false);
-            } catch (err) {
-                console.error(err);
-                toast.error("Failed to assign mentor", { id: loadToast });
-            } finally {
-                isProcessingRef.current = false;
-            }
-        } else {
-             isProcessingRef.current = false;
-        }
-    };
-
-    const handleTrainerDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo, trainer: TeamMember) => {
-        setTrainerDraggingId(null);
-        let clientX, clientY;
-        // @ts-ignore
-        if ('clientX' in event) { clientX = event.clientX; clientY = event.clientY; } 
-        // @ts-ignore
-        else if ('changedTouches' in event) { clientX = event.changedTouches[0]?.clientX; clientY = event.changedTouches[0]?.clientY; }
-        
-        if (clientX === undefined || clientY === undefined) return;
-        const elementsBelow = document.elementsFromPoint(clientX, clientY);
-        const teamCardElement = elementsBelow.find(el => el.closest('[data-team-card-id]'))?.closest('[data-team-card-id]');
-        
-        if (teamCardElement) {
-            const memberId = teamCardElement.getAttribute('data-team-card-id');
-            if (memberId) handleAssignTrainer(trainer, memberId);
-        }
-    };
-
-    // --- PROMOTION LOGIC (UPDATED WITH EVENT LOGGING & REF DEBOUNCE) ---
+    // --- PROMOTION HANDLERS ---
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         if (isProcessingRef.current) return;
-        
         const member = team.find(m => m.id === memberId);
         if(!member || member.status === newRole) {
             setMemberDraggingId(null);
             return;
         }
 
-        // LOCK IMMEDIATELY
         isProcessingRef.current = true;
         setMemberDraggingId(null); 
-        
         const toastId = toast.loading(`Promoting to ${newRole}...`);
-        const today = new Date().toISOString();
         
-        // Optimistic Update
         updateMemberLocal(memberId, { status: newRole, role: newRole });
 
         try {
             const batch = writeBatch(db);
             const overrideRef = doc(db, "profileOverrides", memberId);
             const memberRef = doc(db, "teamMembers", memberId);
+            const today = new Date().toISOString();
 
-            // Save the new role AND the date it happened
             batch.set(overrideRef, {
-                role: newRole, 
-                status: newRole, 
-                promotionDates: { [newRole]: today }, // Append to map
-                updatedAt: serverTimestamp()
+                role: newRole, status: newRole, promotionDates: { [newRole]: today }, updatedAt: serverTimestamp()
             }, { merge: true });
 
-            batch.update(memberRef, {
-                role: newRole,
-                status: newRole,
-                updatedAt: serverTimestamp()
-            });
-
+            batch.update(memberRef, { role: newRole, status: newRole, updatedAt: serverTimestamp() });
             await batch.commit();
 
-            // LOG: PROMOTION EVENT
             await addDoc(collection(db, "events"), {
                 title: `Rank Advancement: ${newRole}`,
                 type: "Operation",
@@ -367,15 +377,10 @@ export default function TeamBoardPage() {
 
             toast.success("Promotion Confirmed", { id: toastId, icon: '🎖️' });
         } catch (error) {
-            console.error("Promotion failed:", error);
             toast.error("Deployment Failed", { id: toastId });
-            // Revert optimistic update
             updateMemberLocal(memberId, { status: member.status, role: member.role });
         } finally {
-            // UNLOCK after a short delay to prevent double-taps
-            setTimeout(() => {
-                 isProcessingRef.current = false;
-            }, 500);
+            setTimeout(() => { isProcessingRef.current = false; }, 500);
         }
     };
 
@@ -399,117 +404,195 @@ export default function TeamBoardPage() {
         }
     };
 
+    // --- REUSABLE CONTROL BAR ---
+    const ControlBar = ({ className }: { className?: string }) => (
+        <div className={cn("flex items-center bg-white/90 backdrop-blur-2xl border border-white/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] rounded-full h-14 p-1.5 ring-1 ring-slate-900/5 w-full max-w-sm gap-2", className)}>
+            <div className="flex bg-slate-100 rounded-full p-1 border border-slate-200 shrink-0">
+                <button 
+                    onClick={() => setViewMode('grid')}
+                    className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95",
+                        viewMode === 'grid' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                >
+                    <LayoutGrid className="w-5 h-5" />
+                </button>
+                <button 
+                    onClick={() => setViewMode('gallery')}
+                    className={cn(
+                        "w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95",
+                        viewMode === 'gallery' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                >
+                    <GalleryHorizontal className="w-5 h-5" />
+                </button>
+            </div>
+            
+            <div className="flex-1 flex items-center gap-2 px-3 bg-slate-50/80 rounded-full h-full border border-slate-100/50">
+                <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                <input 
+                    className="bg-transparent w-full text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400" 
+                    placeholder="Find member..." 
+                    value={searchQuery} 
+                    onChange={e => setSearchQuery(e.target.value)} 
+                />
+            </div>
+        </div>
+    );
+
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-20 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
+        <div className="min-h-screen bg-[#F8FAFC] pb-40 md:pb-20 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
             <div className="absolute inset-0 pointer-events-none opacity-[0.4]" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-            {/* DYNAMIC ISLAND FILTER */}
+            {/* --- 1. DYNAMIC ISLAND (Fixed Top) --- */}
             <TeamDynamicIsland 
                 activeStage={activeStage} 
                 setActiveStage={setActiveStage}
                 activeFilter={activeFilter}
                 setActiveFilter={setActiveFilter}
+                // 4. PASS NEW PROPS
+                showMyPairings={showMyPairings}
+                setShowMyPairings={setShowMyPairings}
             />
 
-            {/* HEADER */}
-            <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-48 px-4 md:px-8 space-y-6 relative z-10">
-                <div className="hidden md:flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div className="space-y-1"><h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none uppercase">{activeStage}</h2></div>
+            {/* --- 2. CONTROL BAR (Floating under island) --- */}
+            <div className="hidden md:flex fixed top-44 left-0 right-0 z-40 justify-center pointer-events-none">
+                 <motion.div 
+                    initial={{ y: -20, opacity: 0 }} 
+                    animate={{ y: 0, opacity: 1 }} 
+                    className="pointer-events-auto"
+                 >
+                     <ControlBar />
+                 </motion.div>
+            </div>
+
+            {/* --- 3. PAGE TITLE --- */}
+            <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-72 px-4 md:px-8 space-y-6 relative z-10">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                    <div className="space-y-1 w-full text-center md:text-left">
+                        <h2 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter leading-none uppercase">{activeStage}</h2>
+                    </div>
                 </div>
             </div>
 
-            {/* GRID AREA */}
-            <div className="mt-4 md:mt-8 relative z-10 px-0 md:px-8 max-w-[1400px] mx-auto">
-                {viewMode === "grid" ? (
-                    <>
-                        <LayoutGroup id="roster-grid">
-                            <motion.div layout className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-10 px-4 md:px-0">
-                                <AnimatePresence mode="popLayout" initial={false}>
-                                    {visibleMembers.length > 0 ? (
-                                        visibleMembers.map((member) => (
-                                            <motion.div 
-                                                key={member.id} 
-                                                layout 
-                                                initial={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }} 
-                                                animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }} 
-                                                exit={{ opacity: 0, scale: 0.5, filter: "blur(10px)", transition: { duration: 0.2 } }} 
-                                                transition={{ type: "spring", damping: 25, stiffness: 300 }} 
-                                                data-team-card-id={member.id} 
-                                                className="relative"
-                                                style={{ zIndex: memberDraggingId === member.id ? 100 : 1 }}
-                                            >
-                                                <TeamCard 
-                                                    member={member} 
-                                                    onClick={handleMemberClick} 
-                                                    onAssignClick={handleOpenTrainerModal} 
-                                                    onDragStart={() => setMemberDraggingId(member.id)} 
-                                                    onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
-                                                    isDragging={memberDraggingId === member.id} 
-                                                    isDropTarget={!!trainerDraggingId} 
-                                                />
-                                            </motion.div>
-                                        ))
-                                    ) : (
-                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full h-64 flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-200 rounded-[32px] w-full bg-slate-50/50 mx-4 md:mx-0">
-                                            <Users className="w-12 h-12 mb-4 opacity-50" /><p className="text-xs font-black uppercase tracking-[0.2em]">No Team Members Found</p>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+            {/* --- 4. MAIN CONTENT GRID --- */}
+            <div className="mt-8 relative z-10 w-full max-w-[100vw] overflow-visible">
+                <LayoutGroup id="roster">
+                    <AnimatePresence mode="wait">
+                        {visibleMembers.length === 0 ? (
+                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full h-64 flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-200 rounded-[32px] w-[90%] mx-auto bg-slate-50/50">
+                                <Users className="w-12 h-12 mb-4 opacity-50" />
+                                <p className="text-xs font-black uppercase tracking-[0.2em]">No Team Members Found</p>
                             </motion.div>
-                        </LayoutGroup>
-
-                        {visibleCount < filteredMembers.length && (
-                            <div ref={loadMoreRef} className="py-12 flex justify-center w-full">
-                                <div className="flex items-center gap-2 text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-100 shadow-sm">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">Loading Roster...</span>
-                                </div>
-                            </div>
+                        ) : viewMode === "grid" ? (
+                            // --- GRID VIEW ---
+                            <motion.div 
+                                key="grid"
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-10 px-4 md:px-8 max-w-[1400px] mx-auto"
+                            >
+                                <AnimatePresence mode="popLayout">
+                                    {visibleMembers.map((member) => (
+                                        <motion.div 
+                                            key={member.id} 
+                                            layout 
+                                            initial={{ opacity: 0, scale: 0.9 }} 
+                                            animate={{ opacity: 1, scale: 1 }} 
+                                            exit={{ opacity: 0, scale: 0.9 }} 
+                                            data-team-card-id={member.id} 
+                                            className="relative"
+                                            style={{ zIndex: memberDraggingId === member.id ? 100 : 1 }}
+                                        >
+                                            <TeamCard 
+                                                member={member} 
+                                                onClick={handleMemberClick} 
+                                                onAssignClick={openRecruitment}
+                                                onDragStart={() => setMemberDraggingId(member.id)} 
+                                                onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
+                                                isDragging={memberDraggingId === member.id} 
+                                                isDropTarget={!!activeLeaderId}
+                                                // HIGHLIGHT PROP:
+                                                isWaitingForMentor={recipientMemberId === member.id}
+                                            />
+                                        </motion.div>
+                                    ))}
+                                </AnimatePresence>
+                                
+                                {visibleCount < filteredMembers.length && (
+                                    <div ref={loadMoreRef} className="col-span-full py-12 flex justify-center w-full">
+                                        <div className="flex items-center gap-2 text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-100 shadow-sm">
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Loading Roster...</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </motion.div>
+                        ) : (
+                            // --- GALLERY VIEW (HORIZONTAL) ---
+                            <motion.div 
+                                key="gallery"
+                                initial={{ opacity: 0, x: 20 }} 
+                                animate={{ opacity: 1, x: 0 }} 
+                                exit={{ opacity: 0, x: -20 }}
+                                className="w-full overflow-x-auto overflow-y-hidden pb-12 pt-4 px-6 md:px-[calc(50%-190px)] snap-x snap-mandatory flex gap-6 no-scrollbar items-center"
+                            >
+                                {visibleMembers.map((member) => (
+                                    <div 
+                                        key={member.id} 
+                                        className="snap-center shrink-0 w-[85vw] md:w-[380px] h-[500px] md:h-[550px] relative perspective-1000 group transition-transform duration-500 hover:scale-105"
+                                        data-team-card-id={member.id} 
+                                    >
+                                        <div className="absolute -inset-4 bg-gradient-to-b from-slate-200/50 to-transparent rounded-[40px] -z-10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <TeamCard 
+                                            member={member} 
+                                            onClick={handleMemberClick} 
+                                            onAssignClick={openRecruitment}
+                                            onDragStart={() => setMemberDraggingId(member.id)} 
+                                            onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
+                                            isDragging={memberDraggingId === member.id} 
+                                            isDropTarget={!!activeLeaderId}
+                                            // HIGHLIGHT PROP:
+                                            isWaitingForMentor={recipientMemberId === member.id}
+                                        />
+                                        
+                                        {/* Gallery Mode Decoration */}
+                                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                            <ScanFace className="w-4 h-4" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest">View Profile</span>
+                                        </div>
+                                    </div>
+                                ))}
+                                
+                                {/* End Spacer */}
+                                <div className="snap-center shrink-0 w-[10vw]" />
+                            </motion.div>
                         )}
-                    </>
-                ) : (
-                    <div className="w-full h-[600px] flex items-center justify-center text-slate-400">
-                        <p className="text-xs uppercase font-bold tracking-widest">Horizontal Mode (Optimized)</p>
-                    </div>
-                )}
+                    </AnimatePresence>
+                </LayoutGroup>
             </div>
 
+            {/* --- MOBILE FLOATING CONTROL (Bottom) --- */}
             <div className="md:hidden fixed bottom-28 left-0 right-0 z-40 flex items-center pointer-events-none justify-center px-4">
-                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="pointer-events-auto flex items-center bg-white/90 backdrop-blur-2xl border border-white/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] rounded-full h-14 p-1.5 ring-1 ring-slate-900/5 w-full max-w-sm gap-2">
-                    <button onClick={() => setViewMode(viewMode === 'grid' ? 'horizontal' : 'grid')} className="w-11 h-full bg-slate-100 rounded-full flex items-center justify-center text-slate-500 shadow-sm border border-slate-200 shrink-0 active:scale-95 transition-transform">
-                        {viewMode === 'grid' ? <GalleryHorizontal className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
-                    </button>
-                    <div className="flex-1 flex items-center gap-2 px-3 bg-slate-50/80 rounded-full h-full border border-slate-100/50">
-                        <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                        <input className="bg-transparent w-full text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400" placeholder="Find member..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                    </div>
+                <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="pointer-events-auto w-full max-w-sm">
+                    <ControlBar />
                 </motion.div>
             </div>
 
-            <TrainerRecruitmentModal isOpen={isTrainerPanelOpen} onClose={() => setIsTrainerPanelOpen(false)} onDragStart={handleTrainerDragStart} onDragEnd={handleTrainerDragEnd} draggingId={trainerDraggingId} />
+            {/* MODALS */}
+            <TrainerRecruitmentModal 
+                isOpen={isTrainerPanelOpen} 
+                onClose={() => { 
+                    setIsTrainerPanelOpen(false); 
+                    setActiveLeaderId(null); 
+                    setRecipientMemberId(null); // Clear highlight
+                }} 
+                onSelectLeader={handleSelectLeader}
+                selectedLeaderId={activeLeaderId}
+            />
             
-            <AnimatePresence>
-                {assignmentMember && (
-                    <UnitAssignmentModal 
-                        member={assignmentMember}
-                        onAssign={handleUnitAssign}
-                        onClose={() => setAssignmentMember(null)}
-                    />
-                )}
-            </AnimatePresence>
-
+            <AnimatePresence>{assignmentMember && <UnitAssignmentModal member={assignmentMember} onAssign={handleUnitAssign} onClose={() => setAssignmentMember(null)} />}</AnimatePresence>
             <AnimatePresence>{memberDraggingId && <PromotionHUD draggingMember={team.find(m => m.id === memberDraggingId)} onPromote={handlePromoteMember} />}</AnimatePresence>
-            
-            <AnimatePresence>
-                {selectedMember && (
-                    <MemberDetailSheet 
-                        member={selectedMember} 
-                        activeTab={activeTab} 
-                        setActiveTab={setActiveTab} 
-                        onClose={() => setSelectedMemberId(null)} 
-                    />
-                )}
-            </AnimatePresence>
+            <AnimatePresence>{selectedMember && <MemberDetailSheet member={selectedMember} activeTab={activeTab} setActiveTab={setActiveTab} onClose={() => setSelectedMemberId(null)} />}</AnimatePresence>
         </div>
     );
 }

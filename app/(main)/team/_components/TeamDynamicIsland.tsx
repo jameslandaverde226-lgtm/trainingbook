@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { AnimatePresence, motion, LayoutGroup, Transition } from "framer-motion";
-import { Layers, X, ChevronDown, Filter, Check, AlertCircle } from "lucide-react";
+import { Layers, X, ChevronDown, Filter, Check, AlertCircle, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STAGES, Status } from "../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore"; 
@@ -20,6 +20,9 @@ interface Props {
   setActiveStage: (s: Status) => void;
   activeFilter: "ALL" | "FOH" | "BOH";
   setActiveFilter: (f: "ALL" | "FOH" | "BOH") => void;
+  // NEW PROPS
+  showMyPairings: boolean;
+  setShowMyPairings: (show: boolean) => void;
 }
 
 export default function TeamDynamicIsland({
@@ -27,6 +30,8 @@ export default function TeamDynamicIsland({
   setActiveStage,
   activeFilter,
   setActiveFilter,
+  showMyPairings,
+  setShowMyPairings
 }: Props) {
   const { team } = useAppStore();
   const [isOpen, setIsOpen] = useState(false);
@@ -72,7 +77,6 @@ export default function TeamDynamicIsland({
                         initial={{ opacity: 0, filter: "blur(4px)" }}
                         animate={{ opacity: 1, filter: "blur(0px)" }}
                         exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.15 } }}
-                        // Added pr-3 to the container to give space for the badge inside
                         className="flex items-center gap-3 px-1.5 py-1.5 pr-3 h-14 relative w-full"
                     >
                          <motion.div layoutId="icon-container" className="w-10 h-10 bg-[#E51636] rounded-full flex items-center justify-center text-white shadow-md shadow-red-500/20 shrink-0">
@@ -83,18 +87,17 @@ export default function TeamDynamicIsland({
                              <motion.span layoutId="title-text" className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">
                                  {activeStageData?.title || "Roster"}
                              </motion.span>
-                             <motion.span layoutId="subtitle-text" className="text-[9px] font-bold text-slate-400 whitespace-nowrap">
-                                 {activeFilter === "ALL" ? "All Units" : `${activeFilter} Unit`}
+                             <motion.span layoutId="subtitle-text" className="text-[9px] font-bold text-slate-400 whitespace-nowrap flex items-center gap-1.5">
+                                 {showMyPairings && <UserCheck className="w-3 h-3 text-[#004F71]" />}
+                                 {showMyPairings ? "My Pairings Only" : activeFilter === "ALL" ? "All Units" : `${activeFilter} Unit`}
                              </motion.span>
                          </motion.div>
                          
-                         {/* Notification Badge - Now positioned RELATIVE to content flow, not absolute, or absolutely positioned but within padding */}
                          {unassignedCount > 0 && (
                              <motion.div 
                                 layoutId="notification-badge"
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
-                                // Positioned top-right but inset by 6px so it sits inside the rounded corner
                                 className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 bg-[#E51636] rounded-full flex items-center justify-center border border-white text-[9px] font-black text-white shadow-sm z-50 pointer-events-none"
                              >
                                  {unassignedCount}
@@ -131,6 +134,27 @@ export default function TeamDynamicIsland({
                                  <X className="w-4 h-4" />
                              </motion.button>
                         </div>
+
+                        {/* --- NEW: PERSONAL FILTER TOGGLE --- */}
+                         <motion.button
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={() => setShowMyPairings(!showMyPairings)}
+                            className={cn(
+                                "flex items-center justify-between px-4 py-3 rounded-2xl border transition-all duration-200 text-left relative overflow-hidden mx-1",
+                                showMyPairings
+                                    ? "bg-[#004F71] text-white border-[#004F71] shadow-md shadow-blue-900/20"
+                                    : "bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100"
+                            )}
+                        >
+                             <div className="flex items-center gap-3">
+                                <UserCheck className={cn("w-4 h-4", showMyPairings ? "text-white" : "text-slate-400")} />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Show My Pairings</span>
+                             </div>
+                             {showMyPairings && <Check className="w-3.5 h-3.5 text-white" />}
+                        </motion.button>
+
+                        <div className="h-px bg-slate-100 mx-2" />
 
                         {/* Unit Filter */}
                         <motion.div 

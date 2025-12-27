@@ -1,24 +1,19 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image'; // Import Image
-import { usePathname, useRouter } from 'next/navigation'; 
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import Image from 'next/image'; 
+import { usePathname } from 'next/navigation'; 
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { 
   LayoutDashboard, 
   Users, 
   GraduationCap,
-  Settings, 
-  LogOut, 
-  Bell, 
-  Search,
-  ChevronDown,
   Calendar,
   BookOpen
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAppStore } from '@/lib/store/useStore'; 
+import UserNav from '@/components/core/UserNav'; 
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -30,24 +25,9 @@ const NAV_LINKS = [
 
 export default function DynamicHeader() {
   const pathname = usePathname();
-  const router = useRouter(); 
   const { scrollY } = useScroll();
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
   
-  const { currentUser, logout } = useAppStore(); 
-
-  const user = currentUser ? {
-      name: currentUser.name || "Operator",
-      email: currentUser.email || "",
-      initials: currentUser.name ? currentUser.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2) : "OP",
-      role: currentUser.role || "Team Member"
-  } : { name: "Loading...", email: "", initials: "...", role: "" };
-
-  const handleSignOut = async () => {
-      await logout();
-      router.push("/login");
-  };
-  
+  // Header animations
   const headerY = useTransform(scrollY, [0, 100], [0, -10]);
   const headerBorder = useTransform(scrollY, [0, 20], ["rgba(0,0,0,0)", "rgba(226,232,240,1)"]);
   const headerShadow = useTransform(scrollY, [0, 20], ["none", "0 10px 15px -3px rgba(0, 0, 0, 0.05)"]);
@@ -66,7 +46,6 @@ export default function DynamicHeader() {
           {/* --- Left: Logo & Nav --- */}
           <div className="flex items-center gap-6 flex-1 overflow-hidden">
             <Link href="/dashboard" className="flex items-center gap-3 group shrink-0">
-              {/* REPLACED 'T' WITH SVG LOGO */}
               <div className="relative h-9 w-9 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                 <Image 
                     src="/planning.svg" 
@@ -116,65 +95,11 @@ export default function DynamicHeader() {
 
           {/* --- Right: Actions --- */}
           <div className="flex items-center gap-3 shrink-0">
-            <button className="h-10 w-10 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-[#004F71] hover:border-blue-200 hover:shadow-md transition-all flex items-center justify-center">
-               <Search className="w-4 h-4" />
-            </button>
-
-            <button className="h-10 w-10 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-indigo-500 hover:border-indigo-200 hover:shadow-md transition-all flex items-center justify-center relative">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-2 right-2.5 h-2 w-2 bg-[#E51636] rounded-full ring-2 ring-white" />
-            </button>
+            {/* REMOVED: Search and Bell buttons were here */}
             
-            <div className="h-8 w-px bg-slate-200 mx-1" />
-
-            {/* Profile Dropdown */}
-            <div className="relative">
-              <button 
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="flex items-center gap-3 pl-1 pr-2 py-1 rounded-full hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200 outline-none"
-              >
-                <div className="h-8 w-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-md overflow-hidden">
-                  {currentUser?.image ? (
-                      <img src={currentUser.image} alt={user.initials} className="w-full h-full object-cover" />
-                  ) : (
-                      user.initials
-                  )}
-                </div>
-                <div className="text-left">
-                  <p className="text-xs font-bold text-slate-900 leading-none truncate max-w-[100px]">{user.name}</p>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase leading-none mt-0.5">{user.role}</p>
-                </div>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
-
-              <AnimatePresence>
-                {isProfileOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsProfileOpen(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                      className="absolute right-0 z-50 mt-2 w-56 origin-top-right rounded-2xl bg-white p-2 shadow-xl ring-1 ring-black/5 focus:outline-none border border-slate-100"
-                    >
-                      <div className="px-3 py-2 border-b border-slate-50 mb-1">
-                        <p className="text-sm font-bold text-slate-900">{user.name}</p>
-                        <p className="text-xs text-slate-500 truncate">{user.email}</p>
-                      </div>
-                      <Link href="/settings" className="flex items-center px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-                        <Settings className="mr-2 h-4 w-4" /> Preferences
-                      </Link>
-                      <button 
-                        onClick={handleSignOut}
-                        className="w-full flex items-center px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
-                      >
-                        <LogOut className="mr-2 h-4 w-4" /> Sign Out
-                      </button>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* UserNav Component */}
+            <UserNav />
+            
           </div>
         </div>
       </motion.header>
@@ -182,9 +107,8 @@ export default function DynamicHeader() {
       {/* =======================================
           MOBILE TOP BAR
       ======================================= */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-40 px-6 py-4 bg-slate-50/80 backdrop-blur-md flex items-center justify-between">
+      <header className="md:hidden fixed top-0 left-0 right-0 z-[101] px-6 py-4 bg-slate-50/80 backdrop-blur-md flex items-center justify-between shadow-sm">
           <Link href="/dashboard" className="flex items-center gap-3">
-             {/* REPLACED 'T' WITH SVG LOGO HERE TOO */}
             <div className="relative h-9 w-9">
                  <Image 
                     src="/planning.svg" 
@@ -196,16 +120,10 @@ export default function DynamicHeader() {
             </div>
             <span className="text-lg font-black tracking-tight text-slate-900">Trainingbook</span>
           </Link>
-          <div 
-            onClick={() => setIsProfileOpen(!isProfileOpen)} 
-            className="h-9 w-9 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-md ring-2 ring-white overflow-hidden"
-          >
-             {currentUser?.image ? (
-                 <img src={currentUser.image} alt={user.initials} className="w-full h-full object-cover" />
-             ) : (
-                 user.initials
-             )}
-          </div>
+
+          {/* UserNav Component */}
+          <UserNav />
+          
       </header>
 
       {/* =======================================

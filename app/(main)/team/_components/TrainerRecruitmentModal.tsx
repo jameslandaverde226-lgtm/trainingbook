@@ -1,119 +1,121 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { AnimatePresence, motion, useDragControls, Variants } from "framer-motion";
+import { useMemo, useState, useRef } from "react";
 import { 
-  X, Crown, Zap, GripVertical, ShieldCheck, 
-  User, ChevronDown, ChevronUp, Users, Search
-} from "lucide-react";
+  AnimatePresence, 
+  motion, 
+  useMotionValue, 
+  useSpring, 
+  useTransform, 
+  MotionValue,
+  Variants
+} from "framer-motion";
+import { X, Crown, Search, ArrowRight, UserPlus } from "lucide-react";
 import { useAppStore } from "@/lib/store/useStore";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 
-// --- DRAGGABLE TRAINER CHIP ---
-function DraggableTrainerPill({ 
+// --- DOCK ICON COMPONENT ---
+function DockIcon({ 
     trainer, 
-    onDragStart, 
-    onDragEnd, 
-    isOtherBeingDragged 
+    onSelect, 
+    mouseX,
+    onHoverStart,
+    onHoverEnd,
+    isSelected
 }: { 
     trainer: TeamMember; 
-    onDragStart: (id: string) => void; 
-    onDragEnd: (event: any, info: any, trainer: TeamMember) => void;
-    isOtherBeingDragged: boolean;
+    onSelect: (trainer: TeamMember) => void;
+    mouseX: MotionValue;
+    onHoverStart: () => void;
+    onHoverEnd: () => void;
+    isSelected: boolean;
 }) {
-    const controls = useDragControls();
+    const ref = useRef<HTMLButtonElement>(null);
 
-    // Determine Branding based on Dept
+    // --- PHYSICS ENGINE ---
+    const distance = useTransform(mouseX, (val) => {
+        const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
+        return val - bounds.x - bounds.width / 2;
+    });
+
+    const widthSync = useTransform(distance, [-150, 0, 150], [64, 110, 64]);
+    const width = useSpring(widthSync, { mass: 0.1, stiffness: 150, damping: 12 });
+
+    // Visual Identity
     const isFOH = trainer.dept === "FOH";
-    const brandColor = isFOH ? "bg-[#004F71]" : "bg-[#E51636]";
-    const brandBorder = isFOH ? "group-hover:border-[#004F71]/30" : "group-hover:border-[#E51636]/30";
+    const isBOH = trainer.dept === "BOH";
+
+    const brandColor = isFOH 
+        ? "bg-[#004F71]" 
+        : isBOH 
+            ? "bg-[#E51636]" 
+            : "bg-slate-500";
+
+    const ringColor = isFOH 
+        ? "group-hover:ring-[#004F71]/30" 
+        : isBOH 
+            ? "group-hover:ring-[#E51636]/30" 
+            : "group-hover:ring-slate-500/30";
+    
+    // Initials Logic (First + Last)
+    const initials = trainer.name
+        .split(" ")
+        .slice(0, 2)
+        .map(n => n[0])
+        .join("")
+        .toUpperCase();
 
     return (
-        <motion.div
-            drag
-            dragControls={controls}
-            dragListener={false}
-            dragSnapToOrigin
-            dragElastic={0.1}
-            whileDrag={{ scale: 1.05, zIndex: 9999, cursor: "grabbing" }}
-            onDragStart={() => onDragStart(trainer.id)}
-            onDragEnd={(event, info) => onDragEnd(event, info, trainer)}
-            className="group flex-shrink-0 relative w-full"
-            layout
-            // Hide if another card is being dragged to clear the UI
-            animate={{ opacity: isOtherBeingDragged ? 0 : 1 }}
-            transition={{ duration: 0.2 }}
+        <motion.button
+            ref={ref}
+            style={{ width }}
+            onClick={() => onSelect(trainer)}
+            className="relative flex flex-col items-center justify-end aspect-square shrink-0 mb-4 focus:outline-none group"
+            onMouseEnter={onHoverStart}
+            onMouseLeave={onHoverEnd}
+            whileTap={{ scale: 0.9 }}
         >
-            <div 
-                onPointerDown={(e) => controls.start(e)}
-                onDragStart={(e) => e.preventDefault()}
-                className={cn(
-                    "flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-[18px] shadow-sm transition-all cursor-grab active:cursor-grabbing relative overflow-hidden select-none touch-none",
-                    "hover:shadow-md hover:scale-[1.02]",
-                    brandBorder
-                )}
-            >
-                {/* Department Color Strip */}
-                <div className={cn("absolute left-0 top-0 bottom-0 w-1", brandColor)} />
-
-                {/* Avatar */}
-                <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 bg-slate-50 shadow-inner border border-slate-100">
-                    {trainer.image && !trainer.image.includes("ui-avatars.com") ? (
-                        <img 
-                            src={trainer.image} 
-                            className="w-full h-full object-cover pointer-events-none" 
-                            alt={trainer.name} 
-                            draggable={false} 
-                        />
-                    ) : (
-                        <div className={cn("w-full h-full flex items-center justify-center text-white font-black text-xs", brandColor)}>
-                            {trainer.name.charAt(0)}
-                        </div>
-                    )}
-                </div>
-                
-                {/* Info */}
-                <div className="flex flex-col flex-1 min-w-0 pointer-events-none">
-                    <span className="text-xs font-[900] text-slate-800 truncate leading-tight group-hover:text-slate-900">{trainer.name}</span>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className={cn("text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md bg-slate-50 border border-slate-200 tracking-wider text-slate-500")}>
-                            {trainer.dept}
-                        </span>
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider truncate">
-                            {trainer.role.replace('Assistant', 'Asst.')}
-                        </span>
+            <div className={cn(
+                "w-full h-full rounded-[22px] overflow-hidden shadow-lg transition-all duration-300 cursor-pointer border-[3px] relative bg-white ring-1 ring-black/5",
+                isSelected 
+                    ? "border-emerald-500 ring-4 ring-emerald-500/20 scale-105" 
+                    : `border-white hover:shadow-2xl hover:border-white hover:ring-4 ${ringColor}`
+            )}>
+                {trainer.image && !trainer.image.includes("ui-avatars.com") ? (
+                    <img 
+                        src={trainer.image} 
+                        className="w-full h-full object-cover pointer-events-none" 
+                        alt={trainer.name} 
+                    />
+                ) : (
+                    <div className={cn("w-full h-full flex items-center justify-center text-white font-[1000] text-xl tracking-tight", brandColor)}>
+                        {initials}
                     </div>
-                </div>
-
-                {/* Grip Handle */}
-                <div className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-300 group-hover:bg-slate-50 group-hover:text-slate-500 transition-colors pointer-events-none">
-                    <GripVertical className="w-4 h-4" />
-                </div>
+                )}
+                
+                {/* Premium Gloss Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-black/10 via-transparent to-white/30 pointer-events-none mix-blend-overlay" />
             </div>
-        </motion.div>
+            
+            {/* Reflection Effect */}
+            <div className="absolute -bottom-2 left-2 right-2 h-1 bg-black/20 blur-md rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </motion.button>
     );
 }
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
-    onDragStart: (id: string) => void;
-    onDragEnd: (event: any, info: any, trainer: TeamMember) => void;
-    draggingId?: string | null;
+    onSelectLeader: (leader: TeamMember | null) => void;
+    selectedLeaderId: string | null;
 }
 
-export default function TrainerRecruitmentModal({ isOpen, onClose, onDragStart, onDragEnd, draggingId }: Props) {
+export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeader, selectedLeaderId }: Props) {
     const { team } = useAppStore();
-    const [isMobile, setIsMobile] = useState(false);
     const [filterQuery, setFilterQuery] = useState("");
-
-    useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 1024);
-        check();
-        window.addEventListener('resize', check);
-        return () => window.removeEventListener('resize', check);
-    }, []);
+    const mouseX = useMotionValue(Infinity);
+    const [hoveredTrainer, setHoveredTrainer] = useState<TeamMember | null>(null);
 
     const availableMentors = useMemo(() => {
         return team.filter(member => 
@@ -122,142 +124,174 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onDragStart, 
         );
     }, [team, filterQuery]);
 
-    // Enhanced Animations
-    const desktopVariants: Variants = {
-        hidden: { x: "120%", opacity: 0, scale: 0.95 },
-        visible: { x: 0, opacity: 1, scale: 1, transition: { type: "spring", damping: 28, stiffness: 300, mass: 0.8 } },
-        exit: { x: "120%", opacity: 0, transition: { duration: 0.2 } }
-    };
+    const activeLeader = useMemo(() => 
+        team.find(m => m.id === selectedLeaderId), 
+    [team, selectedLeaderId]);
 
-    const mobileVariants: Variants = {
-        hidden: { y: "100%", opacity: 0 },
-        visible: { y: 0, opacity: 1, transition: { type: "spring", damping: 25, stiffness: 300 } },
-        exit: { y: "100%", opacity: 0 }
+    const dockVariants: Variants = {
+        hidden: { y: 200, opacity: 0, scale: 0.9 },
+        visible: { 
+            y: 0, opacity: 1, scale: 1,
+            transition: { type: "spring", damping: 20, stiffness: 300, mass: 0.8 } 
+        },
+        exit: { y: 200, opacity: 0, transition: { duration: 0.2 } }
     };
-
-    const isDragging = !!draggingId;
 
     return (
         <AnimatePresence>
             {isOpen && (
                 <>
-                    {/* BACKDROP - Completely hide when dragging */}
-                    {!isDragging && (
-                        <motion.div 
-                            initial={{ opacity: 0 }} 
-                            animate={{ opacity: 1 }} 
-                            exit={{ opacity: 0 }} 
-                            onClick={onClose}
-                            className="fixed inset-0 bg-slate-900/20 backdrop-blur-[4px] z-[120] lg:block hidden"
-                        />
+                    {/* CLICK-AWAY LAYER */}
+                    {!selectedLeaderId && (
+                        <div className="fixed inset-0 z-[120]" onClick={onClose} />
                     )}
 
+                    {/* --- THE DOCK CONTAINER --- */}
                     <motion.div
-                        key="trainer-panel"
-                        variants={isMobile ? mobileVariants : desktopVariants}
+                        variants={dockVariants}
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className={cn(
-                            "fixed z-[130] flex flex-col transition-all duration-300 pointer-events-auto",
-                            // DESKTOP
-                            "lg:top-6 lg:right-6 lg:bottom-6 lg:w-[360px] lg:rounded-[40px]",
-                            // MOBILE
-                            "left-0 right-0 bottom-0 h-auto rounded-t-[32px] pb-8",
-                            
-                            // VISUAL STATE TOGGLE
-                            isDragging 
-                                ? "bg-transparent border-transparent shadow-none backdrop-blur-none" 
-                                : "bg-white/80 backdrop-blur-2xl border-white/60 shadow-2xl border ring-1 ring-white/50 lg:bg-[#F8FAFC]"
-                        )}
-                        style={isMobile && !isDragging ? { backgroundColor: '#F8FAFC', borderTop: '1px solid #e2e8f0' } : {}}
+                        className="fixed bottom-10 inset-x-0 mx-auto w-fit z-[130] flex flex-col items-center pointer-events-auto max-w-[95vw]"
+                        onMouseMove={(e) => mouseX.set(e.pageX)}
+                        onMouseLeave={() => { mouseX.set(Infinity); setHoveredTrainer(null); }}
                     >
-                        {/* --- HEADER (Hides on Drag) --- */}
-                        <div className={cn("relative p-6 pb-2 shrink-0 z-20 transition-opacity duration-200", isDragging ? "opacity-0 pointer-events-none" : "opacity-100")}>
-                            {/* Decorative BG */}
-                            <div className="absolute inset-0 bg-gradient-to-b from-white/80 to-transparent lg:rounded-t-[40px] pointer-events-none" />
-
-                            <div className="relative flex items-center justify-between mb-6">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2.5 bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-900/20">
-                                        <Crown className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-base font-[1000] text-slate-900 uppercase tracking-tight leading-none">Trainer Command</h3>
-                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">System Active</span>
+                        {/* --- FLOATING HEADER (Label / Search / Active Banner) --- */}
+                        <div className="h-16 mb-1 flex items-center justify-center pointer-events-none relative min-w-[320px]">
+                            <AnimatePresence mode="wait">
+                                {selectedLeaderId && activeLeader ? (
+                                    /* STATE 3: "CONNECTING WITH WHO?" (Assignment Mode) */
+                                    <motion.div
+                                        key="connecting"
+                                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -10, scale: 0.9 }}
+                                        className="bg-slate-900/90 backdrop-blur-3xl text-white pl-2 pr-6 py-2 rounded-full shadow-2xl border border-white/20 flex items-center gap-4 pointer-events-auto cursor-pointer group hover:bg-slate-900 transition-colors"
+                                        onClick={() => onSelectLeader(null)} // Click to Cancel
+                                    >
+                                        {/* LEADER CHIP */}
+                                        <div className="flex items-center gap-3 bg-white/10 pr-4 py-1.5 rounded-full pl-1.5">
+                                            <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/30">
+                                                {activeLeader.image ? (
+                                                    <img src={activeLeader.image} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full bg-white text-slate-900 flex items-center justify-center font-black text-[10px]">
+                                                        {activeLeader.name.charAt(0)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <span className="text-xs font-bold uppercase tracking-wide leading-none">
+                                                {activeLeader.name}
+                                            </span>
                                         </div>
-                                    </div>
-                                </div>
-                                <button onClick={onClose} className="p-2.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors border border-transparent hover:border-slate-200">
-                                    {isMobile ? <ChevronDown className="w-5 h-5" /> : <X className="w-5 h-5" />}
-                                </button>
-                            </div>
 
-                            <div className="relative group">
-                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-[#004F71] transition-colors" />
-                                <input 
-                                    value={filterQuery}
-                                    onChange={(e) => setFilterQuery(e.target.value)}
-                                    placeholder="Search leaders..." 
-                                    className="w-full bg-white/50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 outline-none focus:bg-white focus:border-[#004F71]/30 focus:ring-4 focus:ring-[#004F71]/5 transition-all shadow-sm"
-                                />
-                            </div>
+                                        {/* INSTRUCTION */}
+                                        <div className="flex items-center gap-2 animate-pulse">
+                                            <ArrowRight className="w-4 h-4 text-emerald-400" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                                Select Team Member
+                                            </span>
+                                        </div>
+
+                                        <div className="w-px h-4 bg-white/20" />
+                                        
+                                        <X className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+                                    </motion.div>
+                                ) : hoveredTrainer ? (
+                                    /* STATE 2: HOVER PREVIEW */
+                                    <motion.div 
+                                        key="hover"
+                                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                        className="bg-white/90 backdrop-blur-md text-slate-900 px-5 py-2.5 rounded-full shadow-xl border border-white/60 flex items-center gap-3"
+                                    >
+                                        <span className="text-xs font-[900] uppercase tracking-widest">{hoveredTrainer.name}</span>
+                                        <span className={cn(
+                                            "text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider",
+                                            hoveredTrainer.dept === "FOH" 
+                                                ? "bg-blue-50 text-[#004F71]" 
+                                                : hoveredTrainer.dept === "BOH"
+                                                    ? "bg-red-50 text-[#E51636]"
+                                                    : "bg-slate-100 text-slate-600"
+                                        )}>
+                                            {hoveredTrainer.role.replace("Assistant", "Asst.")}
+                                        </span>
+                                    </motion.div>
+                                ) : (
+                                    /* STATE 1: SEARCH DEFAULT */
+                                    <motion.div 
+                                        key="search"
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.9 }}
+                                        className="bg-white/80 backdrop-blur-3xl border border-white/60 shadow-xl rounded-full px-1.5 py-1.5 flex items-center gap-2 ring-1 ring-black/5 pointer-events-auto"
+                                    >
+                                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                            <Search className="w-4 h-4" />
+                                        </div>
+                                        <input 
+                                            value={filterQuery}
+                                            onChange={(e) => setFilterQuery(e.target.value)}
+                                            placeholder="Find a Leader..."
+                                            className="bg-transparent outline-none text-xs font-black uppercase tracking-widest text-slate-700 placeholder:text-slate-400 w-40 md:w-56 px-2"
+                                            autoFocus
+                                        />
+                                        <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-[#E51636] hover:text-white transition-colors flex items-center justify-center text-slate-400">
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
-                        {/* --- LIST CONTAINER --- */}
+                        {/* --- THE GLASS DOCK --- */}
                         <div className={cn(
-                            "flex-1 p-4 lg:p-6 lg:pt-2 custom-scrollbar relative z-10 transition-all duration-200",
-                            isMobile ? "flex flex-row gap-4 px-6 pb-4" : "flex flex-col gap-3",
-                            
-                            // SCROLL & VISIBILITY LOGIC
-                            // If dragging: Allow overflow (so card isn't clipped) but hide non-dragged items via opacity
-                            isDragging ? "overflow-visible" : (isMobile ? "overflow-x-auto" : "overflow-y-auto")
+                            "flex items-end gap-1 px-4 pb-2 pt-4 rounded-[32px] transition-all duration-300 mx-auto ring-1 ring-white/80",
+                            selectedLeaderId 
+                                ? "bg-slate-900/10 backdrop-blur-[10px] border-white/10 opacity-60 grayscale hover:opacity-100 hover:grayscale-0"
+                                : "bg-white/60 backdrop-blur-[40px] border border-white/50 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)]"
                         )}>
                             
-                             {/* Desktop Label (Hides on Drag) */}
-                            {!isMobile && (
-                                <div className={cn("flex items-center justify-between px-1 pb-1 transition-opacity", isDragging ? "opacity-0" : "opacity-100")}>
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">Available Units</span>
-                                    <span className="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{availableMentors.length}</span>
+                            {/* STATIC BADGE (Pool Indicator) */}
+                            {!selectedLeaderId && (
+                                <div className="hidden md:flex flex-col items-center justify-center gap-2 mr-4 opacity-100 mb-5 ml-2">
+                                    <div className="w-12 h-12 bg-[#E51636] rounded-[18px] flex items-center justify-center shadow-lg border-2 border-white relative group cursor-default">
+                                        <div className="absolute inset-0 bg-white/20 rounded-[18px] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <Crown className="w-6 h-6 text-white fill-white drop-shadow-md" />
+                                    </div>
+                                    <span className="text-[9px] font-[900] text-slate-800 uppercase tracking-widest bg-white/80 px-2 py-0.5 rounded-full shadow-sm backdrop-blur-sm border border-white/40">
+                                        Pool
+                                    </span>
                                 </div>
                             )}
 
-                            {availableMentors.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-40 text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl p-8 bg-slate-50/50">
-                                    <Users className="w-8 h-8 mb-2 opacity-30" />
-                                    <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">No Leaders Found</p>
-                                </div>
-                            ) : (
-                                availableMentors.map(trainer => (
-                                    <DraggableTrainerPill 
-                                        key={trainer.id} 
-                                        trainer={trainer} 
-                                        onDragStart={onDragStart} 
-                                        onDragEnd={onDragEnd}
-                                        isOtherBeingDragged={!!draggingId && draggingId !== trainer.id}
-                                    />
-                                ))
-                            )}
-                            
-                            {isMobile && <div className="w-4 shrink-0" />}
-                        </div>
+                            {/* SEPARATOR */}
+                            {!selectedLeaderId && <div className="hidden md:block w-px h-16 bg-slate-900/10 mx-2 mb-4" />}
 
-                        {/* --- FOOTER (Hides on Drag) --- */}
-                        <div className={cn("hidden lg:block p-6 pt-2 pb-6 relative z-20 transition-opacity duration-200", isDragging ? "opacity-0 pointer-events-none" : "opacity-100")}>
-                            <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-white border border-slate-200/60 shadow-sm flex gap-3">
-                                <div className="p-2 bg-blue-50 text-[#004F71] rounded-lg shrink-0 h-fit">
-                                    <Zap className="w-4 h-4 fill-current" />
-                                </div>
-                                <div>
-                                    <h4 className="text-[10px] font-black uppercase text-slate-900 tracking-widest mb-1">Operational Guide</h4>
-                                    <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                                        Drag a leader card onto any team member in the main grid to instantly establish a mentorship uplink.
-                                    </p>
-                                </div>
+                            {/* ICONS ROW */}
+                            <div className="flex items-end gap-2 px-1 pb-1">
+                                {availableMentors.length > 0 ? (
+                                    availableMentors.map((trainer) => (
+                                        <DockIcon 
+                                            key={trainer.id}
+                                            trainer={trainer}
+                                            onSelect={() => onSelectLeader(selectedLeaderId === trainer.id ? null : trainer)}
+                                            mouseX={mouseX}
+                                            onHoverStart={() => setHoveredTrainer(trainer)}
+                                            onHoverEnd={() => setHoveredTrainer(null)}
+                                            isSelected={selectedLeaderId === trainer.id}
+                                        />
+                                    ))
+                                ) : (
+                                    <div className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest italic opacity-60">
+                                        No leaders found
+                                    </div>
+                                )}
                             </div>
                         </div>
+
                     </motion.div>
                 </>
             )}

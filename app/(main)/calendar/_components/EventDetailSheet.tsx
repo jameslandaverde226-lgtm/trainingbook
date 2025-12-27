@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, Calendar, Clock, User, Shield, Target, Zap, Activity, 
   MessageSquare, Trash2, CheckCircle2, ShieldAlert, 
-  Terminal, Sparkles, Quote, Trophy, Vote, Medal, Sticker, Flag, Lock
+  Terminal, Sparkles, Quote, Trophy, Vote, Medal, Sticker, Flag, Lock, Link2
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -76,15 +76,20 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, i
   else if (event.type === 'Award') { brandBg = 'bg-amber-500'; HeaderIcon = Trophy; headerPattern = "[radial-gradient(circle_at_center,rgba(255,255,255,0.2)_0,transparent_100%)]"; }
   else if (event.type === 'Vote') { brandBg = 'bg-slate-800'; HeaderIcon = Vote; }
   else if (event.type === 'Goal') { brandBg = 'bg-emerald-600'; HeaderIcon = Target; }
+  // NEW: Style specifically for Mentorship Uplink
+  else if (event.title === 'Mentorship Uplink') { brandBg = 'bg-indigo-600'; HeaderIcon = Link2; }
 
   // --- PARSE INTELLIGENT LOGS ---
   const isSystemLog = event.description?.startsWith("[SYSTEM LOG:") || event.description?.startsWith("[OFFICIAL ANNOUNCEMENT]") || event.type === 'Award' || event.type === 'Vote';
   const isDocLog = event.description?.startsWith("[DOCUMENT LOG:");
-  const isSystemAgent = event.assigneeName === "System" || isSystemEvent; // Check if assigned to System
+  const isSystemAgent = event.assigneeName === "System" || isSystemEvent; 
+  
+  // NEW: Check for Mentorship Uplink by Title
+  const isMentorshipLink = event.title === "Mentorship Uplink";
   
   // DETERMINE IMMUTABILITY (Cannot Delete)
-  // Awards, Votes, Promotions, Assignments, Transfers, System Logs are permanent.
-  const isImmutable = isSystemLog || isDocLog || isSystemAgent;
+  // Awards, Votes, Promotions, Assignments, Transfers, System Logs AND Mentorship Links are permanent.
+  const isImmutable = isSystemLog || isDocLog || isSystemAgent || isMentorshipLink;
 
   let logTitle = "Operational Context";
   let cleanDescription = event.description || "";
@@ -96,6 +101,8 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, i
   } else if (isDocLog) {
       logTitle = event.description?.split(']')[0].replace('[DOCUMENT LOG: ', '').replace(']', '') || "Document";
       cleanDescription = event.description?.split(']').slice(1).join(']').trim() || "";
+  } else if (isMentorshipLink) {
+      logTitle = "Mentorship Protocol";
   }
 
   const toggleSticker = (stickerId: StickerType) => {
@@ -217,13 +224,15 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, i
                     <Quote className="absolute top-4 right-4 w-10 h-10 text-slate-200 rotate-12" />
                     
                     {/* Log Header */}
-                    {(isSystemLog || isDocLog || isSystemAgent) && (
+                    {(isSystemLog || isDocLog || isSystemAgent || isMentorshipLink) && (
                         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200/60">
-                            <div className={cn("p-2 rounded-xl shadow-sm border", isSystemLog ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-white border-slate-100")}>
-                                {isSystemLog ? <Medal className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5 text-red-500" />}
+                            <div className={cn("p-2 rounded-xl shadow-sm border", isSystemLog || isMentorshipLink ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-white border-slate-100")}>
+                                {isSystemLog ? <Medal className="w-5 h-5" /> : isMentorshipLink ? <Link2 className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5 text-red-500" />}
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">{isSystemLog ? "SYSTEM LOG" : isSystemAgent ? "SYSTEM RECORD" : "OFFICIAL RECORD"}</span>
+                                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                    {isSystemLog ? "SYSTEM LOG" : isMentorshipLink ? "NETWORK UPLINK" : isSystemAgent ? "SYSTEM RECORD" : "OFFICIAL RECORD"}
+                                </span>
                                 <span className="text-sm font-bold text-slate-900">{logTitle}</span>
                             </div>
                         </div>
