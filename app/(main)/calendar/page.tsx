@@ -266,10 +266,6 @@ export default function CalendarPage() {
     try { await updateDoc(doc(db, "events", id), { startDate: newStart, endDate: newEnd, updatedAt: serverTimestamp() }); } catch (e) { toast.error("Sync Error"); }
   }, [events]);
 
-  const handleCreateEvent = async (draft: DraftEvent) => {
-    try { await addDoc(collection(db, "events"), { ...draft, status: "To Do", createdAt: serverTimestamp() }); setIsCreatorOpen(false); toast.success("Deployed"); } catch (e) { toast.error("Fail"); }
-  };
-
   const handleEventStamp = async (eventId: string) => {
       if (!activeSticker) return;
       const loadToast = toast.loading("Applying Marker...");
@@ -593,7 +589,8 @@ export default function CalendarPage() {
           )}
       </AnimatePresence>
 
-      <AnimatePresence>{isCreatorOpen && <AdvancedCreateModal isOpen={isCreatorOpen} teamMembers={team} onClose={() => setIsCreatorOpen(false)} onCreate={handleCreateEvent} />}</AnimatePresence>
+      {/* --- CORRECTED: REMOVED INVALID PROPS --- */}
+      <AnimatePresence>{isCreatorOpen && <AdvancedCreateModal isOpen={isCreatorOpen} onClose={() => setIsCreatorOpen(false)} />}</AnimatePresence>
       <AnimatePresence>{selectedEvent && (<EventDetailSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} onDelete={async (id) => { const loadToast = toast.loading("Decommissioning..."); try { await deleteDoc(doc(db, "events", id)); toast.success("Terminated", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } }} onUpdate={async (id, updates) => { const loadToast = toast.loading("Updating..."); try { await updateDoc(doc(db, "events", id), { ...updates, updatedAt: serverTimestamp() }); toast.success("Synced", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } }} />)}</AnimatePresence>
     </div>
   );
