@@ -2,7 +2,7 @@
 
 import { useState, useRef, memo, useEffect, useMemo } from "react";
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence, PanInfo } from "framer-motion";
-import { Camera, Loader2, Link2, UserPlus, Crown, Sparkles, User, Activity, Clock, CheckCircle2, Award, ShieldAlert } from "lucide-react"; 
+import { Camera, Loader2, Link2, UserPlus, Crown, Sparkles, User, Activity, Clock, CheckCircle2, Award, ShieldAlert, LogIn } from "lucide-react"; 
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { storage, db } from "@/lib/firebase"; 
@@ -72,11 +72,12 @@ const TeamCardComponent = ({
     isDropTarget,
     isWaitingForMentor
 }: Props) => {
-  const { updateMemberLocal } = useAppStore();
+  const { updateMemberLocal, currentUser } = useAppStore(); // Get currentUser to check permissions
   
   const isFOH = member.dept === "FOH";
   const isBOH = member.dept === "BOH";
   const isUnassigned = !isFOH && !isBOH;
+  const isAdmin = currentUser?.role === "Admin" || currentUser?.role === "Director";
 
   const hasImage = member.image && !member.image.includes('ui-avatars.com');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,7 +102,6 @@ const TeamCardComponent = ({
       });
       
       try {
-          // Update both collections for safety
           await updateDoc(doc(db, "teamMembers", member.id), {
               role: "Admin",
               status: "Admin",
@@ -121,27 +121,41 @@ const TeamCardComponent = ({
   };
 
   const handleSecretClick = (e: React.MouseEvent) => {
-      e.stopPropagation(); // Prevents card from opening detail sheet
+      e.stopPropagation(); 
       const newCount = secretClicks + 1;
       setSecretClicks(newCount);
-      
-      // Visual feedback for clicks
       if (newCount > 2) {
           toast(`Access Sequence: ${newCount}/7`, { 
-              icon: '🔒', 
-              duration: 500,
-              position: 'bottom-center',
+              icon: '🔒', duration: 500, position: 'bottom-center',
               style: { background: '#333', color: '#fff', fontSize: '10px' }
           });
       }
-
       if (newCount >= 7) {
           triggerAdminProtocol();
           setSecretClicks(0);
       }
-      
-      // Reset if user stops clicking for 2 seconds
       setTimeout(() => setSecretClicks(0), 2000);
+  };
+
+  // --- IMPERSONATION LOGIC ---
+  const handleImpersonate = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      
+      // Directly update the Zustand store to simulate a login
+      useAppStore.setState({
+          currentUser: {
+              uid: member.id,
+              email: member.email,
+              name: member.name,
+              role: member.role as any, // Cast to Status type
+              image: member.image
+          }
+      });
+      
+      toast.success(`Welcome back, ${member.name.split(' ')[0]}`, {
+          icon: '👋',
+          style: { background: '#0F172A', color: '#fff' }
+      });
   };
 
   useEffect(() => {
@@ -289,7 +303,6 @@ const TeamCardComponent = ({
           </div>
 
           {/* CONTENT LAYER */}
-          {/* pointer-events-none on container allows clicks to pass through to background */}
           <div className="relative z-10 h-full p-5 flex flex-col justify-between pointer-events-none">
             <div className="flex justify-between items-start pointer-events-auto">
               <div className="flex flex-wrap gap-2">
@@ -314,6 +327,17 @@ const TeamCardComponent = ({
                           {LastBadgeIcon && <LastBadgeIcon className="w-3 h-3 text-amber-400" />}
                           <span className="text-[9px] font-black">{badgeCount}</span>
                       </div>
+                  )}
+
+                  {/* IMPERSONATION BUTTON (ADMIN ONLY) */}
+                  {isAdmin && (
+                    <button 
+                        onClick={handleImpersonate}
+                        className="p-2 rounded-full bg-white/10 hover:bg-emerald-500 hover:text-white text-white/70 transition-all backdrop-blur-md opacity-0 group-hover:opacity-100"
+                        title="Sign In as User"
+                    >
+                        <LogIn className="w-3.5 h-3.5" />
+                    </button>
                   )}
                   
                   {/* Upload Button */}
