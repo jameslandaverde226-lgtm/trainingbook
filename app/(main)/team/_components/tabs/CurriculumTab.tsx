@@ -2,9 +2,10 @@
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
+// ADDED: Imported 'X'
 import { 
   Check, HardDrive, BookOpen, Loader2, Maximize2, 
-  Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, LayoutGrid, CheckCircle2, Expand, AlignLeft
+  Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, LayoutGrid, CheckCircle2, Expand, AlignLeft, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../../calendar/_components/types";
@@ -238,15 +239,21 @@ export function CurriculumTab({ member }: Props) {
             )}
         </motion.div>
 
+        {/* 
+            CRITICAL FIX: 
+            Removed layoutId from motion.div components.
+            This prevents Framer Motion from trying to morph dissimilar elements, which causes the distortion.
+            Using simple opacity/translate transitions instead (mode="wait" ensures clean swap).
+        */}
         <AnimatePresence mode="wait">
-            
-            {/* VIEW 1: PHASE SELECTION GRID */}
             {!activeSection ? (
+                /* VIEW 1: PHASE SELECTION GRID */
                 <motion.div 
                     key="phase-grid"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
                     className="grid grid-cols-1 gap-4"
                 >
                     {filteredCurriculum.map((section, i) => {
@@ -258,10 +265,10 @@ export function CurriculumTab({ member }: Props) {
                         return (
                             <motion.div 
                                 key={section.id}
-                                layoutId={`card-${section.id}`}
-                                initial={{ opacity: 0, y: 20 }}
+                                // NO layoutId
+                                initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.05 }} // Stagger effect
+                                transition={{ delay: i * 0.05 }}
                                 onClick={() => setActiveSection(section)}
                                 className={cn(
                                     "group relative bg-white border rounded-[28px] md:rounded-[32px] p-5 md:p-6 cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg overflow-hidden",
@@ -303,9 +310,10 @@ export function CurriculumTab({ member }: Props) {
                 /* VIEW 2: TASK MODULES (DETAIL) */
                 <motion.div 
                     key="phase-detail"
-                    layoutId={`card-${activeSection.id}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
                     className="space-y-4 md:space-y-6"
                 >
                     {/* Header Card */}
@@ -368,7 +376,6 @@ export function CurriculumTab({ member }: Props) {
                                             : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg"
                                     )}
                                  >
-                                     {/* TOP ROW: Title & Controls */}
                                      <div className="flex items-center gap-4 md:gap-5 w-full relative z-10">
                                          <div className={cn(
                                              "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center border-[3px] shrink-0 transition-all duration-300 backdrop-blur-sm",
@@ -378,7 +385,6 @@ export function CurriculumTab({ member }: Props) {
                                          )}>
                                              <Check className="w-5 h-5 md:w-6 md:h-6" strokeWidth={4} />
                                          </div>
-                                         
                                          <div className="flex-1 min-w-0">
                                              <span className={cn(
                                                  "text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] block mb-1 transition-colors",
@@ -393,15 +399,12 @@ export function CurriculumTab({ member }: Props) {
                                                  {task.title}
                                              </span>
                                          </div>
-
                                          {!isCompleted && (
                                             <div className="transition-opacity absolute right-0 text-slate-200 group-hover:text-slate-300">
                                                 <Play className="w-12 h-12 -rotate-12 opacity-0 group-hover:opacity-100 transition-all duration-300" fill="currentColor" />
                                             </div>
                                          )}
                                      </div>
-
-                                     {/* BOTTOM ROW: Cinematic Banner Image */}
                                      {hasImage && !isCompleted && (
                                          <motion.div 
                                             layoutId={`image-${task.id}`}
@@ -415,25 +418,13 @@ export function CurriculumTab({ member }: Props) {
                                                 setViewingImage(task.image);
                                             }}
                                          >
-                                             <img 
-                                                src={task.image} 
-                                                alt=""
-                                                className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200"
-                                                aria-hidden="true"
-                                             />
-                                             <motion.img 
-                                                src={task.image} 
-                                                className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" 
-                                             />
+                                             <img src={task.image} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200" aria-hidden="true" />
+                                             <motion.img src={task.image} className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" />
                                              <div className="absolute inset-0 z-20 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 pointer-events-none">
-                                                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-full text-white border border-white/40 shadow-lg">
-                                                     <Expand className="w-4 h-4" />
-                                                 </div>
+                                                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-full text-white border border-white/40 shadow-lg"><Expand className="w-4 h-4" /></div>
                                              </div>
                                          </motion.div>
                                      )}
-
-                                     {/* Completed Texture Overlay */}
                                      {isCompleted && (
                                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 to-transparent opacity-50 pointer-events-none" />
                                      )}
@@ -457,14 +448,13 @@ export function CurriculumTab({ member }: Props) {
             )}
         </AnimatePresence>
 
-        {/* --- LIGHTBOX --- */}
         <AnimatePresence>
             {viewingImage && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 pointer-events-none">
                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl cursor-zoom-out pointer-events-auto" onClick={() => setViewingImage(null)} />
                      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-6xl max-h-[85vh] md:max-h-[90vh] pointer-events-auto flex items-center justify-center">
                          <img src={viewingImage} className="w-full h-full object-contain rounded-2xl md:rounded-3xl shadow-2xl bg-black/5" />
-                         <button onClick={() => setViewingImage(null)} className="absolute -top-12 md:-top-4 md:-right-12 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md border border-white/10"><Minimize2 className="w-6 h-6" /></button>
+                         <button onClick={() => setViewingImage(null)} className="absolute -top-12 md:-top-4 md:-right-12 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md border border-white/10"><X className="w-6 h-6" /></button>
                      </motion.div>
                 </div>
             )}
