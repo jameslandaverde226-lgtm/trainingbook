@@ -96,7 +96,6 @@ function AmbientBackground({ activeDept }: { activeDept: Department }) {
                 }}
                 className="absolute bottom-[-20%] right-[-10%] w-[80vw] h-[80vw] transition-all duration-1000 blur-[100px]"
             />
-            {/* Texture Noise */}
             <div className="absolute inset-0 opacity-[0.015] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat" />
         </div>
     );
@@ -151,7 +150,8 @@ function TrainingDynamicIsland({
     activeDept, setActiveDept, 
     activePhaseIndex, activePhaseTitle,
     previewMode, setPreviewMode,
-    viewMode // 'grid' | 'detail'
+    viewMode, // 'grid' | 'detail'
+    onBack // NEW: Back Handler
 }: any) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -194,9 +194,29 @@ function TrainingDynamicIsland({
                                 exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.15 } }}
                                 className="flex items-center gap-3 px-1.5 py-1.5 pr-4 h-14 relative w-full"
                             >
-                                <motion.div layoutId="icon-container" className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md shrink-0 transition-colors", brandColor, brandShadow)}>
-                                    {activeDept === "FOH" ? <Coffee className="w-5 h-5" /> : <Utensils className="w-5 h-5" />}
+                                <motion.div layoutId="icon-container">
+                                    {viewMode === 'detail' ? (
+                                        // BACK BUTTON (Appears only in detail mode)
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation(); // Prevent opening island
+                                                onBack();
+                                            }}
+                                            className={cn(
+                                                "w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md shrink-0 transition-transform hover:scale-110 active:scale-95", 
+                                                brandColor, brandShadow
+                                            )}
+                                        >
+                                            <ArrowLeft className="w-5 h-5" />
+                                        </button>
+                                    ) : (
+                                        // STANDARD ICON
+                                        <div className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md shrink-0 transition-colors", brandColor, brandShadow)}>
+                                            {activeDept === "FOH" ? <Coffee className="w-5 h-5" /> : <Utensils className="w-5 h-5" />}
+                                        </div>
+                                    )}
                                 </motion.div>
+
                                 <motion.div layout="position" className="flex flex-col justify-center min-w-[120px]">
                                     <motion.span layoutId="title-text" className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">
                                         {viewMode === 'grid' ? "Training Dashboard" : `Phase ${String(activePhaseIndex + 1).padStart(2, '0')}`}
@@ -456,6 +476,7 @@ export default function TrainingBuilderPage() {
         previewMode={previewMode}
         setPreviewMode={setPreviewMode}
         viewMode={viewMode}
+        onBack={exitPhase}
       />
 
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 pb-32 relative z-10">
@@ -534,10 +555,7 @@ export default function TrainingBuilderPage() {
                  
                  {/* LEFT: Editor */}
                  <div className="col-span-12 lg:col-span-7 space-y-6">
-                     <button onClick={exitPhase} className="flex items-center gap-2 text-slate-400 hover:text-[#004F71] font-bold uppercase text-xs tracking-widest mb-4 transition-colors group">
-                         <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform"><ArrowLeft className="w-4 h-4" /></div>
-                         Back to Grid
-                     </button>
+                     {/* Removed "Back to Grid" button from here, moved to Dynamic Island */}
 
                      <div className="relative">
                         <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg border-4 border-[#F8FAFC] z-20", activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110")}>
