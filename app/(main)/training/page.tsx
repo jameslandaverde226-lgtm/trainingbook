@@ -1,7 +1,7 @@
 // app/(main)/training/page.tsx
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { 
   motion, AnimatePresence, useDragControls, LayoutGroup, Transition, Reorder 
 } from "framer-motion";
@@ -9,7 +9,7 @@ import {
   Plus, Trash2, GripVertical, Eye, Settings, X, Utensils, Coffee, 
   Cloud, Maximize2, CalendarClock, BookOpen, Loader2, 
   ChevronDown, Hash, ChevronRight, ChevronUp, Filter, Minimize2, CheckCircle2,
-  Expand, AlignLeft, PaintBucket
+  Expand, AlignLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -215,7 +215,8 @@ const DraggableTask = ({
     handleFileUpload, 
     updateSection, 
     setViewingImage, 
-    section 
+    section,
+    onActivate // <--- NEW PROP
 }: any) => {
     const controls = useDragControls();
     const isSubject = task.type === 'subject';
@@ -275,7 +276,8 @@ const DraggableTask = ({
                                     updateSection(section.id, { tasks: newTasks });
                                     e.target.style.height = 'auto';
                                     e.target.style.height = `${e.target.scrollHeight}px`;
-                                }} 
+                                }}
+                                onFocus={onActivate} // <--- CRITICAL FIX: Update active phase on focus
                                 className={cn(
                                     "w-full bg-transparent outline-none resize-none overflow-hidden",
                                     isSubject 
@@ -367,7 +369,7 @@ export default function TrainingBuilderPage() {
   // Lock variable to prevent scroll listener from overwriting selection
   const isAutoScrolling = useRef(false);
   
-  // FIX: Ref to store sections to break dependency loop in scroll listener
+  // Ref to store sections to break dependency loop in scroll listener
   const sectionsRef = useRef<Section[]>([]);
   
   const dragControls = useDragControls();
@@ -380,7 +382,7 @@ export default function TrainingBuilderPage() {
       const sortedData = data.sort((a, b) => (a.order || 0) - (b.order || 0));
       
       setSections(sortedData);
-      sectionsRef.current = sortedData; // Update ref for scroll listener
+      sectionsRef.current = sortedData; 
       
       // Initial Load
       if (data.length > 0 && !activeSectionId) {
@@ -395,6 +397,9 @@ export default function TrainingBuilderPage() {
 
   // --- MANUAL SCROLL HANDLER (Triggered by Click or Add) ---
   const scrollToSection = (id: string) => {
+      // Don't scroll if already there, just update state
+      if (activeSectionId === id) return;
+
       isAutoScrolling.current = true; // LOCK
       setActiveSectionId(id);
       
@@ -403,12 +408,10 @@ export default function TrainingBuilderPage() {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
 
-      // Unlock after scroll finishes (approx 800ms)
       setTimeout(() => {
           isAutoScrolling.current = false;
       }, 800);
       
-      // Mobile logic
       if(window.innerWidth < 1024) { 
           setMobileViewerOpen(true); 
           setIframeLoading(true); 
@@ -418,28 +421,21 @@ export default function TrainingBuilderPage() {
   // --- AUTO SCROLL DETECTION (Updates Island while scrolling) ---
   useEffect(() => {
     const handleScroll = () => {
-        // If user just clicked/added, ignore scroll events for a moment
         if (isAutoScrolling.current) return;
 
         const viewportHeight = window.innerHeight;
-        const triggerPoint = viewportHeight * 0.4; // 40% from top
-
+        // Adjusted trigger point to be slightly higher to catch headers earlier
         let closestId: string | null = null;
         let maxVisibleHeight = 0;
         
-        // Use ref here to avoid stale closures
         sectionsRef.current.forEach((s) => {
             const el = sectionRefs.current[s.id];
             if (el) {
                 const rect = el.getBoundingClientRect();
-                
-                // Calculate visible height of the element
                 const visibleTop = Math.max(0, rect.top);
                 const visibleBottom = Math.min(viewportHeight, rect.bottom);
                 const visibleHeight = Math.max(0, visibleBottom - visibleTop);
                 
-                // We prioritize the element that takes up the most screen space
-                // OR if it's crossing the "trigger point"
                 if (visibleHeight > maxVisibleHeight) {
                     maxVisibleHeight = visibleHeight;
                     closestId = s.id;
@@ -447,7 +443,6 @@ export default function TrainingBuilderPage() {
             }
         });
         
-        // Only update state if different to prevent re-renders
         if (closestId) {
              setActiveSectionId((prev) => (prev !== closestId ? closestId : prev));
         }
@@ -473,7 +468,7 @@ export default function TrainingBuilderPage() {
   }, [activeSectionId, mobileViewerOpen]);
 
   const addSection = async () => {
-    isAutoScrolling.current = true; // Lock immediately
+    isAutoScrolling.current = true; // Lock
     
     const nextOrder = sections.length > 0 ? (sections[sections.length - 1].order || 0) + 1 : 0;
     const lastPage = sections.length > 0 ? (Number(sections[sections.length - 1].pageEnd) || 0) : 0;
@@ -483,10 +478,8 @@ export default function TrainingBuilderPage() {
         tasks: [], dept: activeDept, order: nextOrder, createdAt: serverTimestamp()
     });
     
-    // Explicitly set the new ID active immediately
     setActiveSectionId(docRef.id);
     
-    // Wait for DOM to update then scroll
     setTimeout(() => {
         const el = sectionRefs.current[docRef.id];
         if (el) {
@@ -500,7 +493,6 @@ export default function TrainingBuilderPage() {
     await updateDoc(doc(db, "curriculum", id), updates);
   };
 
-  // --- REORDER LOGIC ---
   const handleReorder = (sectionId: string, newTasks: Task[]) => {
       setSections(prev => prev.map(s => s.id === sectionId ? { ...s, tasks: newTasks } : s));
       updateDoc(doc(db, "curriculum", sectionId), { tasks: newTasks });
@@ -520,23 +512,17 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    // FIX 2: Removed overflow-x-hidden from main wrapper to allow sticky positioning to work
     <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       
       <TrainingDynamicIsland 
         activeDept={activeDept}
         setActiveDept={setActiveDept}
-        // FIX: Ensure calculation always defaults safely
         activePhaseIndex={activeIndex !== -1 ? activeIndex : 0}
         activePhaseTitle={activeSection?.title || "New Phase"}
         previewMode={previewMode}
         setPreviewMode={setPreviewMode}
       />
 
-      {/* 
-         UPDATED MAIN GRID:
-         1. items-stretch ensures right column matches height of left column (allows sticky)
-      */}
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-stretch relative z-10 pb-32">
          
          {/* LEFT COLUMN */}
@@ -553,7 +539,6 @@ export default function TrainingBuilderPage() {
                     
                     <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                     
-                    {/* CLICK HANDLER USES NEW FUNCTION */}
                     <div onClick={() => scrollToSection(section.id)} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 scale-100 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]")}>
                          <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
                             <div className="flex-1 space-y-2 md:space-y-3">
@@ -575,6 +560,7 @@ export default function TrainingBuilderPage() {
                                             e.target.style.height = `${e.target.scrollHeight}px`;
                                         }}
                                         onClick={(e) => e.stopPropagation()}
+                                        onFocus={() => setActiveSectionId(section.id)} // <--- CRITICAL FIX: Update active phase on focus
                                         className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
                                         rows={1}
                                         ref={(el) => {
@@ -595,7 +581,17 @@ export default function TrainingBuilderPage() {
                          <div className="space-y-2 md:space-y-2.5">
                             <Reorder.Group axis="y" values={section.tasks} onReorder={(newOrder) => handleReorder(section.id, newOrder)} className="space-y-2">
                                 {section.tasks.map(task => (
-                                    <DraggableTask key={task.id} task={task} activeDept={activeDept} previewMode={previewMode} handleFileUpload={handleFileUpload} updateSection={updateSection} setViewingImage={setViewingImage} section={section} />
+                                    <DraggableTask 
+                                        key={task.id} 
+                                        task={task} 
+                                        activeDept={activeDept} 
+                                        previewMode={previewMode} 
+                                        handleFileUpload={handleFileUpload} 
+                                        updateSection={updateSection} 
+                                        setViewingImage={setViewingImage} 
+                                        section={section}
+                                        onActivate={() => setActiveSectionId(section.id)} // <--- CRITICAL FIX: Pass activation handler
+                                    />
                                 ))}
                             </Reorder.Group>
                             <AnimatePresence>
@@ -616,28 +612,11 @@ export default function TrainingBuilderPage() {
             <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} onClick={addSection} className="w-full max-w-2xl py-12 md:py-16 border-4 border-dashed rounded-[32px] md:rounded-[44px] font-black uppercase transition-all flex flex-col items-center justify-center gap-4 group border-slate-200 text-slate-300 hover:border-[#004F71] hover:text-[#004F71] hover:bg-white mb-32 md:mb-0"><div className={cn("p-4 rounded-full transition-all group-hover:scale-110 shadow-sm bg-slate-50 group-hover:bg-[#004F71] group-hover:text-white")}><Plus className="w-8 h-8" /></div><span className="text-lg md:text-xl tracking-tighter">Create New Phase</span></motion.button>)}</AnimatePresence>
          </div>
 
-         {/* 
-            ================================================
-            RIGHT COLUMN (The Floating Island Preview) 
-            ================================================
-         */}
+         {/* RIGHT COLUMN */}
          <div className="hidden lg:block col-span-5 relative h-full">
-             {/* 
-                STICKY CONTAINER:
-                top-28: Sits nicely below the floating header.
-                h-fit: Ensures it doesn't take up more space than needed.
-             */}
             <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
-               
-               {/* Decorative Glow behind the island */}
                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-40 blur-[120px] transition-colors duration-1000 -z-10", activeDept === "FOH" ? "from-blue-200" : "from-red-200")} />
-               
-               {/* The Card Itself 
-                   calc(100vh - 140px): Dynamically calculates height to fill screen minus header/padding.
-               */}
                <div className="h-[calc(100vh-8rem)] bg-white rounded-[44px] border border-slate-200/80 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col relative ring-1 ring-black/5">
-                  
-                  {/* Header */}
                   <div className="px-7 py-5 border-b border-slate-100 flex justify-between items-center bg-white/80 backdrop-blur-xl shrink-0 z-20">
                      <div className="flex items-center gap-3">
                          <div className={cn("p-2 rounded-xl text-white shadow-md transition-colors", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")}>
@@ -653,7 +632,6 @@ export default function TrainingBuilderPage() {
                      </div>
                   </div>
                   
-                  {/* Iframe Content */}
                   <div className="flex-1 bg-slate-50 relative group isolate overflow-hidden">
                      <AnimatePresence mode="wait">
                          {iframeLoading && (
@@ -675,7 +653,6 @@ export default function TrainingBuilderPage() {
                      )}
                   </div>
 
-                  {/* Footer */}
                   <div className="px-7 py-4 bg-white/80 border-t border-slate-100 flex justify-between items-center shrink-0 z-20 backdrop-blur-md">
                       <span className="text-[9px] font-bold uppercase text-slate-300 tracking-widest leading-none">Trainingbook Command v4.0</span>
                       <a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="flex items-center gap-2 text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest transition-all">
@@ -687,7 +664,6 @@ export default function TrainingBuilderPage() {
          </div>
       </div>
 
-      {/* MOBILE VIEWER */}
       <AnimatePresence>{mobileViewerOpen && (<ClientPortal><div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileViewerOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.05} onDragEnd={(_, info) => { if (info.offset.y > 100) setMobileViewerOpen(false); }} className="pointer-events-auto bg-white w-full h-[92vh] rounded-t-[40px] shadow-2xl relative flex flex-col overflow-hidden"><div className="absolute top-0 left-0 right-0 h-10 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm cursor-grab active:cursor-grabbing touch-none" onPointerDown={(e) => dragControls.start(e)}><div className="w-12 h-1.5 bg-slate-300 rounded-full" /></div><div className="px-6 py-4 pt-10 border-b border-slate-100 flex justify-between items-center shrink-0 bg-white z-40"><div className="flex flex-col"><span className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">{activeSection?.title || "Manual"}</span><div className="flex items-center gap-2"><div className={cn("w-2 h-2 rounded-full", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")} /><span className="text-lg font-bold text-slate-900 leading-none">Pages {activeSection?.pageStart || "?"} - {activeSection?.pageEnd || "?"}</span></div></div><button onClick={() => setMobileViewerOpen(false)} className="p-2.5 bg-slate-100 rounded-full active:scale-95 transition-all"><Minimize2 className="w-5 h-5 text-slate-500" /></button></div><div className="flex-1 relative bg-slate-50 overflow-y-auto no-scrollbar touch-pan-y">{iframeLoading && (<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50"><Loader2 className={cn("w-10 h-10 animate-spin mb-4", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Manual...</span></div>)}{getEmbedUrl() ? (<iframe src={getEmbedUrl()!} className="w-full h-full border-none" loading="lazy" onLoad={() => setIframeLoading(false)} />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><BookOpen className="w-12 h-12 opacity-20 mb-2" /><p>No content available</p></div>)}</div><div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 w-full justify-center px-4"><div className="flex-1 max-w-[280px]"><PageRangeSelector start={activeSection?.pageStart} end={activeSection?.pageEnd} onUpdate={(u: any) => activeSectionId && updateSection(activeSectionId, u)} readOnly={true} /></div><a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a></div></motion.div></div></ClientPortal>)}</AnimatePresence>
 
       <AnimatePresence>
