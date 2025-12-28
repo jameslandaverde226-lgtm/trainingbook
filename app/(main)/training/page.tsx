@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { 
-  motion, AnimatePresence, useDragControls, LayoutGroup, Transition, PanInfo 
+  motion, AnimatePresence, useDragControls, LayoutGroup, Transition, PanInfo, Reorder 
 } from "framer-motion";
 import { 
   Plus, Trash2, GripVertical, Eye, Settings, X, Utensils, Coffee, 
@@ -28,7 +28,7 @@ interface Task {
   title: string;
   image?: string;
   duration?: string;
-  type?: 'task' | 'subject'; // UPDATED: Added type discriminator
+  type?: 'task' | 'subject'; 
 }
 
 interface Section {
@@ -100,7 +100,7 @@ function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
     );
 }
 
-// --- DYNAMIC ISLAND ---
+// ... (TrainingDynamicIsland Component remains unchanged) ...
 function TrainingDynamicIsland({ 
     activeDept, setActiveDept, 
     activePhaseIndex, activePhaseTitle,
@@ -121,10 +121,7 @@ function TrainingDynamicIsland({
 
     const brandColor = activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]";
     const brandShadow = activeDept === "FOH" ? "shadow-blue-500/20" : "shadow-red-500/20";
-    
-    const activeEditorClass = activeDept === "FOH" 
-        ? "bg-[#004F71] border-[#004F71] shadow-lg shadow-blue-900/20" 
-        : "bg-[#E51636] border-[#E51636] shadow-lg shadow-red-900/20";
+    const activeEditorClass = activeDept === "FOH" ? "bg-[#004F71] border-[#004F71] shadow-lg shadow-blue-900/20" : "bg-[#E51636] border-[#E51636] shadow-lg shadow-red-900/20";
 
     return (
         <div className="fixed top-24 left-0 right-0 z-[90] flex justify-center pointer-events-none px-4">
@@ -137,9 +134,7 @@ function TrainingDynamicIsland({
                     onClick={() => !isOpen && setIsOpen(true)}
                     className={cn(
                         "pointer-events-auto bg-white/95 backdrop-blur-2xl border shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] flex flex-col ring-1 ring-black/5 transform-gpu origin-top relative overflow-hidden",
-                        isOpen
-                            ? "rounded-[32px] w-full max-w-[420px] border-white/60" 
-                            : "rounded-full w-auto border-slate-200/60 cursor-pointer hover:scale-[1.02] hover:bg-white"
+                        isOpen ? "rounded-[32px] w-full max-w-[420px] border-white/60" : "rounded-full w-auto border-slate-200/60 cursor-pointer hover:scale-[1.02] hover:bg-white"
                     )}
                 >
                     <AnimatePresence mode="popLayout" initial={false}>
@@ -155,19 +150,11 @@ function TrainingDynamicIsland({
                                 <motion.div layoutId="icon-container" className={cn("w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md shrink-0 transition-colors", brandColor, brandShadow)}>
                                     {activeDept === "FOH" ? <Coffee className="w-5 h-5" /> : <Utensils className="w-5 h-5" />}
                                 </motion.div>
-                                
                                 <motion.div layout="position" className="flex flex-col justify-center min-w-[120px]">
-                                    <motion.span layoutId="title-text" className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">
-                                        Phase {String(activePhaseIndex + 1).padStart(2, '0')}
-                                    </motion.span>
-                                    <motion.span layoutId="subtitle-text" className="text-[9px] font-bold text-slate-400 whitespace-nowrap truncate max-w-[140px]">
-                                        {activePhaseTitle || "Curriculum Loading..."}
-                                    </motion.span>
+                                    <motion.span layoutId="title-text" className="text-[11px] font-black uppercase tracking-widest text-slate-800 leading-tight whitespace-nowrap">Phase {String(activePhaseIndex + 1).padStart(2, '0')}</motion.span>
+                                    <motion.span layoutId="subtitle-text" className="text-[9px] font-bold text-slate-400 whitespace-nowrap truncate max-w-[140px]">{activePhaseTitle || "Curriculum Loading..."}</motion.span>
                                 </motion.div>
-
-                                <motion.div layoutId="chevron" className="opacity-40 pl-1 border-l border-slate-200 ml-1">
-                                    <ChevronDown className="w-4 h-4 ml-2" />
-                                </motion.div>
+                                <motion.div layoutId="chevron" className="opacity-40 pl-1 border-l border-slate-200 ml-1"><ChevronDown className="w-4 h-4 ml-2" /></motion.div>
                             </motion.div>
                         ) : (
                             <motion.div 
@@ -180,78 +167,26 @@ function TrainingDynamicIsland({
                             >
                                 <div className="flex items-center justify-between px-2">
                                     <div className="flex items-center gap-3">
-                                        <motion.div layoutId="icon-container" className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500">
-                                            <Filter className="w-4 h-4" />
-                                        </motion.div>
-                                        <motion.span layoutId="title-text" className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                            Configuration
-                                        </motion.span>
+                                        <motion.div layoutId="icon-container" className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500"><Filter className="w-4 h-4" /></motion.div>
+                                        <motion.span layoutId="title-text" className="text-[10px] font-black uppercase tracking-widest text-slate-400">Configuration</motion.span>
                                     </div>
-                                    <motion.button 
-                                        layoutId="chevron"
-                                        onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
-                                    >
-                                        <X className="w-4 h-4" />
-                                    </motion.button>
+                                    <motion.button layoutId="chevron" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"><X className="w-4 h-4" /></motion.button>
                                 </div>
-
-                                <motion.div 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.1 }}
-                                    className="bg-slate-50 p-1 rounded-[20px] flex relative border border-slate-100"
-                                >
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-slate-50 p-1 rounded-[20px] flex relative border border-slate-100">
                                     {(["FOH", "BOH"] as const).map((dept) => {
                                         const isActive = activeDept === dept;
                                         return (
-                                            <button
-                                                key={dept}
-                                                onClick={() => setActiveDept(dept)}
-                                                className={cn(
-                                                    "flex-1 py-3 rounded-[16px] text-[10px] font-black uppercase tracking-widest relative z-10 transition-colors duration-200 flex items-center justify-center gap-1.5",
-                                                    isActive ? "text-white" : "text-slate-400 hover:text-slate-600"
-                                                )}
-                                            >
-                                                {isActive && (
-                                                    <motion.div
-                                                        layoutId="activeFilterBg"
-                                                        className={cn("absolute inset-0 rounded-[16px] shadow-sm", dept === "FOH" ? "bg-[#004F71] shadow-blue-500/20" : "bg-[#E51636] shadow-red-500/20")}
-                                                        transition={SPRING_TRANSITION}
-                                                    />
-                                                )}
-                                                <span className="relative z-10 flex items-center gap-2">
-                                                    {dept === "FOH" ? <Coffee className="w-3.5 h-3.5" /> : <Utensils className="w-3.5 h-3.5" />}
-                                                    {dept} Training
-                                                </span>
+                                            <button key={dept} onClick={() => setActiveDept(dept)} className={cn("flex-1 py-3 rounded-[16px] text-[10px] font-black uppercase tracking-widest relative z-10 transition-colors duration-200 flex items-center justify-center gap-1.5", isActive ? "text-white" : "text-slate-400 hover:text-slate-600")}>
+                                                {isActive && (<motion.div layoutId="activeFilterBg" className={cn("absolute inset-0 rounded-[16px] shadow-sm", dept === "FOH" ? "bg-[#004F71] shadow-blue-500/20" : "bg-[#E51636] shadow-red-500/20")} transition={SPRING_TRANSITION} />)}
+                                                <span className="relative z-10 flex items-center gap-2">{dept === "FOH" ? <Coffee className="w-3.5 h-3.5" /> : <Utensils className="w-3.5 h-3.5" />}{dept} Training</span>
                                             </button>
                                         );
                                     })}
                                 </motion.div>
-
                                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-px bg-slate-100 w-full" />
-
-                                <motion.div 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.15 }}
-                                    className="px-1 pb-1"
-                                >
-                                    <button
-                                        onClick={() => setPreviewMode(!previewMode)}
-                                        className={cn(
-                                            "w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all duration-200 text-left group relative overflow-hidden",
-                                            !previewMode
-                                                ? cn("text-white", activeEditorClass)
-                                                : "bg-white border-slate-100 hover:border-slate-200 text-slate-500 hover:bg-slate-50"
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            {!previewMode ? <Settings className="w-4 h-4 text-white" /> : <Eye className="w-4 h-4" />}
-                                            <span className="text-[10px] font-bold uppercase tracking-wider">
-                                                {!previewMode ? "Editor Active" : "Preview Mode Active"}
-                                            </span>
-                                        </div>
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="px-1 pb-1">
+                                    <button onClick={() => setPreviewMode(!previewMode)} className={cn("w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all duration-200 text-left group relative overflow-hidden", !previewMode ? cn("text-white", activeEditorClass) : "bg-white border-slate-100 hover:border-slate-200 text-slate-500 hover:bg-slate-50")}>
+                                        <div className="flex items-center gap-3">{!previewMode ? <Settings className="w-4 h-4 text-white" /> : <Eye className="w-4 h-4" />}<span className="text-[10px] font-bold uppercase tracking-wider">{!previewMode ? "Editor Active" : "Preview Mode Active"}</span></div>
                                         <div className={cn("w-2 h-2 rounded-full", !previewMode ? "bg-white animate-pulse" : "bg-slate-300")} />
                                     </button>
                                 </motion.div>
@@ -263,6 +198,131 @@ function TrainingDynamicIsland({
         </div>
     );
 }
+
+// --- DRAGGABLE TASK COMPONENT ---
+const DraggableTask = ({ 
+    task, 
+    activeDept, 
+    previewMode, 
+    handleFileUpload, 
+    updateSection, 
+    setViewingImage, 
+    section 
+}: any) => {
+    const controls = useDragControls();
+    const isSubject = task.type === 'subject';
+
+    return (
+        <Reorder.Item
+            value={task}
+            dragListener={false}
+            dragControls={controls}
+            className="relative"
+            // Prevent drag from interfering with input clicks
+            onDragEnd={() => {
+                // Optional: Snap logic if needed
+            }}
+        >
+            <motion.div 
+                layout 
+                className={cn(
+                    "group transition-all flex flex-col gap-3 relative",
+                    isSubject 
+                        ? "mt-6 mb-2" 
+                        : "bg-slate-50/50 rounded-xl md:rounded-2xl p-3 md:p-4 border border-transparent hover:border-slate-200 hover:bg-white"
+                )}
+                // Removing onClick stopPropagation to allow drag events to bubble where needed, 
+                // but input focus handles itself.
+            >
+                <div className="flex items-center gap-3 md:gap-4">
+                    {/* --- DRAG HANDLE --- */}
+                    <div 
+                        className="shrink-0 cursor-grab active:cursor-grabbing touch-none"
+                        onPointerDown={(e) => !previewMode && controls.start(e)}
+                    >
+                        {isSubject ? (
+                            <div className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+                                <AlignLeft className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                        ) : !previewMode ? (
+                            <GripVertical className="w-4 h-4 text-slate-200 hover:text-slate-400 transition-colors" />
+                        ) : (
+                            <CheckCircle2 className="w-4 h-4 text-slate-300" />
+                        )}
+                    </div>
+
+                    {/* --- INPUT COLUMN --- */}
+                    <div className="flex-1">
+                        {previewMode ? (
+                            <p className={cn(
+                                "whitespace-pre-wrap break-words",
+                                isSubject 
+                                ? "text-xs font-[900] uppercase tracking-[0.2em] text-slate-400" 
+                                : "text-sm font-medium text-slate-700"
+                            )}>{task.title || (isSubject ? "UNNAMED SUBJECT" : "Untitled Objective")}</p>
+                        ) : (
+                            <textarea 
+                                value={task.title} 
+                                onChange={e => { 
+                                    const newTasks = section.tasks.map((t: Task) => t.id === task.id ? { ...t, title: e.target.value } : t); 
+                                    updateSection(section.id, { tasks: newTasks });
+                                    e.target.style.height = 'auto';
+                                    e.target.style.height = `${e.target.scrollHeight}px`;
+                                }} 
+                                className={cn(
+                                    "w-full bg-transparent outline-none resize-none overflow-hidden",
+                                    isSubject 
+                                    ? "text-xs font-[900] uppercase tracking-[0.2em] text-slate-400 placeholder:text-slate-200" 
+                                    : "text-sm font-bold text-slate-700 placeholder:text-slate-300"
+                                )}
+                                placeholder={isSubject ? "SUBJECT HEADER..." : "Enter objective..."}
+                                rows={1}
+                                onClick={(e) => e.stopPropagation()} // Allow clicking into text area
+                                ref={(el) => {
+                                    if (el) {
+                                        el.style.height = 'auto';
+                                        el.style.height = `${el.scrollHeight}px`;
+                                    }
+                                }}
+                            />
+                        )}
+                    </div>
+
+                    {/* --- ACTIONS COLUMN --- */}
+                    <AnimatePresence>
+                        {!previewMode && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 self-start pt-1">
+                                {!isSubject && (
+                                    <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
+                                )}
+                                <button onClick={() => updateDoc(doc(db, "curriculum", section.id), { tasks: section.tasks.filter((t: Task) => t.id !== task.id) })} className="p-2 text-slate-300 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
+                {/* --- IMAGES (Only for Tasks) --- */}
+                {!isSubject && task.image && (
+                    <motion.div 
+                        layoutId={`image-${task.id}`}
+                        onClick={() => setViewingImage({ id: task.id, url: task.image! })}
+                        className={cn(
+                            "relative w-full overflow-hidden rounded-xl border shadow-sm cursor-zoom-in group/img transition-all bg-slate-100",
+                            "aspect-[16/9] md:aspect-[21/9]", 
+                            activeDept === "FOH" ? "border-[#004F71]/10 hover:border-[#004F71]/40" : "border-[#E51636]/10 hover:border-[#E51636]/40"
+                        )}
+                    >
+                        <img src={task.image} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200" aria-hidden="true" />
+                        <motion.img src={task.image} className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" />
+                        <div className="absolute inset-0 z-20 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 pointer-events-none">
+                            <div className="bg-white/20 backdrop-blur-md p-2.5 rounded-full text-white border border-white/40 shadow-lg"><Expand className="w-5 h-5" /></div>
+                        </div>
+                    </motion.div>
+                )}
+            </motion.div>
+        </Reorder.Item>
+    );
+};
 
 // --- MAIN PAGE ---
 export default function TrainingBuilderPage() {
@@ -342,6 +402,15 @@ export default function TrainingBuilderPage() {
     await updateDoc(doc(db, "curriculum", id), updates);
   };
 
+  // --- REORDER LOGIC ---
+  const handleReorder = (sectionId: string, newTasks: Task[]) => {
+      // 1. Optimistic Update (Immediate)
+      setSections(prev => prev.map(s => s.id === sectionId ? { ...s, tasks: newTasks } : s));
+
+      // 2. Database Update
+      updateDoc(doc(db, "curriculum", sectionId), { tasks: newTasks });
+  };
+
   const handleFileUpload = async (section: Section, taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -394,7 +463,7 @@ export default function TrainingBuilderPage() {
                               <span className="text-[9px] md:text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
                            </div>
                            
-                           {/* MODIFIED: Use textarea for multiline title to prevent cut-off */}
+                           {/* Use Textarea for Title */}
                            {previewMode ? (
                                <h3 className="text-lg md:text-3xl font-black text-slate-900 tracking-tighter leading-tight break-words whitespace-pre-wrap">{section.title}</h3>
                            ) : (
@@ -424,108 +493,27 @@ export default function TrainingBuilderPage() {
                      </div>
                      
                      <div className="space-y-2 md:space-y-2.5">
-                        <LayoutGroup>
-                        {section.tasks.map(task => {
-                           const isSubject = task.type === 'subject';
-                           
-                           return (
-                           <motion.div 
-                                layout 
-                                key={task.id} 
-                                // Conditional Styling for Subject vs Task
-                                className={cn(
-                                    "group transition-all flex flex-col gap-3",
-                                    isSubject 
-                                        ? "mt-6 mb-2" 
-                                        : "bg-slate-50/50 rounded-xl md:rounded-2xl p-3 md:p-4 border border-transparent hover:border-slate-200 hover:bg-white"
-                                )}
-                                onClick={(e) => e.stopPropagation()}
-                           >
-                              <div className="flex items-center gap-3 md:gap-4">
-                                  {/* --- ICON COLUMN --- */}
-                                  <div className="shrink-0">
-                                     {isSubject ? (
-                                         <div className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-lg">
-                                             <AlignLeft className="w-3.5 h-3.5 text-slate-400" />
-                                         </div>
-                                     ) : !previewMode ? (
-                                         <GripVertical className="w-4 h-4 text-slate-200" />
-                                     ) : (
-                                         <CheckCircle2 className="w-4 h-4 text-slate-300" />
-                                     )}
-                                  </div>
-
-                                  {/* --- INPUT COLUMN --- */}
-                                  <div className="flex-1">
-                                      {previewMode ? (
-                                          <p className={cn(
-                                              "whitespace-pre-wrap break-words",
-                                              isSubject 
-                                                ? "text-xs font-[900] uppercase tracking-[0.2em] text-slate-400" 
-                                                : "text-sm font-medium text-slate-700"
-                                          )}>{task.title || (isSubject ? "UNNAMED SUBJECT" : "Untitled Objective")}</p>
-                                      ) : (
-                                          <textarea 
-                                              value={task.title} 
-                                              onChange={e => { 
-                                                  const newTasks = section.tasks.map(t => t.id === task.id ? { ...t, title: e.target.value } : t); 
-                                                  updateSection(section.id, { tasks: newTasks });
-                                                  e.target.style.height = 'auto';
-                                                  e.target.style.height = `${e.target.scrollHeight}px`;
-                                              }} 
-                                              className={cn(
-                                                  "w-full bg-transparent outline-none resize-none overflow-hidden",
-                                                  isSubject 
-                                                    ? "text-xs font-[900] uppercase tracking-[0.2em] text-slate-400 placeholder:text-slate-200" 
-                                                    : "text-sm font-bold text-slate-700 placeholder:text-slate-300"
-                                              )}
-                                              placeholder={isSubject ? "SUBJECT HEADER..." : "Enter objective..."}
-                                              rows={1}
-                                              ref={(el) => {
-                                                  if (el) {
-                                                      el.style.height = 'auto';
-                                                      el.style.height = `${el.scrollHeight}px`;
-                                                  }
-                                              }}
-                                          />
-                                      )}
-                                  </div>
-
-                                  {/* --- ACTIONS COLUMN --- */}
-                                  <AnimatePresence>
-                                     {!previewMode && (
-                                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 self-start pt-1">
-                                             {!isSubject && (
-                                                 <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
-                                             )}
-                                             <button onClick={() => updateDoc(doc(db, "curriculum", section.id), { tasks: section.tasks.filter(t => t.id !== task.id) })} className="p-2 text-slate-300 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
-                                         </motion.div>
-                                     )}
-                                 </AnimatePresence>
-                              </div>
-
-                              {/* --- IMAGES (Only for Tasks) --- */}
-                              {!isSubject && task.image && (
-                                <motion.div 
-                                    layoutId={`image-${task.id}`}
-                                    onClick={() => setViewingImage({ id: task.id, url: task.image! })}
-                                    className={cn(
-                                        "relative w-full overflow-hidden rounded-xl border shadow-sm cursor-zoom-in group/img transition-all bg-slate-100",
-                                        "aspect-[16/9] md:aspect-[21/9]", 
-                                        activeDept === "FOH" ? "border-[#004F71]/10 hover:border-[#004F71]/40" : "border-[#E51636]/10 hover:border-[#E51636]/40"
-                                    )}
-                                >
-                                    <img src={task.image} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200" aria-hidden="true" />
-                                    <motion.img src={task.image} className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" />
-                                    <div className="absolute inset-0 z-20 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 pointer-events-none">
-                                        <div className="bg-white/20 backdrop-blur-md p-2.5 rounded-full text-white border border-white/40 shadow-lg"><Expand className="w-5 h-5" /></div>
-                                    </div>
-                                </motion.div>
-                              )}
-                           </motion.div>
-                        );
-                        })}
-                        </LayoutGroup>
+                        
+                        {/* --- REORDERABLE LIST --- */}
+                        <Reorder.Group 
+                            axis="y" 
+                            values={section.tasks} 
+                            onReorder={(newOrder) => handleReorder(section.id, newOrder)}
+                            className="space-y-2"
+                        >
+                            {section.tasks.map(task => (
+                                <DraggableTask
+                                    key={task.id}
+                                    task={task}
+                                    activeDept={activeDept}
+                                    previewMode={previewMode}
+                                    handleFileUpload={handleFileUpload}
+                                    updateSection={updateSection}
+                                    setViewingImage={setViewingImage}
+                                    section={section}
+                                />
+                            ))}
+                        </Reorder.Group>
 
                         <AnimatePresence>
                             {!previewMode && (
@@ -539,7 +527,6 @@ export default function TrainingBuilderPage() {
                                     <button 
                                         onClick={(e) => { 
                                             e.stopPropagation(); 
-                                            // FIX: Explicit 'task' type
                                             const newTask: Task = { 
                                                 id: Math.random().toString(36).substr(2, 9), 
                                                 title: "", 
@@ -557,7 +544,6 @@ export default function TrainingBuilderPage() {
                                     <button 
                                         onClick={(e) => { 
                                             e.stopPropagation(); 
-                                            // FIX: Explicit 'subject' type
                                             const newSubject: Task = { 
                                                 id: Math.random().toString(36).substr(2, 9), 
                                                 title: "", 
