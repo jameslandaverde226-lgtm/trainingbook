@@ -30,6 +30,7 @@ import OneOnOneView from "./_components/OneOnOneView";
 import AdvancedCreateModal from "./_components/AdvancedCreateModal";
 import EventDetailSheet from "./_components/EventDetailSheet";
 import ClientPortal from "@/components/core/ClientPortal";
+import { useTaskMap } from "@/lib/hooks/useTaskMap"; 
 
 // --- NEW SMOOTH ACCORDION COMPONENT ---
 function TacticalSidebarAccordion({ 
@@ -222,6 +223,9 @@ export default function CalendarPage() {
   const [isCreatorOpen, setIsCreatorOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   
+  // -- DYNAMIC TITLE MAP --
+  const taskMap = useTaskMap(); // Initialize hook
+
   // -- DESKTOP SIDEBAR STATE --
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -235,7 +239,8 @@ export default function CalendarPage() {
   // -- FILTER STATES --
   const [activeTypes, setActiveTypes] = useState<EventType[]>(EVENT_TYPES);
   const [activePriorities, setActivePriorities] = useState<Priority[]>(PRIORITIES);
-  const [activeDepts, setActiveDepts] = useState<Department[]>(["FOH", "BOH"]);
+  // FIX: Added Unassigned to default so new members show up
+  const [activeDepts, setActiveDepts] = useState<Department[]>(["FOH", "BOH", "Unassigned"]);
   const [activeRoles, setActiveRoles] = useState<Status[]>(STAGES.map(s => s.id));
   const [showSystemLogs, setShowSystemLogs] = useState(false); 
 
@@ -245,18 +250,29 @@ export default function CalendarPage() {
     return () => { unsubEvents(); unsubTeam(); };
   }, [subscribeEvents, subscribeTeam]);
 
+  // -- FILTER & TRANSFORM EVENTS --
   const displayEvents = useMemo(() => {
     return events.filter(e => {
         const isSystemLog = e.assignee === "System";
         if (isSystemLog && !showSystemLogs) return false;
+        
         const typeMatch = activeTypes.includes(e.type);
         const priorityMatch = activePriorities.includes(e.priority);
+        
+        // Find user to check their department
         const user = team.find(m => m.id === e.teamMemberId || m.id === e.assignee);
         const deptMatch = user ? activeDepts.includes(user.dept) : true;
         const roleMatch = user ? activeRoles.includes(user.status) : true;
+        
         return typeMatch && priorityMatch && deptMatch && roleMatch;
+    }).map(e => {
+        // DYNAMIC TITLE OVERRIDE
+        if (e.metadata?.taskId && taskMap[e.metadata.taskId]) {
+            return { ...e, title: `Module Verified: ${taskMap[e.metadata.taskId]}` };
+        }
+        return e;
     });
-  }, [events, team, activeTypes, activePriorities, activeDepts, activeRoles, showSystemLogs]);
+  }, [events, team, activeTypes, activePriorities, activeDepts, activeRoles, showSystemLogs, taskMap]);
 
   const handleDragEnd = useCallback(async (id: string, offsetDays: number) => {
     const event = events.find(ev => ev.id === id);
@@ -284,7 +300,7 @@ export default function CalendarPage() {
   const resetFilters = () => {
     setActiveTypes(EVENT_TYPES);
     setActivePriorities(PRIORITIES);
-    setActiveDepts(["FOH", "BOH"]);
+    setActiveDepts(["FOH", "BOH", "Unassigned"]);
     setActiveRoles(STAGES.map(s => s.id));
     setShowSystemLogs(false); 
   };
@@ -369,7 +385,7 @@ export default function CalendarPage() {
                 </TacticalSidebarAccordion>
 
                 {/* 3. DEPLOYMENT ZONE */}
-                <TacticalSidebarAccordion id="deployment" title="Deployment Zone" icon={ShieldCheck} isOpen={openSection === 'deployment'} onToggle={setOpenSection} activeCount={activeDepts.length} totalCount={2}>
+                <TacticalSidebarAccordion id="deployment" title="Deployment Zone" icon={ShieldCheck} isOpen={openSection === 'deployment'} onToggle={setOpenSection} activeCount={activeDepts.length} totalCount={3}>
                     <div className="grid grid-cols-2 gap-2">
                         {[{ id: "FOH", label: "Front House", icon: Coffee, color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" }, { id: "BOH", label: "Back House", icon: Flame, color: "text-red-600", bg: "bg-red-50", border: "border-red-100" }].map(dept => {
                             const isSelected = activeDepts.includes(dept.id as Department);
@@ -382,6 +398,11 @@ export default function CalendarPage() {
                                 </button>
                             )
                         })}
+                        {/* Unassigned Toggle */}
+                         <button onClick={() => toggle(activeDepts, "Unassigned", setActiveDepts)} className={cn("col-span-2 flex items-center justify-between p-3 rounded-2xl border transition-all h-12 relative overflow-hidden", activeDepts.includes("Unassigned") ? "bg-white border-slate-200 shadow-md" : "bg-slate-50 border-transparent opacity-60 hover:opacity-100")}>
+                             <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 pl-2">Include Unassigned</span>
+                             {activeDepts.includes("Unassigned") && <Check className="w-4 h-4 text-emerald-500" />}
+                         </button>
                     </div>
                 </TacticalSidebarAccordion>
 
@@ -501,7 +522,7 @@ export default function CalendarPage() {
                         <div className="h-full overflow-y-auto no-scrollbar">
                             <CalendarGrid 
                                 currentDate={currentDate} 
-                                events={displayEvents} 
+                                events={displayEvents} // Pass dynamic events
                                 onDragEnd={handleDragEnd} 
                                 onSelectEvent={setSelectedEvent} 
                                 isStamping={!!activeSticker} 
@@ -512,7 +533,7 @@ export default function CalendarPage() {
                         <div className="h-full">
                             <TimelineBoard 
                                 currentDate={currentDate} 
-                                events={displayEvents} 
+                                events={displayEvents} // Pass dynamic events
                                 onDragEnd={handleDragEnd} 
                                 onSelectEvent={setSelectedEvent} 
                                 isStamping={!!activeSticker} 
@@ -589,9 +610,18 @@ export default function CalendarPage() {
           )}
       </AnimatePresence>
 
-      {/* --- CORRECTED: REMOVED INVALID PROPS --- */}
       <AnimatePresence>{isCreatorOpen && <AdvancedCreateModal isOpen={isCreatorOpen} onClose={() => setIsCreatorOpen(false)} />}</AnimatePresence>
-      <AnimatePresence>{selectedEvent && (<EventDetailSheet event={selectedEvent} onClose={() => setSelectedEvent(null)} onDelete={async (id) => { const loadToast = toast.loading("Decommissioning..."); try { await deleteDoc(doc(db, "events", id)); toast.success("Terminated", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } }} onUpdate={async (id, updates) => { const loadToast = toast.loading("Updating..."); try { await updateDoc(doc(db, "events", id), { ...updates, updatedAt: serverTimestamp() }); toast.success("Synced", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } }} />)}</AnimatePresence>
+      <AnimatePresence>
+          {selectedEvent && (
+              <EventDetailSheet 
+                  event={selectedEvent} 
+                  onClose={() => setSelectedEvent(null)} 
+                  onDelete={async (id) => { const loadToast = toast.loading("Decommissioning..."); try { await deleteDoc(doc(db, "events", id)); toast.success("Terminated", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } }} 
+                  onUpdate={async (id, updates) => { const loadToast = toast.loading("Updating..."); try { await updateDoc(doc(db, "events", id), { ...updates, updatedAt: serverTimestamp() }); toast.success("Synced", { id: loadToast }); setSelectedEvent(null); } catch (e) { toast.error("Error", { id: loadToast }); } }} 
+                  isSystemEvent={selectedEvent.assigneeName === "System"}
+              />
+          )}
+      </AnimatePresence>
     </div>
   );
 }

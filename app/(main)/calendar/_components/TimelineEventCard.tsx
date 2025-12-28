@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, memo, useState } from "react"; 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { CalendarEvent, STICKERS } from "./types";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays, isValid, format, isSameDay, isSameMonth, max } from "date-fns";
@@ -61,6 +61,9 @@ const TimelineEventCard = ({
       dateLabel = isSameMonth(event.startDate, event.endDate) 
         ? `${format(event.startDate, "MMM d")} - ${format(event.endDate, "d")}`
         : `${format(event.startDate, "MMM d")} - ${format(event.endDate, "MMM d")}`;
+  } else {
+      // Single Day: Just show the date, NO time
+      dateLabel = format(event.startDate, "MMM d");
   }
 
   const getStyles = (type: string) => {
@@ -87,12 +90,15 @@ const TimelineEventCard = ({
     <motion.div
       className="absolute top-2 h-[40px] md:h-[44px] z-20 group/card" 
       style={{ left: leftPos, width: width }}
+      layout
+      // UPDATED TRANSITION: Critical Damping (No Bounce)
+      transition={{ type: "spring", stiffness: 400, damping: 50, mass: 1 }}
     >
       <motion.div
         ref={cardRef}
         drag={!isLinking && !isStamping ? "x" : false}
-        dragMomentum={false}
-        dragElastic={0.05} // Consistent with grid
+        dragMomentum={false} 
+        dragElastic={0.1} // Reduced elasticity for tighter control
         dragSnapToOrigin={true}
         onDragStart={() => { 
             isDraggingRef.current = true; 
@@ -101,8 +107,12 @@ const TimelineEventCard = ({
         }}
         onDragEnd={(_, info) => {
           if (onDragComplete) onDragComplete(); 
+          
           const movedSlots = Math.round(info.offset.x / dayWidth);
-          if (movedSlots !== 0) onDragEnd(event.id, movedSlots);
+          
+          if (movedSlots !== 0) {
+            onDragEnd(event.id, movedSlots);
+          }
           
           setIsLocalDragging(false);
           setTimeout(() => { isDraggingRef.current = false; }, 150);
@@ -115,11 +125,11 @@ const TimelineEventCard = ({
             opacity: 0.95, 
             zIndex: 100,
             cursor: "grabbing",
-            boxShadow: "0 20px 40px -10px rgba(0,0,0,0.15)"
+            boxShadow: "0 20px 40px -10px rgba(0,0,0,0.2)", 
         }}
         
         className={cn(
-            "w-full h-full border overflow-hidden transition-all relative select-none shadow-sm",
+            "w-full h-full border overflow-hidden transition-colors relative select-none shadow-sm", 
             styles.bg,
             isLinking ? "cursor-alias border-dashed border-[#004F71]" : "cursor-grab border-slate-200/80",
             (isSource || isTarget) && "border-[#004F71]/30 shadow-md ring-2 ring-[#004F71]/5",
@@ -159,7 +169,7 @@ const TimelineEventCard = ({
                         })}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5 opacity-60">
-                        {isMultiDay ? <CalendarIcon className="w-2 h-2" /> : <Clock className="w-2 h-2" />}
+                        <CalendarIcon className="w-2 h-2" />
                         <span className="text-[7px] md:text-[8px] font-bold text-slate-500">{dateLabel}</span>
                     </div>
                 </div>
@@ -170,7 +180,6 @@ const TimelineEventCard = ({
             </div>
         )}
 
-        {/* Drag Ghost Overlay */}
         <AnimatePresence>
             {isLocalDragging && (
                 <motion.div 

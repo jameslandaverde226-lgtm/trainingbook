@@ -12,13 +12,14 @@ import { cn } from "@/lib/utils";
 import { CalendarEvent, getEventLabel, STICKERS, StickerType } from "./types";
 import { useAppStore } from "@/lib/store/useStore";
 import ClientPortal from "@/components/core/ClientPortal";
+import { useTaskMap } from "@/lib/hooks/useTaskMap"; 
 
 interface Props {
   event: CalendarEvent;
   onClose: () => void;
   onUpdate: (id: string, updates: any) => void;
-  onDelete?: (id: string) => void; // Made optional
-  isSystemEvent?: boolean;        // Added prop
+  onDelete?: (id: string) => void;
+  isSystemEvent?: boolean;
 }
 
 const TRANSITION_SPRING = { type: "spring" as const, damping: 30, stiffness: 300, mass: 0.8 };
@@ -59,6 +60,14 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, i
   const { team } = useAppStore();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
+  // Initialize Dynamic Task Map
+  const taskMap = useTaskMap();
+
+  // Resolve Dynamic Title
+  const displayTitle = (event.metadata?.taskId && taskMap[event.metadata.taskId])
+      ? `Module Verified: ${taskMap[event.metadata.taskId]}`
+      : event.title;
+
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = "unset"; };
@@ -76,19 +85,16 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, i
   else if (event.type === 'Award') { brandBg = 'bg-amber-500'; HeaderIcon = Trophy; headerPattern = "[radial-gradient(circle_at_center,rgba(255,255,255,0.2)_0,transparent_100%)]"; }
   else if (event.type === 'Vote') { brandBg = 'bg-slate-800'; HeaderIcon = Vote; }
   else if (event.type === 'Goal') { brandBg = 'bg-emerald-600'; HeaderIcon = Target; }
-  // NEW: Style specifically for Mentorship Uplink
-  else if (event.title === 'Mentorship Uplink') { brandBg = 'bg-indigo-600'; HeaderIcon = Link2; }
+  else if (displayTitle === 'Mentorship Uplink') { brandBg = 'bg-indigo-600'; HeaderIcon = Link2; }
 
   // --- PARSE INTELLIGENT LOGS ---
   const isSystemLog = event.description?.startsWith("[SYSTEM LOG:") || event.description?.startsWith("[OFFICIAL ANNOUNCEMENT]") || event.type === 'Award' || event.type === 'Vote';
   const isDocLog = event.description?.startsWith("[DOCUMENT LOG:");
   const isSystemAgent = event.assigneeName === "System" || isSystemEvent; 
   
-  // NEW: Check for Mentorship Uplink by Title
-  const isMentorshipLink = event.title === "Mentorship Uplink";
+  const isMentorshipLink = displayTitle === "Mentorship Uplink";
   
-  // DETERMINE IMMUTABILITY (Cannot Delete)
-  // Awards, Votes, Promotions, Assignments, Transfers, System Logs AND Mentorship Links are permanent.
+  // DETERMINE IMMUTABILITY
   const isImmutable = isSystemLog || isDocLog || isSystemAgent || isMentorshipLink;
 
   let logTitle = "Operational Context";
@@ -149,7 +155,8 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, i
                 </div>
                 
                 <div className="space-y-3">
-                    <h2 className="text-3xl md:text-5xl font-[1000] tracking-tighter leading-tight">{event.title}</h2>
+                    {/* Use resolved title */}
+                    <h2 className="text-3xl md:text-5xl font-[1000] tracking-tighter leading-tight">{displayTitle}</h2>
                     <div className="flex flex-wrap items-center gap-3">
                         <div className="px-3 py-1 bg-white text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-widest shadow-sm">{getEventLabel(event.type)}</div>
                         <div className="flex items-center gap-2 text-white/80 text-[10px] font-bold uppercase tracking-widest bg-black/20 px-3 py-1 rounded-lg border border-white/10">
@@ -223,7 +230,6 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, i
                 <div className="p-6 md:p-8 bg-slate-50/50 border border-slate-200 rounded-[32px] relative overflow-hidden group min-h-[160px]">
                     <Quote className="absolute top-4 right-4 w-10 h-10 text-slate-200 rotate-12" />
                     
-                    {/* Log Header */}
                     {(isSystemLog || isDocLog || isSystemAgent || isMentorshipLink) && (
                         <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-200/60">
                             <div className={cn("p-2 rounded-xl shadow-sm border", isSystemLog || isMentorshipLink ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-white border-slate-100")}>
@@ -245,10 +251,9 @@ export default function EventDetailSheet({ event, onClose, onUpdate, onDelete, i
             </div>
         </div>
 
-        {/* --- FOOTER ACTIONS (INTELLIGENT) --- */}
+        {/* --- FOOTER ACTIONS --- */}
         <div className="p-6 md:p-10 border-t border-slate-100 bg-white flex items-center justify-between gap-4 shrink-0 pb-10 md:pb-10">
              
-             {/* If IMMUTABLE: Show 'Protected' Badge. Else: Show Delete Button */}
              {isImmutable ? (
                  <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 text-slate-400 rounded-xl border border-slate-100 cursor-not-allowed opacity-60">
                     <Lock className="w-4 h-4" />

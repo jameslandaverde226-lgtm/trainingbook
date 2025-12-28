@@ -8,7 +8,7 @@ import {
   Plus, Trash2, GripVertical, Eye, Settings, X, Utensils, Coffee, 
   Cloud, Maximize2, CalendarClock, BookOpen, Loader2, 
   ChevronDown, Hash, ChevronRight, ChevronUp, Filter, Minimize2, CheckCircle2,
-  Expand, AlignLeft, ArrowLeft, LayoutGrid, List, Clock, FileText, Sparkles, AlertTriangle
+  Expand, AlignLeft, ArrowLeft, Clock, FileText, Sparkles, AlertTriangle, Target
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -102,11 +102,11 @@ function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
         onUpdate({ [field]: newVal });
     };
     return (
-        <div className="flex items-center bg-white/90 backdrop-blur-md border border-slate-200 rounded-full p-1.5 shadow-lg ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
-            <div className="px-3 flex items-center gap-2 border-r border-slate-200/60"><Hash className="w-3.5 h-3.5 text-[#004F71]" /><span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Pages</span></div>
-            <div className="flex items-center px-2 group/page relative min-w-[36px] justify-center"><span className="text-sm font-black text-slate-900 tabular-nums">{start || 1}</span><div className="flex flex-col ml-1 opacity-0 group-hover/page:opacity-100 transition-opacity absolute -top-8 bg-white shadow-md rounded-lg p-1 pointer-events-none group-hover/page:pointer-events-auto"><button onClick={() => adjust('pageStart', 1)} className="text-slate-400 hover:text-[#004F71]"><ChevronUp className="w-3 h-3" /></button><button onClick={() => adjust('pageStart', -1)} className="text-slate-400 hover:text-[#004F71]"><ChevronDown className="w-3 h-3" /></button></div></div>
-            <div className="text-slate-300 font-bold px-0.5 opacity-40">—</div>
-            <div className="flex items-center px-2 group/page relative min-w-[36px] justify-center"><span className="text-sm font-black text-slate-900 tabular-nums">{end || 2}</span><div className="flex flex-col ml-1 opacity-0 group-hover/page:opacity-100 transition-opacity absolute -top-8 bg-white shadow-md rounded-lg p-1 pointer-events-none group-hover/page:pointer-events-auto"><button onClick={() => adjust('pageEnd', 1)} className="text-slate-400 hover:text-[#004F71]"><ChevronUp className="w-3 h-3" /></button><button onClick={() => adjust('pageEnd', -1)} className="text-slate-400 hover:text-[#004F71]"><ChevronDown className="w-3 h-3" /></button></div></div>
+        <div className="flex items-center bg-white/90 backdrop-blur-md border border-slate-200 rounded-full p-1 shadow-lg ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
+            <div className="px-2 md:px-3 flex items-center gap-2 border-r border-slate-200/60"><Hash className="w-3 h-3 md:w-3.5 md:h-3.5 text-[#004F71]" /><span className="text-[9px] md:text-[10px] font-black uppercase text-slate-500 tracking-widest hidden md:inline">Pages</span></div>
+            <div className="flex items-center px-1.5 md:px-2 group/page relative min-w-[28px] md:min-w-[36px] justify-center"><span className="text-xs md:text-sm font-black text-slate-900 tabular-nums">{start || 1}</span><div className="flex flex-col ml-1 opacity-0 group-hover/page:opacity-100 transition-opacity absolute -top-8 bg-white shadow-md rounded-lg p-1 pointer-events-none group-hover/page:pointer-events-auto"><button onClick={() => adjust('pageStart', 1)} className="text-slate-400 hover:text-[#004F71]"><ChevronUp className="w-3 h-3" /></button><button onClick={() => adjust('pageStart', -1)} className="text-slate-400 hover:text-[#004F71]"><ChevronDown className="w-3 h-3" /></button></div></div>
+            <div className="text-slate-300 font-bold px-0.5 opacity-40 text-[10px] md:text-xs">—</div>
+            <div className="flex items-center px-1.5 md:px-2 group/page relative min-w-[28px] md:min-w-[36px] justify-center"><span className="text-xs md:text-sm font-black text-slate-900 tabular-nums">{end || 2}</span><div className="flex flex-col ml-1 opacity-0 group-hover/page:opacity-100 transition-opacity absolute -top-8 bg-white shadow-md rounded-lg p-1 pointer-events-none group-hover/page:pointer-events-auto"><button onClick={() => adjust('pageEnd', 1)} className="text-slate-400 hover:text-[#004F71]"><ChevronUp className="w-3 h-3" /></button><button onClick={() => adjust('pageEnd', -1)} className="text-slate-400 hover:text-[#004F71]"><ChevronDown className="w-3 h-3" /></button></div></div>
         </div>
     );
 }
@@ -308,6 +308,9 @@ export default function TrainingBuilderPage() {
   const enterPhase = (id: string) => { setActiveSectionId(id); setViewMode('detail'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const exitPhase = () => { setViewMode('grid'); setActiveSectionId(null); };
 
+  // --- DYNAMIC BRAND COLOR ---
+  const brandColor = activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]";
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       <AmbientBackground activeDept={activeDept} />
@@ -325,52 +328,175 @@ export default function TrainingBuilderPage() {
 
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 pb-32 relative z-10">
          {viewMode === 'grid' && (
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {sections.map((section, idx) => (
-                     <motion.div key={section.id} layoutId={`card-${section.id}`} onClick={() => enterPhase(section.id)} className={cn("relative overflow-hidden rounded-[32px] p-8 min-h-[280px] flex flex-col justify-between cursor-pointer group transition-all duration-500 bg-white/60 backdrop-blur-xl border border-white/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:bg-white/80 hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] hover:scale-[1.02] hover:-translate-y-1 hover:border-white/80", activeDept === "FOH" ? "hover:shadow-blue-900/10" : "hover:shadow-red-900/10")}>
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                        <div className="space-y-4 relative z-10">
-                            <div className="flex justify-between items-start">
-                                <div className={cn("w-14 h-14 rounded-2xl flex items-center justify-center font-black text-white shadow-lg transition-transform duration-500 group-hover:scale-110 border border-white/20", activeDept === "FOH" ? "bg-gradient-to-br from-[#004F71] to-[#003855]" : "bg-gradient-to-br from-[#E51636] to-[#A30F26]")}><span className="text-[10px] opacity-60 uppercase font-black mr-0.5">Ph</span><span className="text-2xl">{idx + 1}</span></div>
-                                <button onClick={(e) => { e.stopPropagation(); setDeletingId(section.id); }} className="p-2 rounded-full bg-white/50 border border-white/40 hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-colors"><Trash2 className="w-4 h-4" /></button>
+             <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+             >
+                 {sections.map((section, idx) => {
+                     // Dynamic Color Logic based on Dept
+                     const isFoh = activeDept === "FOH";
+                     const accentColor = isFoh ? "text-[#004F71]" : "text-[#E51636]";
+                     const gradientBg = isFoh 
+                        ? "from-blue-50/80 via-white/40 to-cyan-50/30" 
+                        : "from-red-50/80 via-white/40 to-orange-50/30";
+                     const glowColor = isFoh ? "group-hover:shadow-blue-900/20" : "group-hover:shadow-red-900/20";
+                     const ringColor = isFoh ? "group-hover:ring-[#004F71]/20" : "group-hover:ring-[#E51636]/20";
+
+                     return (
+                         <motion.div 
+                            key={section.id} 
+                            layoutId={`card-${section.id}`} 
+                            onClick={() => enterPhase(section.id)} 
+                            className={cn(
+                                "relative overflow-hidden rounded-[40px] h-[340px] cursor-pointer group transition-all duration-500",
+                                "bg-gradient-to-br border border-white/60 shadow-[0_20px_40px_-12px_rgba(0,0,0,0.08)]",
+                                "hover:-translate-y-2 hover:scale-[1.02]", 
+                                gradientBg, glowColor, ringColor,
+                                "ring-1 ring-transparent backdrop-blur-xl"
+                            )}
+                         >
+                            {/* 1. BACKGROUND ART */}
+                            <div className="absolute inset-0 z-0">
+                                {/* Huge Watermark Number */}
+                                <span className={cn(
+                                    "absolute -right-6 -bottom-16 text-[220px] font-[1000] leading-none tracking-tighter opacity-5 transition-transform duration-700 group-hover:scale-110 group-hover:-rotate-6 select-none",
+                                    isFoh ? "text-blue-900" : "text-red-900"
+                                )}>
+                                    {idx + 1}
+                                </span>
+                                
+                                {/* Noise Texture */}
+                                <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
+                                
+                                {/* Ambient Blob */}
+                                <div className={cn(
+                                    "absolute top-0 right-0 w-64 h-64 blur-[80px] opacity-0 group-hover:opacity-40 transition-opacity duration-700",
+                                    isFoh ? "bg-cyan-400" : "bg-rose-400"
+                                )} />
                             </div>
-                            <h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight group-hover:text-slate-700 transition-colors line-clamp-3">{section.title}</h3>
-                        </div>
-                        <div className="flex items-center gap-3 pt-6 border-t border-slate-900/5 mt-4 relative z-10">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/50 backdrop-blur-sm rounded-lg text-slate-600 text-xs font-bold uppercase tracking-wide border border-white/40"><Clock className="w-3.5 h-3.5" /><span>{section.duration}</span></div>
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/50 backdrop-blur-sm rounded-lg text-slate-600 text-xs font-bold uppercase tracking-wide border border-white/40"><FileText className="w-3.5 h-3.5" /><span>Pg {section.pageStart}-{section.pageEnd}</span></div>
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/50 backdrop-blur-sm rounded-lg text-slate-600 text-xs font-bold uppercase tracking-wide ml-auto border border-white/40"><List className="w-3.5 h-3.5" /><span>{section.tasks.length}</span></div>
-                        </div>
-                     </motion.div>
-                 ))}
-                 <button onClick={addSection} className="min-h-[280px] rounded-[32px] border-4 border-dashed border-slate-200/60 bg-white/20 hover:bg-white/40 backdrop-blur-sm flex flex-col items-center justify-center gap-4 text-slate-400 hover:text-[#004F71] hover:border-[#004F71]/30 transition-all group">
-                     <div className="w-16 h-16 rounded-full bg-white/60 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm"><Plus className="w-8 h-8" /></div><span className="text-lg font-black uppercase tracking-tight">Add New Phase</span>
+
+                            {/* 2. CARD CONTENT */}
+                            <div className="relative z-10 p-8 h-full flex flex-col justify-between">
+                                
+                                {/* Top: Header */}
+                                <div className="flex justify-between items-start">
+                                    <div className={cn(
+                                        "h-12 px-4 rounded-2xl flex items-center gap-2 font-black text-xs uppercase tracking-widest shadow-sm border border-white/50 bg-white/60 backdrop-blur-md",
+                                        accentColor
+                                    )}>
+                                        <Target className="w-3.5 h-3.5" />
+                                        <span>Phase {String(idx + 1).padStart(2, '0')}</span>
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setDeletingId(section.id); }} 
+                                        className="w-10 h-10 rounded-full flex items-center justify-center bg-white/40 hover:bg-white text-slate-400 hover:text-red-500 transition-all shadow-sm border border-white/20 active:scale-90"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                {/* Middle: Title */}
+                                <div className="space-y-3">
+                                    <h3 className="text-3xl md:text-4xl font-[1000] text-slate-900 tracking-tighter leading-[0.95] line-clamp-3 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-br from-slate-900 to-slate-600 transition-all">
+                                        {section.title}
+                                    </h3>
+                                    <div className="w-12 h-1 rounded-full bg-slate-900/10 group-hover:w-24 group-hover:bg-slate-900/20 transition-all duration-500" />
+                                </div>
+
+                                {/* Bottom: HUD Stats */}
+                                <div className="grid grid-cols-2 gap-3 pt-4">
+                                    <div className="flex flex-col justify-center p-3 rounded-2xl bg-white/50 border border-white/60 shadow-sm backdrop-blur-md group-hover:bg-white/80 transition-colors">
+                                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">
+                                            <Clock className="w-3 h-3" /> Est. Time
+                                        </div>
+                                        <span className="text-sm font-black text-slate-800">{section.duration}</span>
+                                    </div>
+
+                                    <div className="flex flex-col justify-center p-3 rounded-2xl bg-white/50 border border-white/60 shadow-sm backdrop-blur-md group-hover:bg-white/80 transition-colors">
+                                        <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">
+                                            <BookOpen className="w-3 h-3" /> Manual
+                                        </div>
+                                        <span className="text-sm font-black text-slate-800">Pg {section.pageStart}-{section.pageEnd}</span>
+                                    </div>
+                                </div>
+
+                                {/* Hover Action Overlay (Mobile: Always visible, Desktop: Hover) */}
+                                <div className="absolute inset-x-8 bottom-8 translate-y-4 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 hidden md:flex items-center justify-center">
+                                    <div className={cn(
+                                        "w-full py-4 rounded-2xl flex items-center justify-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-white shadow-xl",
+                                        isFoh ? "bg-[#004F71]" : "bg-[#E51636]"
+                                    )}>
+                                        <Sparkles className="w-3.5 h-3.5 fill-current" />
+                                        <span>Enter Phase</span>
+                                    </div>
+                                </div>
+                            </div>
+                         </motion.div>
+                     );
+                 })}
+
+                 {/* --- THE "ADD NEW" BLUEPRINT CARD --- */}
+                 <button 
+                    onClick={addSection} 
+                    className="relative group h-[340px] rounded-[40px] border-4 border-dashed border-slate-200 hover:border-[#004F71]/30 bg-slate-50/50 hover:bg-[#004F71]/5 transition-all duration-300 flex flex-col items-center justify-center gap-6 overflow-hidden"
+                 >
+                     {/* Animated Grid Background */}
+                     <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#004F71_1px,transparent_1px)] [background-size:24px_24px] group-hover:opacity-20 transition-opacity" />
+                     
+                     <div className="relative z-10 w-24 h-24 rounded-3xl bg-white shadow-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-90 transition-all duration-500 border border-slate-100">
+                        <Plus className="w-10 h-10 text-slate-300 group-hover:text-[#004F71] transition-colors" />
+                     </div>
+                     <div className="relative z-10 text-center">
+                         <h3 className="text-lg font-black text-slate-400 uppercase tracking-widest group-hover:text-[#004F71] transition-colors">Initialize Phase</h3>
+                         <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest mt-1 group-hover:text-slate-500">Create new learning module</p>
+                     </div>
                  </button>
              </motion.div>
          )}
 
          {viewMode === 'detail' && activeSection && (
-             <div className="grid grid-cols-12 gap-6 md:gap-12 items-stretch animate-in fade-in zoom-in-95 duration-300">
-                 <div className="col-span-12 lg:col-span-7 space-y-6">
-                     <button onClick={exitPhase} className="flex items-center gap-2 text-slate-400 hover:text-[#004F71] font-bold uppercase text-xs tracking-widest mb-4 transition-colors group"><div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform"><ArrowLeft className="w-4 h-4" /></div>Back to Grid</button>
+             <div className="flex flex-col-reverse md:grid md:grid-cols-12 gap-6 md:gap-12 animate-in fade-in zoom-in-95 duration-300 pb-32 md:pb-0">
+                 
+                 {/* --- LEFT COLUMN: TASK LIST --- */}
+                 <div className="md:col-span-12 lg:col-span-7 space-y-6">
+                     {/* Removed Redundant "Back to Grid" Button here */}
+                     
                      <div className="relative">
+                        {/* Desktop-only Badge */}
                         <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg border-4 border-[#F8FAFC] z-20", activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{activeIndex + 1}</span></div>
+                        
                         <div className="bg-white rounded-[32px] p-4 md:p-8 border border-slate-200 shadow-xl ring-1 ring-black/5 relative z-10">
-                             <div className="flex justify-between items-start mb-8 gap-6">
-                                <div className="flex-1 space-y-3">
-                                   <div className="flex items-center gap-3"><div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner"><CalendarClock className="w-3.5 h-3.5" />{previewMode ? <span className="font-black text-slate-600">{activeSection.duration}</span> : <input value={activeSection.duration} onChange={e => { optimisticUpdateSection(activeSection.id, { duration: e.target.value }); debouncedSaveSection(activeSection.id, { duration: e.target.value }); }} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}</div><span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{activeSection.tasks.length} Modules</span></div>
-                                   {previewMode ? (<h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight">{activeSection.title}</h3>) : (<textarea value={activeSection.title} onChange={(e) => { const val = e.target.value; optimisticUpdateSection(activeSection.id, { title: val }); debouncedSaveSection(activeSection.id, { title: val }); e.target.style.height = 'auto'; e.target.style.height = `${e.target.scrollHeight}px`; }} className="text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden" rows={1} ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }} />)}
+                             {/* UPDATED HEADER LAYOUT FOR MOBILE COMPATIBILITY */}
+                             <div className="flex flex-col-reverse md:flex-row justify-between items-start mb-6 md:mb-8 gap-4 md:gap-6">
+                                <div className="flex-1 space-y-3 w-full">
+                                   <div className="flex items-center gap-3">
+                                       <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner">
+                                           <CalendarClock className="w-3.5 h-3.5" />
+                                           {previewMode ? <span className="font-black text-slate-600">{activeSection.duration}</span> : <input value={activeSection.duration} onChange={e => { optimisticUpdateSection(activeSection.id, { duration: e.target.value }); debouncedSaveSection(activeSection.id, { duration: e.target.value }); }} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}
+                                       </div>
+                                       <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{activeSection.tasks.length} Modules</span>
+                                   </div>
+                                   {previewMode ? (<h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-tight">{activeSection.title}</h3>) : (<textarea value={activeSection.title} onChange={(e) => { const val = e.target.value; optimisticUpdateSection(activeSection.id, { title: val }); debouncedSaveSection(activeSection.id, { title: val }); e.target.style.height = 'auto'; e.target.style.height = `${e.target.scrollHeight}px`; }} className="text-2xl md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden" rows={1} ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }} />)}
                                 </div>
-                                <div className="flex items-start gap-3 shrink-0"><PageRangeSelector start={activeSection.pageStart} end={activeSection.pageEnd} onUpdate={(u: any) => { optimisticUpdateSection(activeSection.id, u); debouncedSaveSection(activeSection.id, u); }} readOnly={previewMode} /><AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} onClick={() => setDeletingId(activeSection.id)} className="p-3 text-slate-300 hover:text-red-500 transition-all bg-slate-50 rounded-2xl border border-slate-200 hover:shadow-md active:scale-90"><Trash2 className="w-4 h-4" /></motion.button>)}</AnimatePresence></div>
+                                <div className="flex items-center justify-between md:justify-start w-full md:w-auto gap-3 shrink-0">
+                                    <PageRangeSelector start={activeSection.pageStart} end={activeSection.pageEnd} onUpdate={(u: any) => { optimisticUpdateSection(activeSection.id, u); debouncedSaveSection(activeSection.id, u); }} readOnly={previewMode} />
+                                    <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} onClick={() => setDeletingId(activeSection.id)} className="p-3 text-slate-300 hover:text-red-500 transition-all bg-slate-50 rounded-2xl border border-slate-200 hover:shadow-md active:scale-90"><Trash2 className="w-4 h-4" /></motion.button>)}</AnimatePresence>
+                                </div>
                              </div>
+                             
                              <div className="space-y-2.5">
                                 <Reorder.Group axis="y" values={activeSection.tasks} onReorder={(newOrder) => { optimisticUpdateSection(activeSection.id, { tasks: newOrder }); debouncedSaveSection(activeSection.id, { tasks: newOrder }); }} className="space-y-2">{activeSection.tasks.map(task => (<DraggableTask key={task.id} task={task} activeDept={activeDept} previewMode={previewMode} handleFileUpload={handleFileUpload} updateSection={optimisticUpdateSection} saveSection={debouncedSaveSection} setViewingImage={setViewingImage} section={activeSection} onInteract={handleInteraction} />))}</Reorder.Group>
                                 <AnimatePresence>{!previewMode && (<motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex gap-2 pt-4"><button onClick={(e) => { e.stopPropagation(); lockScrollOnly(); const newTask: Task = { id: Math.random().toString(36).substr(2, 9), title: "", duration: "15m", type: "task" }; optimisticUpdateSection(activeSection.id, { tasks: [...activeSection.tasks, newTask] }); debouncedSaveSection(activeSection.id, { tasks: [...activeSection.tasks, newTask] }); }} className="flex-1 py-3.5 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"><Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block</button><button onClick={(e) => { e.stopPropagation(); lockScrollOnly(); const newSubject: Task = { id: Math.random().toString(36).substr(2, 9), title: "", type: "subject", color: "slate" }; optimisticUpdateSection(activeSection.id, { tasks: [...activeSection.tasks, newSubject] }); debouncedSaveSection(activeSection.id, { tasks: [...activeSection.tasks, newSubject] }); }} className="w-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group" title="Add Subject Heading"><AlignLeft className="w-4 h-4" /></button></motion.div>)}</AnimatePresence>
                              </div>
-                             <div onClick={() => { setMobileViewerOpen(true); setIframeLoading(true); }} className="lg:hidden mt-6 flex justify-center text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 bg-slate-50 py-3 rounded-xl border border-slate-100 cursor-pointer active:scale-95 transition-transform"><span>Tap card to open manual</span><ChevronRight className="w-3 h-3" /></div>
                         </div>
                      </div>
                  </div>
+
+                 {/* --- RIGHT COLUMN: PREVIEW HUB --- */}
+                 {/* On Mobile: Hidden behind floating button */}
                  <div className="hidden lg:block col-span-5 relative h-full">
                     <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
                        <div className={cn("absolute inset-0 bg-gradient-to-br opacity-40 blur-[120px] transition-colors duration-1000 -z-10", activeDept === "FOH" ? "from-blue-200" : "from-red-200")} />
@@ -386,11 +512,31 @@ export default function TrainingBuilderPage() {
                  </div>
              </div>
          )}
+
+         {/* --- MOBILE FLOATING ACTION BUTTON --- */}
+         {/* MOVED OUTSIDE CONDITIONAL BLOCK so it floats globally, 
+             but we only render it if there is an activeSection (i.e. Detail View) */}
+         {viewMode === 'detail' && activeSection && (
+             <div className="lg:hidden fixed bottom-28 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
+                  <button 
+                    onClick={() => { setMobileViewerOpen(true); setIframeLoading(true); }}
+                    className="w-full bg-[#004F71] text-white py-4 rounded-[24px] shadow-[0_20px_50px_-10px_rgba(0,79,113,0.5)] flex items-center justify-between px-6 border border-white/20 active:scale-95 transition-transform"
+                  >
+                      <div className="flex items-center gap-3">
+                          <BookOpen className="w-5 h-5" />
+                          <div className="flex flex-col items-start">
+                              <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Manual Viewer</span>
+                              <span className="text-xs font-bold">Open Pages {activeSection.pageStart}-{activeSection.pageEnd}</span>
+                          </div>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"><ChevronRight className="w-4 h-4" /></div>
+                  </button>
+             </div>
+         )}
       </div>
 
       {/* --- MODALS --- */}
-      <AnimatePresence>{mobileViewerOpen && (<ClientPortal><div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileViewerOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.05} onDragEnd={(_, info) => { if (info.offset.y > 100) setMobileViewerOpen(false); }} className="pointer-events-auto bg-white w-full h-[92vh] rounded-t-[40px] shadow-2xl relative flex flex-col overflow-hidden"><div className="absolute top-0 left-0 right-0 h-10 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm cursor-grab active:cursor-grabbing touch-none" onPointerDown={(e) => dragControls.start(e)}><div className="w-12 h-1.5 bg-slate-300 rounded-full" /></div><div className="px-6 py-4 pt-10 border-b border-slate-100 flex justify-between items-center shrink-0 bg-white z-40"><div className="flex flex-col"><span className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">{activeSection?.title || "Manual"}</span><div className="flex items-center gap-2"><div className={cn("w-2 h-2 rounded-full", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")} /><span className="text-lg font-bold text-slate-900 leading-none">Pages {activeSection?.pageStart || "?"} - {activeSection?.pageEnd || "?"}</span></div></div><button onClick={() => setMobileViewerOpen(false)} className="p-2.5 bg-slate-100 rounded-full active:scale-95 transition-all"><Minimize2 className="w-5 h-5 text-slate-500" /></button></div><div className="flex-1 relative bg-slate-50 overflow-y-auto no-scrollbar touch-pan-y">{iframeLoading && (<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50"><Loader2 className={cn("w-10 h-10 animate-spin mb-4", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Manual...</span></div>)}{getEmbedUrl() ? (<iframe src={getEmbedUrl()!} className="w-full h-full border-none" loading="lazy" onLoad={() => setIframeLoading(false)} />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><BookOpen className="w-12 h-12 opacity-20 mb-2" /><p>No content available</p></div>)}</div><div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 w-full justify-center px-4"><div className="flex-1 max-w-[280px]"><PageRangeSelector start={activeSection?.pageStart} end={activeSection?.pageEnd} onUpdate={(u: any) => { if(activeSectionId) { optimisticUpdateSection(activeSectionId, u); debouncedSaveSection(activeSectionId, u); }}} readOnly={true} /></div><a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a></div></motion.div></div></ClientPortal>)}</AnimatePresence>
-      <AnimatePresence>{viewingImage && (<div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 pointer-events-none"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl cursor-zoom-out pointer-events-auto" onClick={() => setViewingImage(null)} /><motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-6xl max-h-[85vh] md:max-h-[90vh] pointer-events-auto flex items-center justify-center"><img src={viewingImage.url} className="w-full h-full object-contain rounded-2xl md:rounded-3xl shadow-2xl bg-black/5" /><button onClick={() => setViewingImage(null)} className="absolute -top-12 md:-top-4 md:-right-12 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md border border-white/10"><X className="w-6 h-6" /></button></motion.div></div>)}</AnimatePresence>
+      <AnimatePresence>{mobileViewerOpen && (<ClientPortal><div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileViewerOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.05} onDragEnd={(_, info) => { if (info.offset.y > 100) setMobileViewerOpen(false); }} className="pointer-events-auto bg-white w-full h-[92vh] rounded-t-[40px] shadow-2xl relative flex flex-col overflow-hidden"><div className="absolute top-0 left-0 right-0 h-10 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm cursor-grab active:cursor-grabbing touch-none" onPointerDown={(e) => dragControls.start(e)}><div className="w-12 h-1.5 bg-slate-300 rounded-full" /></div><div className="px-6 py-4 pt-10 border-b border-slate-100 flex justify-between items-center shrink-0 bg-white z-40"><div className="flex flex-col"><span className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">{activeSection?.title || "Manual"}</span><div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full" style={{ backgroundColor: brandColor === 'bg-[#004F71]' ? '#004F71' : '#E51636' }} /><span className="text-lg font-bold text-slate-900 leading-none">Pages {activeSection?.pageStart || "?"} - {activeSection?.pageEnd || "?"}</span></div></div><button onClick={() => setMobileViewerOpen(false)} className="p-2.5 bg-slate-100 rounded-full active:scale-95 transition-all"><Minimize2 className="w-5 h-5 text-slate-500" /></button></div><div className="flex-1 relative bg-slate-50 overflow-y-auto no-scrollbar touch-pan-y">{iframeLoading && (<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50"><Loader2 className={cn("w-10 h-10 animate-spin mb-4", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Manual...</span></div>)}{getEmbedUrl() ? (<iframe src={getEmbedUrl()!} className="w-full h-full border-none" loading="lazy" onLoad={() => setIframeLoading(false)} />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><BookOpen className="w-12 h-12 opacity-20 mb-2" /><p>No content available</p></div>)}</div><div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 w-full justify-center px-4"><div className="flex-1 max-w-[280px]"><PageRangeSelector start={activeSection?.pageStart} end={activeSection?.pageEnd} onUpdate={(u: any) => { if(activeSectionId) { optimisticUpdateSection(activeSectionId, u); debouncedSaveSection(activeSectionId, u); }}} readOnly={true} /></div><a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a></div></motion.div></div></ClientPortal>)}</AnimatePresence>
       
       {/* DELETE CONFIRMATION MODAL */}
       <AnimatePresence>
@@ -412,6 +558,3 @@ export default function TrainingBuilderPage() {
     </div>
   );
 }
-
-// Arrow Icon Helper
-function ArrowRightIcon() { return <ChevronRight className="w-4 h-4 text-slate-400" /> }

@@ -90,6 +90,9 @@ export default function OneOnOneView({ events: initialEvents, onSelectEvent, onU
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     {upcoming.length > 0 ? upcoming.map(event => {
                         const eventUser = team.find(u => u.id === event.assignee);
+                        // FIX: Ensure image is not empty before rendering img tag
+                        const hasImage = eventUser?.image && eventUser.image.trim() !== "";
+
                         return (
                             <motion.div 
                                 key={event.id}
@@ -102,10 +105,12 @@ export default function OneOnOneView({ events: initialEvents, onSelectEvent, onU
                                 </div>
                                 <div className="flex justify-between items-start mb-6">
                                     <div className="flex items-center gap-3">
-                                        {eventUser ? (
-                                            <img src={eventUser.image} className="w-12 h-12 rounded-2xl object-cover shadow-sm ring-2 ring-slate-50" />
+                                        {hasImage ? (
+                                            <img src={eventUser!.image} className="w-12 h-12 rounded-2xl object-cover shadow-sm ring-2 ring-slate-50" alt="" />
                                         ) : (
-                                            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center"><User className="w-6 h-6 text-slate-300" /></div>
+                                            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 text-sm">
+                                                {eventUser ? eventUser.name.charAt(0) : <User className="w-6 h-6 text-slate-300" />}
+                                            </div>
                                         )}
                                         <div>
                                             <p className="text-base font-black text-slate-900 leading-tight mb-1">{event.title}</p>

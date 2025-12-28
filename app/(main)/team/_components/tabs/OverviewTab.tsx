@@ -10,9 +10,10 @@ import {
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember, STAGES, CalendarEvent } from "../../../calendar/_components/types";
 import { useAppStore } from "@/lib/store/useStore";
-import { format, formatDistanceToNow, isValid } from "date-fns";
+import { format, formatDistanceToNow, isValid, isToday } from "date-fns";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
 import { motion } from "framer-motion";
+import { useTaskMap } from "@/lib/hooks/useTaskMap"; 
 
 interface Props {
   member: TeamMember;
@@ -41,9 +42,20 @@ const getCategoryStyle = (type: string) => {
     }
 };
 
+// Helper for smarter date display
+const getSmartDate = (date: Date) => {
+    if (isToday(date)) {
+        return formatDistanceToNow(date, { addSuffix: true }).replace("about ", "");
+    }
+    return format(date, "MMM d");
+};
+
 export function OverviewTab({ member }: Props) {
   const { events, curriculum } = useAppStore();
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
+  
+  // LIVE TASK LOOKUP
+  const taskMap = useTaskMap();
 
   // --- ACTIVITY DATA ---
   const timelineData = useMemo(() => {
@@ -54,6 +66,11 @@ export function OverviewTab({ member }: Props) {
         let category = 'MISSION';
         let desc = e.description || "";
         let title = e.title;
+
+        // DYNAMIC TITLE OVERRIDE (For verified modules)
+        if (e.metadata?.taskId && taskMap[e.metadata.taskId]) {
+            title = `Module Verified: ${taskMap[e.metadata.taskId]}`;
+        }
 
         if (desc.startsWith("[DOCUMENT LOG:")) {
              const match = desc.match(/\[DOCUMENT LOG: (.*?)\]/);
@@ -113,7 +130,7 @@ export function OverviewTab({ member }: Props) {
     }
 
     return history.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8); 
-  }, [events, member.id, curriculum, member.completedTaskIds]);
+  }, [events, member.id, curriculum, member.completedTaskIds, taskMap]);
 
   const recentGoals = useMemo(() => {
       return timelineData.filter(i => i.category === 'GOAL' || i.category === '1-ON-1').slice(0, 3);
@@ -221,7 +238,8 @@ export function OverviewTab({ member }: Props) {
                             <div className="space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase border", getCategoryStyle(item.category))}>{item.category}</span>
-                                    <span className="text-[8px] font-bold text-slate-300 uppercase">{formatDistanceToNow(item.date)} ago</span>
+                                    {/* UPDATED DATE FORMAT */}
+                                    <span className="text-[8px] font-bold text-slate-300 uppercase">{getSmartDate(item.date)}</span>
                                 </div>
                                 <p className="text-xs lg:text-sm font-bold text-slate-800 leading-tight">{item.title}</p>
                                 {item.description && <p className="text-[10px] text-slate-500 line-clamp-1">{item.description}</p>}
@@ -238,7 +256,14 @@ export function OverviewTab({ member }: Props) {
                     {recentGoals.length > 0 ? recentGoals.map((goal, idx) => (
                         <div key={idx} className="p-4 bg-slate-50 border border-slate-100 rounded-[20px] shadow-sm flex items-start gap-3">
                             <div className={cn("p-2 rounded-lg shrink-0", goal.category === '1-ON-1' ? "bg-purple-100 text-purple-600" : "bg-emerald-100 text-emerald-600")}>{goal.category === '1-ON-1' ? <Lightbulb className="w-4 h-4" /> : <Goal className="w-4 h-4" />}</div>
-                            <div><h5 className="text-xs font-bold text-slate-900 leading-snug">{goal.title}</h5><p className="text-[10px] text-slate-500 mt-1 line-clamp-2">{goal.description || "No specific details logged."}</p><div className="mt-2 flex items-center gap-2"><span className="text-[8px] font-black uppercase tracking-widest text-slate-400">{formatDistanceToNow(goal.date)} ago</span></div></div>
+                            <div>
+                                <h5 className="text-xs font-bold text-slate-900 leading-snug">{goal.title}</h5>
+                                <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">{goal.description || "No specific details logged."}</p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    {/* UPDATED DATE FORMAT */}
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">{getSmartDate(goal.date)}</span>
+                                </div>
+                            </div>
                         </div>
                     )) : (
                         <div className="p-8 border-2 border-dashed border-slate-100 rounded-[24px] flex flex-col items-center justify-center text-slate-300 bg-slate-50/50"><Target className="w-8 h-8 mb-2 opacity-50" /><span className="text-[9px] font-bold uppercase tracking-widest text-center">No Active Goals</span></div>

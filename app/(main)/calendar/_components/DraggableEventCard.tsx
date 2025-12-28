@@ -91,8 +91,8 @@ const DraggableEventCard = ({
   const styles = getStyles(event.type);
   const isMultiDay = !isSameDay(event.startDate, event.endDate);
 
-  // FORMAT DATE STRING LOGIC
-  let dateLabel = format(event.startDate, "h:mm a");
+  // --- UPDATED DATE LABEL LOGIC (NO TIME) ---
+  let dateLabel = "";
   
   if (isMultiDay) {
       const sameMonth = isSameMonth(event.startDate, event.endDate);
@@ -101,6 +101,9 @@ const DraggableEventCard = ({
       } else {
           dateLabel = `${format(event.startDate, "MMM d")} - ${format(event.endDate, "MMM d")}`;
       }
+  } else {
+      // Single Day: Just show the date, NO time
+      dateLabel = format(event.startDate, "MMM d");
   }
 
   // --- PRIORITY COLOR LOGIC ---
@@ -178,7 +181,8 @@ const DraggableEventCard = ({
                 
                 {/* DATE DISPLAY */}
                 <div className="flex items-center gap-1 opacity-60 mt-0.5">
-                    {isMultiDay ? <CalendarIcon className="w-2.5 h-2.5 shrink-0" /> : <Clock className="w-2.5 h-2.5 shrink-0" />}
+                    {/* Always show Calendar Icon since we removed Time */}
+                    <CalendarIcon className="w-2.5 h-2.5 shrink-0" />
                     <span className="text-[7px] font-black uppercase tracking-wider tabular-nums truncate">
                         {dateLabel}
                     </span>

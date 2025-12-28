@@ -105,6 +105,15 @@ export interface CalendarEvent {
   linkedEventIds?: string[]; 
   createdAt?: any;
   updatedAt?: any;
+
+  // NEW: Metadata for dynamic linking (Training Modules, Badges, etc)
+  metadata?: {
+    taskId?: string;
+    originalTitle?: string;
+    hex?: string;
+    iconId?: string;
+    [key: string]: any;
+  };
 }
 
 export type DraftEvent = Omit<CalendarEvent, "id" | "status">;
@@ -131,7 +140,6 @@ export const STICKERS: { id: StickerType; icon: string; label: string; color: st
   { id: "check", icon: "✅", label: "Verify", color: "bg-emerald-100 border-emerald-200" },
 ];
 
-// UPDATED: "Admin" removed from UI stages so it doesn't show up in filters
 export const STAGES: { id: Status; title: string; icon: any }[] = [
     { id: "Onboarding", title: "Onboarding", icon: Layers },
     { id: "Training", title: "Training", icon: GraduationCap },
@@ -140,8 +148,6 @@ export const STAGES: { id: Status; title: string; icon: any }[] = [
     { id: "Assistant Director", title: "Asst. Director", icon: Briefcase },
     { id: "Director", title: "Director", icon: Crown },
 ];
-
-// ... (Rest of file unchanged) ...
 
 export const getEventLabel = (type: EventType) => {
   switch (type) {
@@ -238,7 +244,7 @@ export const canPerformAction = (userRole: string, requiredLevel: number) => {
   return level >= requiredLevel;
 };
 
-// ... (Layout Logic Unchanged) ...
+// ... (Layout Logic) ...
 const normalizeDate = (d: Date) => startOfDay(isValid(d) ? d : new Date());
 
 const calculateSpan = (event: CalendarEvent, weekStartDay: Date) => {

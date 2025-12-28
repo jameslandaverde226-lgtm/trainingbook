@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
+import { motion, AnimatePresence, LayoutGroup, Variants } from "framer-motion"; // Added Variants type import
 import { 
   Users, Clock, AlertCircle, 
   Target, CheckSquare, X,
@@ -29,6 +29,7 @@ import ClientPortal from "@/components/core/ClientPortal";
 import { TeamCard } from "../team/_components/TeamCard"; 
 import { MemberDetailSheet } from "../team/_components/MemberDetailSheet"; 
 import StrategicVisionModal, { VisionPillar } from "./_components/StrategicVisionModal"; 
+import { useTaskMap } from "@/lib/hooks/useTaskMap";
 
 // --- REUSABLE UI COMPONENTS ---
 const GlassCard = ({ children, className, onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
@@ -46,23 +47,18 @@ const GlassCard = ({ children, className, onClick }: { children: React.ReactNode
   </motion.div>
 );
 
-// UPDATED: Added Award & Vote Icons
 const ActivityIcon = ({ type }: { type: EventType | 'System' }) => {
     switch (type) {
         case "Training": return <div className="w-8 h-8 rounded-xl bg-[#004F71]/10 flex items-center justify-center text-[#004F71] shadow-sm relative z-10 ring-4 ring-white"><Shield className="w-4 h-4" /></div>;
         case "Goal": return <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm relative z-10 ring-4 ring-white"><Target className="w-4 h-4" /></div>;
         case "Deadline": return <div className="w-8 h-8 rounded-xl bg-[#E51636]/10 flex items-center justify-center text-[#E51636] shadow-sm relative z-10 ring-4 ring-white"><Zap className="w-4 h-4" /></div>;
         case "OneOnOne": return <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 shadow-sm relative z-10 ring-4 ring-white"><MessageSquare className="w-4 h-4" /></div>;
-        
-        // --- NEW TYPES ---
         case "Award": return <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shadow-sm relative z-10 ring-4 ring-white"><Trophy className="w-4 h-4 fill-current" /></div>;
         case "Vote": return <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shadow-sm relative z-10 ring-4 ring-white"><Vote className="w-4 h-4" /></div>;
-
         default: return <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shadow-sm relative z-10 ring-4 ring-white"><Activity className="w-4 h-4" /></div>;
     }
 };
 
-// --- NEW KPI CARD COMPONENT ---
 const KPICard = ({ kpi, onClick }: { kpi: any, onClick: () => void }) => {
   return (
       <motion.div 
@@ -122,7 +118,6 @@ const KPICard = ({ kpi, onClick }: { kpi: any, onClick: () => void }) => {
   )
 }
 
-// --- KPI MODAL ---
 interface KPIModalProps {
     title: string;
     items: { id: string; title: string; subtitle: string; icon?: any; status?: string, rawEvent?: CalendarEvent }[];
@@ -133,113 +128,189 @@ interface KPIModalProps {
 }
 
 const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPIModalProps) => {
+    // --- DYNAMIC THEME ENGINE ---
+    const getThemeStyles = (bgClass: string) => {
+        if (bgClass.includes("#004F71")) return { 
+            gradient: "from-[#004F71] to-[#003855]", 
+            iconText: "text-[#004F71]", 
+            border: "group-hover:border-[#004F71]/30",
+            hoverBg: "group-hover:bg-[#004F71]",
+            lightBg: "bg-blue-50"
+        };
+        if (bgClass.includes("purple")) return { 
+            gradient: "from-purple-600 to-indigo-700", 
+            iconText: "text-purple-600",
+            border: "group-hover:border-purple-200",
+            hoverBg: "group-hover:bg-purple-600",
+            lightBg: "bg-purple-50"
+        };
+        if (bgClass.includes("#E51636")) return { 
+            gradient: "from-[#E51636] to-[#b30f28]", 
+            iconText: "text-[#E51636]",
+            border: "group-hover:border-[#E51636]/30",
+            hoverBg: "group-hover:bg-[#E51636]",
+            lightBg: "bg-red-50"
+        };
+        if (bgClass.includes("emerald")) return { 
+            gradient: "from-emerald-600 to-teal-700", 
+            iconText: "text-emerald-600",
+            border: "group-hover:border-emerald-200",
+            hoverBg: "group-hover:bg-emerald-600",
+            lightBg: "bg-emerald-50"
+        };
+        return { 
+            gradient: "from-slate-700 to-slate-900", 
+            iconText: "text-slate-600",
+            border: "group-hover:border-slate-200",
+            hoverBg: "group-hover:bg-slate-600",
+            lightBg: "bg-slate-50"
+        };
+    };
+
+    const theme = getThemeStyles(color);
+    const [search, setSearch] = useState("");
+
+    const filteredItems = items.filter(i => 
+        i.title.toLowerCase().includes(search.toLowerCase()) || 
+        i.subtitle.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // FIX: Explicitly typed Variants to resolve TS error
+    const backdropVariants: Variants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0.2 } },
+        exit: { opacity: 0, transition: { duration: 0.2, delay: 0.1 } } 
+    };
+
+    const modalVariants: Variants = {
+        hidden: { scale: 0.95, opacity: 0, y: 40 },
+        visible: { scale: 1, opacity: 1, y: 0, transition: { type: "spring", damping: 25, stiffness: 300 } },
+        exit: { scale: 0.95, opacity: 0, y: 40, transition: { duration: 0.2 } }
+    };
+
     return (
         <ClientPortal>
-            <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4">
+            <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center p-0 md:p-4 isolate">
                 <motion.div 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }} 
-                    exit={{ opacity: 0 }} 
-                    className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-md" 
+                    variants={backdropVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-md -z-10" 
                     onClick={onClose} 
                 />
+                
                 <motion.div 
-                    initial={{ scale: 0.95, opacity: 0, y: 100 }} 
-                    animate={{ scale: 1, opacity: 1, y: 0 }} 
-                    exit={{ scale: 0.95, opacity: 0, y: 100 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className="bg-[#F8FAFC] w-full md:w-[95%] max-w-2xl rounded-t-[32px] md:rounded-[40px] shadow-2xl relative overflow-hidden flex flex-col h-[85vh] md:max-h-[85vh] border border-white/40 ring-1 ring-black/5"
+                    variants={modalVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    className="bg-[#F8FAFC] w-full md:w-[95%] max-w-2xl rounded-t-[40px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col h-[90vh] md:max-h-[85vh] border border-white/20 ring-1 ring-black/5 z-10"
                 >
-                    <div className={cn("p-6 md:p-8 pt-8 md:pt-10 text-white relative overflow-hidden shrink-0", color)}>
-                        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/20 rounded-full blur-[80px] pointer-events-none" />
-                        <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 mix-blend-overlay" />
+                    {/* --- HEADER --- */}
+                    <div className={cn("p-8 pt-10 text-white relative overflow-hidden shrink-0 bg-gradient-to-br", theme.gradient)}>
+                        {/* Noise Texture */}
+                        <div className="absolute inset-0 opacity-[0.08] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat mix-blend-overlay" />
+                        <div className="absolute -top-20 -right-20 w-64 h-64 bg-white/10 rounded-full blur-[80px] pointer-events-none" />
                         
-                        <div className="relative z-10 flex items-start justify-between">
-                            <div className="flex items-center gap-4 md:gap-5">
-                                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white/10 border border-white/20 backdrop-blur-md shadow-2xl flex items-center justify-center">
-                                    <Icon className="w-6 h-6 md:w-8 md:h-8 text-white drop-shadow-md" />
+                        <div className="relative z-10">
+                            <div className="flex items-start justify-between mb-8">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full border border-white/20 backdrop-blur-md">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                    <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/90">System Record</span>
+                                </div>
+                                <button 
+                                    onClick={onClose} 
+                                    className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white border border-white/10 active:scale-90"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="flex items-center gap-6">
+                                <div className="w-16 h-16 rounded-[24px] bg-white/20 border border-white/30 backdrop-blur-md shadow-2xl flex items-center justify-center shrink-0">
+                                    <Icon className="w-8 h-8 text-white drop-shadow-md" />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                        <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-white/80">System Record</span>
-                                    </div>
-                                    <h2 className="text-2xl md:text-3xl font-[1000] tracking-tighter leading-none">{title}</h2>
-                                    <p className="text-white/60 font-medium text-xs md:text-sm mt-1">{items.length} Active Entries</p>
+                                    <h2 className="text-3xl md:text-4xl font-[1000] tracking-tighter leading-none mb-1">{title}</h2>
+                                    <p className="text-white/70 font-bold text-xs md:text-sm uppercase tracking-wider">{items.length} Active Entries</p>
                                 </div>
                             </div>
-                            <button 
-                                onClick={onClose} 
-                                className="p-2 md:p-3 bg-white/10 hover:bg-white/20 rounded-full transition-all text-white border border-white/10 active:scale-90"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
                         </div>
                     </div>
                     
-                    <div className="px-4 md:px-6 py-4 bg-white border-b border-slate-100 flex items-center gap-3 sticky top-0 z-20">
-                        <Search className="w-4 h-4 text-slate-400" />
-                        <input type="text" placeholder={`Search ${title}...`} className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300" />
+                    {/* --- SEARCH --- */}
+                    <div className="px-6 py-4 bg-white border-b border-slate-100 flex items-center gap-3 sticky top-0 z-20 shadow-sm">
+                        <Search className="w-5 h-5 text-slate-400" />
+                        <input 
+                            autoFocus
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            type="text" 
+                            placeholder={`Search in ${title}...`} 
+                            className="w-full bg-transparent text-base font-bold text-slate-700 outline-none placeholder:text-slate-300" 
+                        />
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 bg-[#F8FAFC]">
-                        {items.length > 0 ? (
-                            items.map((item, i) => (
-                                <motion.div 
-                                    initial={{ opacity: 0, x: -20 }} 
-                                    animate={{ opacity: 1, x: 0 }} 
-                                    transition={{ delay: i * 0.04 }}
-                                    key={item.id} 
-                                    onClick={() => onItemClick && onItemClick(item)}
-                                    className={cn(
-                                        "group bg-white p-4 rounded-[20px] border border-slate-100 shadow-sm flex items-center gap-4 md:gap-5 hover:shadow-xl hover:border-slate-200 transition-all relative overflow-hidden",
-                                        onItemClick && "cursor-pointer active:scale-[0.98]"
-                                    )}
-                                >
-                                    <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", color)} />
-
-                                    <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center font-black text-base md:text-lg shadow-inner shrink-0 transition-transform group-hover:scale-110", color.replace('bg-', 'bg-').replace('600', '50').replace('#', ''))}>
-                                        <div className={cn("opacity-10 absolute inset-0", color)} />
-                                        <span className={cn("relative z-10", color.replace('bg-', 'text-'))}>
-                                            {item.icon ? <item.icon className="w-5 h-5 md:w-6 md:h-6" /> : item.title.charAt(0)}
-                                        </span>
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <p className="text-sm font-[800] text-slate-900 truncate group-hover:text-[#E51636] transition-colors">{item.title}</p>
-                                            {item.status && (
-                                                <span className={cn(
-                                                    "px-2 py-0.5 rounded-md text-[7px] md:text-[8px] font-black uppercase tracking-wider border",
-                                                    item.status === 'High' || item.status === 'FOH' 
-                                                        ? "bg-blue-50 text-[#004F71] border-blue-100" 
-                                                        : "bg-slate-50 text-slate-500 border-slate-100"
-                                                )}>
-                                                    {item.status}
-                                                </span>
-                                            )}
+                    {/* --- LIST --- */}
+                    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-3 bg-[#F8FAFC] custom-scrollbar">
+                        {filteredItems.length > 0 ? (
+                            <AnimatePresence mode="popLayout">
+                                {filteredItems.map((item, i) => (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10 }} 
+                                        animate={{ opacity: 1, y: 0 }} 
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        transition={{ delay: i * 0.03 }}
+                                        key={item.id} 
+                                        onClick={() => onItemClick && onItemClick(item)}
+                                        className={cn(
+                                            "group bg-white p-4 rounded-[24px] border border-slate-100 shadow-sm flex items-center gap-4 hover:shadow-lg transition-all relative overflow-hidden",
+                                            onItemClick && "cursor-pointer active:scale-[0.98]",
+                                            theme.border
+                                        )}
+                                    >
+                                        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg shadow-inner shrink-0 transition-transform group-hover:scale-110", theme.lightBg)}>
+                                            <span className={cn("relative z-10", theme.iconText)}>
+                                                {item.icon ? <item.icon className="w-6 h-6" /> : item.title.charAt(0)}
+                                            </span>
                                         </div>
-                                        <p className="text-[10px] md:text-[11px] font-bold text-slate-400 truncate uppercase tracking-wide flex items-center gap-1.5">
-                                            {item.subtitle}
-                                        </p>
-                                    </div>
 
-                                    {onItemClick && (
-                                        <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#E51636] group-hover:text-white transition-colors shadow-sm">
-                                            <ChevronRight className="w-4 h-4" />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <p className="text-sm md:text-base font-[800] text-slate-900 truncate group-hover:text-slate-700 transition-colors">{item.title}</p>
+                                                {item.status && (
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-wider border",
+                                                        theme.lightBg, theme.iconText, "border-transparent"
+                                                    )}>
+                                                        {item.status}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-[10px] md:text-xs font-bold text-slate-400 truncate uppercase tracking-wide flex items-center gap-1.5">
+                                                {item.subtitle}
+                                            </p>
                                         </div>
-                                    )}
-                                </motion.div>
-                            ))
+
+                                        {onItemClick && (
+                                            <div className={cn("w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center transition-colors shadow-sm", theme.hoverBg, "group-hover:text-white")}>
+                                                <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-white" />
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 border-2 border-dashed border-slate-200 rounded-[32px] mx-4">
-                                <div className="p-4 bg-slate-100 rounded-full mb-3"><Activity className="w-6 h-6 opacity-50" /></div>
-                                <p className="text-[10px] font-bold uppercase tracking-widest">System Empty</p>
+                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 border-2 border-dashed border-slate-200 rounded-[32px] mx-2 bg-slate-50/50">
+                                <div className="p-4 bg-slate-100 rounded-full mb-3"><Activity className="w-6 h-6 opacity-30" /></div>
+                                <p className="text-xs font-bold uppercase tracking-widest">No entries found</p>
                             </div>
                         )}
                     </div>
                     
-                    <div className="p-4 bg-white border-t border-slate-100 flex justify-between items-center text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 md:px-8">
+                    {/* --- FOOTER --- */}
+                    <div className="p-4 bg-white border-t border-slate-100 flex justify-between items-center text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest px-6 md:px-8 shrink-0">
                         <span>Synced: {new Date().toLocaleTimeString()}</span>
                         <span>v4.2.0</span>
                     </div>
@@ -249,7 +320,6 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
     );
 };
 
-// --- DYNAMIC STRATEGIC VISION BOARD ---
 const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], onUpdate: () => void }) => {
     const ICONS: any = { Zap, Mountain, Target, Gauge, Users, DollarSign, Trophy };
     
@@ -302,7 +372,6 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
                             const Icon = ICONS[pillar.icon] || Target;
                             const target = pillar.target || 100;
                             const progress = Math.min(100, Math.max(0, (pillar.current / target) * 100));
-                            const isAuto = pillar.source && pillar.source !== 'manual';
 
                             return (
                                 <motion.div 
@@ -378,6 +447,9 @@ export default function DashboardPage() {
   const { events, team, loading, subscribeEvents, subscribeTeam, currentUser } = useAppStore();
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // DYNAMIC TASK TITLE LOOKUP
+  const taskMap = useTaskMap();
+  
   // Modals & State
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selected1on1, setSelected1on1] = useState<CalendarEvent | null>(null);
@@ -394,26 +466,24 @@ export default function DashboardPage() {
   const feedRef = useRef<HTMLDivElement>(null);
   const nextRef = useRef<HTMLDivElement>(null);
 
-  // --- DATA SUBSCRIPTIONS ---
   useEffect(() => {
     const unsubEvents = subscribeEvents();
     const unsubTeam = subscribeTeam();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     
-    // Subscribe to Vision Config
     const unsubVision = onSnapshot(doc(db, "vision", "current"), (docSnap) => {
         if (docSnap.exists()) {
             const data = docSnap.data();
             if (data.pillars) setVisionPillars(data.pillars);
         } else {
-             setVisionPillars([]); // EMPTY STATE ON FRESH LOAD
+             setVisionPillars([]);
         }
     });
 
     return () => { unsubEvents(); unsubTeam(); unsubVision(); clearInterval(timer); };
   }, [subscribeEvents, subscribeTeam]);
 
-  // --- CALCULATE LIVE METRICS ---
+  // CALCULATE LIVE METRICS
   const calculatedPillars = useMemo(() => {
     const currentMonth1on1s = events.filter(e => e.type === "OneOnOne" && e.status === "Done" && isSameMonth(e.startDate, new Date())).length;
     const activeGoalsCount = events.filter(e => e.type === "Goal" && e.status !== "Done").length;
@@ -435,8 +505,6 @@ export default function DashboardPage() {
     });
   }, [visionPillars, events, team]);
 
-
-  // --- KPIS (Refined) ---
   const kpis = useMemo(() => {
     const certifiedLeaders = team.filter(m => m.status === "Director" || m.status === "Assistant Director");
     const monthlyOneOnOnes = events.filter(e => e.type === "OneOnOne" && isSameMonth(e.startDate, new Date()));
@@ -450,6 +518,7 @@ export default function DashboardPage() {
     ];
   }, [team, events]);
   
+  // DYNAMIC TITLE LOGIC: Replaces raw task titles with live names from builder
   const activityFeed = useMemo(() => {
       return [...events].sort((a, b) => {
           const aCreated = (a as any).createdAt;
@@ -457,8 +526,16 @@ export default function DashboardPage() {
           const dateA = aCreated?.toDate ? aCreated.toDate() : new Date(a.startDate);
           const dateB = bCreated?.toDate ? bCreated.toDate() : new Date(b.startDate);
           return dateB.getTime() - dateA.getTime();
-      }).slice(0, 8); 
-  }, [events]);
+      }).slice(0, 8).map(event => {
+          let displayTitle = event.title;
+          
+          if (event.metadata?.taskId && taskMap[event.metadata.taskId]) {
+              displayTitle = `Module Verified: ${taskMap[event.metadata.taskId]}`;
+          }
+
+          return { ...event, title: displayTitle };
+      });
+  }, [events, taskMap]);
 
   const nextSession = useMemo(() => {
     return events.filter(e => e.type === "OneOnOne" && isFuture(e.startDate)).sort((a, b) => a.startDate.getTime() - b.startDate.getTime())[0];
@@ -469,7 +546,6 @@ export default function DashboardPage() {
   const handleUpdate1on1 = async (updatedEvent: CalendarEvent) => { const loadToast = toast.loading("Updating Session..."); try { await updateDoc(doc(db, "events", updatedEvent.id), { description: updatedEvent.description, subtasks: updatedEvent.subtasks, status: updatedEvent.status, updatedAt: serverTimestamp() }); toast.success("Session Updated", { id: loadToast }); setSelected1on1(null); } catch (e) { toast.error("Error", { id: loadToast }); } };
   const handleKPIItemClick = (item: any) => { if (item.rawEvent) { if (item.rawEvent.type === "OneOnOne") { setSelected1on1(item.rawEvent); } else { setSelectedEvent(item.rawEvent); } } };
   
-  // Handlers
   const scrollToSection = (section: 'live' | 'next') => {
       if (!scrollRef.current) return;
       if (section === 'live') {
@@ -483,7 +559,6 @@ export default function DashboardPage() {
     return team.find(m => m.id === currentUser?.uid);
   }, [team, currentUser]);
 
-  // --- RENDER LOGIC ---
   if (currentUser?.role === "Team Member") {
     return (
         <div className="min-h-screen bg-[#F8FAFC] p-6 flex flex-col items-center justify-center">
@@ -526,7 +601,6 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-6 pb-32 font-sans text-slate-900 relative overflow-hidden">
-        {/* Background Blurs */}
         <div className="fixed inset-0 pointer-events-none">
             <div className="absolute top-[-20%] left-[-10%] w-[800px] md:w-[1400px] h-[800px] md:h-[1400px] bg-gradient-to-br from-blue-50/40 via-purple-50/20 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[600px] md:w-[1000px] h-[600px] md:h-[1000px] bg-gradient-to-tl from-red-50/30 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
@@ -553,10 +627,8 @@ export default function DashboardPage() {
                 </motion.div>
             </div>
             
-            {/* THE SMART VISION BOARD */}
             <StrategicVisionBoard pillars={calculatedPillars} onUpdate={() => setIsVisionModalOpen(true)} />
 
-            {/* KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {kpis.map((kpi, idx) => (
                     <KPICard 
@@ -567,7 +639,6 @@ export default function DashboardPage() {
                 ))}
             </div>
 
-            {/* --- MOBILE TABS HEADER --- */}
             <div className="flex lg:hidden items-center gap-6 px-1 mb-2">
                 <button onClick={() => scrollToSection('live')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'live' ? "text-slate-900" : "text-slate-300")}>
                     Live Feed
@@ -579,7 +650,6 @@ export default function DashboardPage() {
                 </button>
             </div>
 
-            {/* --- HORIZONTAL SCROLL CONTAINER FOR MOBILE --- */}
             <div 
                 ref={scrollRef}
                 className="flex lg:grid lg:grid-cols-12 gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] -mx-4 px-4 pb-8 lg:mx-0 lg:px-0 lg:pb-0"
@@ -674,7 +744,6 @@ export default function DashboardPage() {
         </div>
         </div>
 
-        {/* ... (Modals) ... */}
         <AnimatePresence>
             {selectedEvent && (
                 <EventDetailSheet 
@@ -689,7 +758,6 @@ export default function DashboardPage() {
         <AnimatePresence>{selected1on1 && <OneOnOneSessionModal event={selected1on1} onClose={() => setSelected1on1(null)} onUpdate={handleUpdate1on1} />}</AnimatePresence>
         <AnimatePresence>{activeKPI && <KPIModal title={activeKPI.title} items={activeKPI.items} color={activeKPI.color} icon={activeKPI.icon} onClose={() => setActiveKPI(null)} onItemClick={handleKPIItemClick} />}</AnimatePresence>
         
-        {/* STRATEGIC VISION MODAL */}
         <AnimatePresence>
             {isVisionModalOpen && (
                 <StrategicVisionModal 

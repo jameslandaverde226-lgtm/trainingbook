@@ -1,11 +1,9 @@
-// app/(main)/team/_components/tabs/CurriculumTab.tsx
 "use client";
 
 import { useMemo, useState, useEffect } from "react";
-// ADDED: Imported 'X'
 import { 
   Check, HardDrive, BookOpen, Loader2, Maximize2, 
-  Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, LayoutGrid, CheckCircle2, Expand, AlignLeft, X
+  Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, CheckCircle2, Expand, AlignLeft, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../../calendar/_components/types";
@@ -16,7 +14,7 @@ import toast from "react-hot-toast";
 import { motion, AnimatePresence, useDragControls, PanInfo } from "framer-motion";
 import ClientPortal from "@/components/core/ClientPortal";
 
-// --- COLOR MAP (Matches Builder Page) ---
+// --- COLOR MAP ---
 const SUBJECT_COLORS = [
     { id: "slate", hex: "#f8fafc", bg: "bg-slate-50", text: "text-slate-500", border: "border-slate-200" }, 
     { id: "navy", hex: "#f0f9ff", bg: "bg-[#004F71]/10", text: "text-[#004F71]", border: "border-[#004F71]/20" }, 
@@ -24,7 +22,7 @@ const SUBJECT_COLORS = [
     { id: "amber", hex: "#fffbeb", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200" },
 ];
 
-// --- MANUAL VIEWER MODAL (Unchanged) ---
+// --- MANUAL VIEWER MODAL ---
 function ManualViewerModal({ url, title, pages, onClose, color }: { url: string, title: string, pages: string, onClose: () => void, color: string }) {
     const [loading, setLoading] = useState(true);
     const dragControls = useDragControls();
@@ -64,10 +62,9 @@ const CANVA_LINKS: Record<string, string> = {
   Unassigned: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view"
 };
 
-// --- ENHANCED SKELETON (MATCHES CARD LAYOUT) ---
+// --- SKELETON LOADER ---
 const CurriculumSkeleton = () => (
     <div className="space-y-4 animate-pulse">
-        {/* Mock Header */}
         <div className="flex justify-between items-center mb-6 px-1">
             <div className="flex gap-3 items-center">
                 <div className="w-10 h-10 bg-slate-200 rounded-2xl" />
@@ -77,8 +74,6 @@ const CurriculumSkeleton = () => (
                 </div>
             </div>
         </div>
-
-        {/* Mock Grid Cards */}
         <div className="grid grid-cols-1 gap-4">
             {[1, 2, 3].map((i) => (
                 <div key={i} className="bg-white border border-slate-100 rounded-[32px] p-6 h-32 shadow-sm flex items-center justify-between">
@@ -107,12 +102,10 @@ export function CurriculumTab({ member }: Props) {
   const [manualSection, setManualSection] = useState<any | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   
-  // Refined Loading State with Minimum Display Time
   const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
      if (!globalLoading && curriculum.length > 0) {
-         // Slightly longer delay for smooth crossfade
          const timer = setTimeout(() => setIsInitializing(false), 500);
          return () => clearTimeout(timer);
      } else if (!globalLoading && curriculum.length === 0) {
@@ -133,6 +126,7 @@ export function CurriculumTab({ member }: Props) {
       }, 0);
   }, [filteredCurriculum]);
 
+  // --- CORE LOGIC: VERIFICATION WITH DYNAMIC LINKING ---
   const handleVerifyTask = async (taskId: string, taskTitle: string) => {
       const currentIds = member.completedTaskIds || [];
       const wasCompleted = currentIds.includes(taskId);
@@ -140,9 +134,11 @@ export function CurriculumTab({ member }: Props) {
       const newCompletedIds = wasCompleted ? currentIds.filter(id => id !== taskId) : [...currentIds, taskId];
       const newProgress = globalTotalTasks > 0 ? Math.round((newCompletedIds.length / globalTotalTasks) * 100) : 0;
 
+      // 1. Optimistic Update
       updateMemberLocal(member.id, { completedTaskIds: newCompletedIds, progress: newProgress });
 
       try {
+          // 2. Update Member Profile
           const memberRef = doc(db, "profileOverrides", member.id);
           await setDoc(memberRef, { 
               completedTaskIds: wasCompleted ? arrayRemove(taskId) : arrayUnion(taskId), 
@@ -150,24 +146,29 @@ export function CurriculumTab({ member }: Props) {
               updatedAt: serverTimestamp() 
           }, { merge: true });
           
+          // 3. Create Event Log with Metadata for Dynamic Updates
           if (!wasCompleted) {
               await addDoc(collection(db, "events"), {
-                  title: `Module Verified: ${taskTitle}`,
+                  title: `Module Verified: ${taskTitle}`, // Fallback title
                   type: "Training",
                   status: "Done",
-                  priority: "Normal",
-                  assigneeId: "System",
+                  priority: "Medium", // CHANGED FROM "Normal" to "Medium" TO FIX CALENDAR VISIBILITY
+                  assignee: "System",
                   assigneeName: "System",
                   teamMemberId: member.id,
                   teamMemberName: member.name,
                   description: `Completed training module: ${taskTitle}`,
-                  createdAt: serverTimestamp()
+                  createdAt: serverTimestamp(),
+                  metadata: {
+                      taskId: taskId,
+                      originalTitle: taskTitle
+                  }
               });
               toast.success("Module Verified");
           }
       } catch (e) {
           toast.error("Sync Failed");
-          updateMemberLocal(member.id, { completedTaskIds: currentIds }); 
+          updateMemberLocal(member.id, { completedTaskIds: currentIds }); // Revert on error
       }
   };
 
@@ -181,7 +182,7 @@ export function CurriculumTab({ member }: Props) {
   const isFOH = member.dept === "FOH";
   const brandBg = isFOH ? 'bg-[#004F71]' : 'bg-[#E51636]';
 
-  // --- RENDER LOGIC ---
+  // --- RENDER ---
 
   if (member.dept === "Unassigned") {
       return (
@@ -192,7 +193,6 @@ export function CurriculumTab({ member }: Props) {
       );
   }
 
-  // Show Skeleton if loading OR initializing to prevent layout shift
   if (globalLoading || isInitializing) {
      return (
         <div className="p-6 md:p-8">
@@ -239,12 +239,6 @@ export function CurriculumTab({ member }: Props) {
             )}
         </motion.div>
 
-        {/* 
-            CRITICAL FIX: 
-            Removed layoutId from motion.div components.
-            This prevents Framer Motion from trying to morph dissimilar elements, which causes the distortion.
-            Using simple opacity/translate transitions instead (mode="wait" ensures clean swap).
-        */}
         <AnimatePresence mode="wait">
             {!activeSection ? (
                 /* VIEW 1: PHASE SELECTION GRID */
@@ -265,7 +259,6 @@ export function CurriculumTab({ member }: Props) {
                         return (
                             <motion.div 
                                 key={section.id}
-                                // NO layoutId
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.05 }}

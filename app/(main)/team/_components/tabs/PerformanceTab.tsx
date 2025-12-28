@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
+import { useTaskMap } from "@/lib/hooks/useTaskMap"; // Import Hook
 
 interface Props {
   member: TeamMember;
@@ -27,13 +28,14 @@ const getActivityConfig = (type: string) => {
         case '1-ON-1': return { icon: MessageSquare, color: 'bg-purple-500', text: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200', accent: 'border-l-purple-500' };
         // New System Types
         case 'AWARD': return { icon: Trophy, color: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'border-l-amber-500' };
-        case 'WINNER': return { icon: Crown, color: 'bg-amber-400', text: 'text-amber-800', bg: 'bg-amber-100', border: 'border-amber-300', accent: 'border-l-amber-500' }; // NEW WINNER STYLE
+        case 'WINNER': return { icon: Crown, color: 'bg-amber-400', text: 'text-amber-800', bg: 'bg-amber-100', border: 'border-amber-300', accent: 'border-l-amber-500' }; 
         case 'VOTE': return { icon: Vote, color: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', accent: 'border-l-slate-400' };
         
-        // --- NEW ICONS ---
+        // System Actions
         case 'PROMOTION': return { icon: Crown, color: 'bg-indigo-500', text: 'text-indigo-700', bg: 'bg-indigo-50', border: 'border-indigo-200', accent: 'border-l-indigo-500' };
         case 'TRANSFER': return { icon: ArrowLeftRight, color: 'bg-cyan-500', text: 'text-cyan-700', bg: 'bg-cyan-50', border: 'border-cyan-200', accent: 'border-l-cyan-500' };
         case 'ASSIGNMENT': return { icon: UserPlus, color: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50', border: 'border-sky-200', accent: 'border-l-sky-500' };
+        case 'SYSTEM': return { icon: Link2, color: 'bg-slate-500', text: 'text-slate-700', bg: 'bg-slate-50', border: 'border-slate-200', accent: 'border-l-slate-500' };
 
         // Documents
         case 'INCIDENT': return { icon: AlertTriangle, color: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', accent: 'border-l-red-500' };
@@ -51,13 +53,15 @@ const getActivityConfig = (type: string) => {
 export function PerformanceTab({ member }: Props) {
   const { events, curriculum } = useAppStore();
   const [selectedSession, setSelectedSession] = useState<CalendarEvent | null>(null);
+  
+  // LIVE TASK LOOKUP
+  const taskMap = useTaskMap();
 
   // --- AGGREGATE TIMELINE DATA ---
   const timelineData = useMemo(() => {
     const history: any[] = [];
     
-    // We want events where the member is EITHER the assignee (lead) OR the participant (teamMemberId)
-    // BUT for "Award" events (like EOTM), the 'assignee' is usually "System", so we check teamMemberId mainly.
+    // Filter relevant events
     const relevantEvents = events.filter(e => 
         e.teamMemberId === member.id || (e.assignee === member.id && e.type === 'Goal')
     );
@@ -67,7 +71,12 @@ export function PerformanceTab({ member }: Props) {
         let title = e.title;
         let desc = e.description || "";
 
-        // Parse Document Logs
+        // DYNAMIC TITLE OVERRIDE (For verified modules)
+        if (e.metadata?.taskId && taskMap[e.metadata.taskId]) {
+            title = `Module Verified: ${taskMap[e.metadata.taskId]}`;
+        }
+
+        // Categorize
         if (desc.startsWith("[DOCUMENT LOG:")) {
              const match = desc.match(/\[DOCUMENT LOG: (.*?)\]/);
              const docType = match ? match[1] : 'Note';
@@ -81,10 +90,8 @@ export function PerformanceTab({ member }: Props) {
         else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
         else if (e.type === 'Award') {
-             // DETECT EOTM WINNER
              if (title.startsWith("EOTM Winners")) {
                  category = 'WINNER';
-                 // Clean up description for the card view
                  desc = "Awarded Employee of the Month for outstanding performance.";
              } else {
                  category = 'AWARD';
@@ -93,12 +100,11 @@ export function PerformanceTab({ member }: Props) {
         else if (e.type === 'Vote') category = 'VOTE';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
-        // NEW CATEGORIES
+        // System Logs
         if (desc.includes("[SYSTEM LOG: PROMOTION]")) category = 'PROMOTION';
         else if (desc.includes("[SYSTEM LOG: TRANSFER]")) category = 'TRANSFER';
         else if (desc.includes("[SYSTEM LOG: ASSIGNMENT]")) category = 'ASSIGNMENT';
 
-        // Clean System Logs
         if (desc.startsWith("[SYSTEM LOG:") || desc.startsWith("[OFFICIAL")) {
              desc = desc.replace(/\[.*?\]\n/, "").trim();
         }
@@ -113,7 +119,8 @@ export function PerformanceTab({ member }: Props) {
         });
     });
 
-    // 2. CURRICULUM MODULES
+    // CURRICULUM SUMMARY (If any modules completed this session without an event log yet)
+    // Note: Usually events handle this now, but keeping as fallback for legacy data
     if (member.completedTaskIds && member.completedTaskIds.length > 0) {
         let completedNames: string[] = [];
         curriculum.forEach(section => {
@@ -121,19 +128,12 @@ export function PerformanceTab({ member }: Props) {
                  if (member.completedTaskIds?.includes(t.id)) completedNames.push(t.title);
              });
         });
-        if (completedNames.length > 0) {
-             history.push({
-                 id: 'module-summary',
-                 date: new Date(), 
-                 title: `${completedNames.length} Training Modules Verified`,
-                 category: 'MODULE',
-                 description: `Completed: ${completedNames.slice(0, 3).join(", ")}${completedNames.length > 3 ? "..." : ""}`
-             });
-        }
+        // We don't push a generic summary here anymore to avoid duplicates with the individual event logs
+        // unless it's a legacy system migration scenario.
     }
 
     return history.sort((a, b) => b.date.getTime() - a.date.getTime());
-  }, [events, member, curriculum]);
+  }, [events, member, curriculum, taskMap]); // Depend on taskMap
 
   const handleUpdateEvent = async (updatedEvent: CalendarEvent) => { 
       try { 

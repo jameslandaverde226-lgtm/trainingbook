@@ -84,6 +84,9 @@ export default function OneOnOneSessionModal({ event, onClose, onUpdate }: Props
       onClose();
   };
 
+  // FIX: Helper to safely check image validity
+  const hasValidImage = sessionUser?.image && sessionUser.image.trim() !== "";
+
   return (
     <ClientPortal>
         <div className="fixed inset-0 z-[200] flex items-end md:items-center justify-center md:p-6 p-0">
@@ -114,10 +117,12 @@ export default function OneOnOneSessionModal({ event, onClose, onUpdate }: Props
                             
                             <div className="flex flex-col items-center gap-2">
                                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-[20px] md:rounded-[28px] bg-white p-1 shadow-xl rotate-3 shrink-0">
-                                    {sessionUser ? (
-                                        <img src={sessionUser.image} className="w-full h-full rounded-[16px] md:rounded-[24px] object-cover" />
+                                    {hasValidImage ? (
+                                        <img src={sessionUser!.image} className="w-full h-full rounded-[16px] md:rounded-[24px] object-cover" alt="" />
                                     ) : (
-                                        <div className="w-full h-full bg-slate-100 rounded-[16px] md:rounded-[24px] flex items-center justify-center"><User className="w-8 h-8 text-slate-300" /></div>
+                                        <div className="w-full h-full bg-slate-100 rounded-[16px] md:rounded-[24px] flex items-center justify-center font-black text-slate-300 text-2xl">
+                                            {sessionUser?.name.charAt(0) || <User className="w-8 h-8 text-slate-300" />}
+                                        </div>
                                     )}
                                 </div>
                                 <span className="px-2 py-0.5 md:px-3 md:py-1 bg-white text-[#E51636] rounded-full text-[8px] md:text-[9px] font-black uppercase tracking-widest shadow-lg -mt-3 md:-mt-4 relative z-10">
