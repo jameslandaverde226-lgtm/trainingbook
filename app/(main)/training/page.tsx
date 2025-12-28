@@ -276,7 +276,6 @@ const DraggableTask = ({
                                     e.target.style.height = 'auto';
                                     e.target.style.height = `${e.target.scrollHeight}px`;
                                 }}
-                                // NOTE: Manual onFocus removed in favor of global activeElement check
                                 className={cn(
                                     "w-full bg-transparent outline-none resize-none overflow-hidden",
                                     isSubject 
@@ -367,8 +366,6 @@ export default function TrainingBuilderPage() {
   
   // LOCKS
   const isAutoScrolling = useRef(false);
-  
-  // Ref to store sections to break dependency loop in scroll listener
   const sectionsRef = useRef<Section[]>([]);
   
   const dragControls = useDragControls();
@@ -416,11 +413,11 @@ export default function TrainingBuilderPage() {
       }
   };
 
-  // --- AUTO SCROLL DETECTION (Fixed for Stability) ---
+  // --- AUTO SCROLL DETECTION (Stable & Input-Safe) ---
   useEffect(() => {
     const handleScroll = () => {
-        // 1. GLOBAL BLOCKER: If the user is typing, DO NOT update the dynamic island.
-        // This prevents the "jumping" glitch when textareas resize.
+        // 1. HARD STOP: If typing, do not update dynamic island.
+        // This stops the "Reset to Phase 1" bug.
         if (
              isAutoScrolling.current || 
              document.activeElement?.tagName === "TEXTAREA" || 
@@ -429,9 +426,7 @@ export default function TrainingBuilderPage() {
             return;
         }
 
-        // 2. STABLE THRESHOLD LOGIC
-        // Instead of calculating "area coverage", we just check what element is 
-        // currently crossing the top 30% of the screen.
+        // 2. STABLE THRESHOLD
         const triggerPoint = window.innerHeight * 0.3; 
         
         let closestId: string | null = null;
@@ -441,10 +436,7 @@ export default function TrainingBuilderPage() {
             const el = sectionRefs.current[s.id];
             if (el) {
                 const rect = el.getBoundingClientRect();
-                // Distance from trigger point
                 const distance = Math.abs(rect.top - triggerPoint);
-                
-                // Check if element is roughly on screen (top is above fold, bottom is below trigger)
                 if (rect.top < window.innerHeight && rect.bottom > triggerPoint) {
                     if (distance < minDistance) {
                         minDistance = distance;
@@ -479,7 +471,7 @@ export default function TrainingBuilderPage() {
   }, [activeSectionId, mobileViewerOpen]);
 
   const addSection = async () => {
-    isAutoScrolling.current = true; // Lock
+    isAutoScrolling.current = true;
     
     const nextOrder = sections.length > 0 ? (sections[sections.length - 1].order || 0) + 1 : 0;
     const lastPage = sections.length > 0 ? (Number(sections[sections.length - 1].pageEnd) || 0) : 0;
@@ -523,7 +515,8 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
+    // FIX 1: Removed overflow-x-hidden to allow sticky to work
+    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       
       <TrainingDynamicIsland 
         activeDept={activeDept}
@@ -542,15 +535,19 @@ export default function TrainingBuilderPage() {
                const isActive = activeSectionId === section.id;
                return (
                  <div key={section.id} ref={el => { sectionRefs.current[section.id] = el; }} className={cn("relative transition-all duration-500 w-full max-w-2xl", isActive ? "z-30" : "z-0")}>
+                    
+                    {/* Background glow - Keep this, it doesn't affect layout */}
                     <AnimatePresence>
                         {isActive && (
                             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 0.2, scale: 1.15 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.6, ease: "easeOut" }} className={cn("absolute -inset-10 md:-inset-16 bg-gradient-to-r from-transparent via-current to-transparent blur-[80px] md:blur-[120px] rounded-[50%] -z-10 pointer-events-none hidden md:block", activeDept === "FOH" ? "text-blue-500" : "text-red-500")} />
                         )}
                     </AnimatePresence>
                     
+                    {/* Phase Number Badge */}
                     <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                     
-                    {/* NOTE: REMOVED SCALING (scale-95 etc) TO PREVENT JITTER */}
+                    {/* FIX 2: Removed scaling (scale-95/100) from the layout container. 
+                        Added visual dimming instead. This prevents layout shift/jitter. */}
                     <div onClick={() => scrollToSection(section.id)} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-300 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-80 hover:opacity-100")}>
                          <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
                             <div className="flex-1 space-y-2 md:space-y-3">
@@ -624,6 +621,7 @@ export default function TrainingBuilderPage() {
 
          {/* RIGHT COLUMN */}
          <div className="hidden lg:block col-span-5 relative h-full">
+            {/* FIX 3: h-fit on this container ensures it doesn't stretch, allowing sticky to work inside it */}
             <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-40 blur-[120px] transition-colors duration-1000 -z-10", activeDept === "FOH" ? "from-blue-200" : "from-red-200")} />
                <div className="h-[calc(100vh-8rem)] bg-white rounded-[44px] border border-slate-200/80 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col relative ring-1 ring-black/5">
