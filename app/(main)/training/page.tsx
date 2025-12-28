@@ -364,7 +364,7 @@ export default function TrainingBuilderPage() {
   const [viewingImage, setViewingImage] = useState<{ id: string, url: string } | null>(null);
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   
-  // FIX: Lock variable to prevent scroll listener from overwriting selection
+  // Lock variable to prevent scroll listener from overwriting selection
   const isAutoScrolling = useRef(false);
   
   // FIX: Ref to store sections to break dependency loop in scroll listener
@@ -421,19 +421,27 @@ export default function TrainingBuilderPage() {
         // If user just clicked/added, ignore scroll events for a moment
         if (isAutoScrolling.current) return;
 
-        const viewportCenter = window.innerHeight / 2;
+        const viewportHeight = window.innerHeight;
+        const triggerPoint = viewportHeight * 0.4; // 40% from top
+
         let closestId: string | null = null;
-        let minDistance = Infinity;
+        let maxVisibleHeight = 0;
         
-        // Use ref here to avoid stale closures or re-attaching listener constantly
+        // Use ref here to avoid stale closures
         sectionsRef.current.forEach((s) => {
             const el = sectionRefs.current[s.id];
             if (el) {
                 const rect = el.getBoundingClientRect();
-                const elementCenter = rect.top + (rect.height / 2);
-                const distance = Math.abs(viewportCenter - elementCenter);
-                if (distance < minDistance) {
-                    minDistance = distance;
+                
+                // Calculate visible height of the element
+                const visibleTop = Math.max(0, rect.top);
+                const visibleBottom = Math.min(viewportHeight, rect.bottom);
+                const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+                
+                // We prioritize the element that takes up the most screen space
+                // OR if it's crossing the "trigger point"
+                if (visibleHeight > maxVisibleHeight) {
+                    maxVisibleHeight = visibleHeight;
                     closestId = s.id;
                 }
             }
@@ -447,7 +455,7 @@ export default function TrainingBuilderPage() {
     
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []); // Empty dependency array = listener attaches ONCE
+  }, []); 
 
   const getEmbedUrl = () => {
     if (!activeSection || !activeSection.pageStart) return null;
