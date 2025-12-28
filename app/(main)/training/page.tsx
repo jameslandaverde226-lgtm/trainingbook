@@ -326,7 +326,8 @@ const DraggableTask = ({
                                         {SUBJECT_COLORS.map(c => (
                                             <button
                                                 key={c.id}
-                                                onClick={() => {
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // FIX: Added stopPropagation
                                                     const newTasks = section.tasks.map((t: Task) => t.id === task.id ? { ...t, color: c.id } : t);
                                                     updateSection(section.id, { tasks: newTasks });
                                                     saveSection(section.id, { tasks: newTasks });
@@ -343,13 +344,25 @@ const DraggableTask = ({
                                 )}
 
                                 {!isSubject && (
-                                    <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-50 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
+                                    <label 
+                                        onClick={(e) => e.stopPropagation()} // FIX: Added stopPropagation
+                                        className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-50 rounded-lg transition-all shrink-0"
+                                    >
+                                        <Cloud className="w-4 h-4" />
+                                        <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} />
+                                    </label>
                                 )}
-                                <button onClick={() => {
-                                    const newTasks = section.tasks.filter((t: Task) => t.id !== task.id);
-                                    updateSection(section.id, { tasks: newTasks });
-                                    saveSection(section.id, { tasks: newTasks });
-                                }} className="p-2 text-slate-300 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation(); // FIX: Added stopPropagation
+                                        const newTasks = section.tasks.filter((t: Task) => t.id !== task.id);
+                                        updateSection(section.id, { tasks: newTasks });
+                                        saveSection(section.id, { tasks: newTasks });
+                                    }} 
+                                    className="p-2 text-slate-300 hover:text-red-500 shrink-0"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </motion.div>
                         )}
                     </AnimatePresence>
