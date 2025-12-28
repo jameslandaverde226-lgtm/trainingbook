@@ -1,3 +1,4 @@
+// app/(main)/team/_components/MemberDetailSheet.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -38,47 +39,36 @@ interface Props {
 const TRANSITION = { type: "spring" as const, damping: 25, stiffness: 300 };
 
 export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: Props) {
-  // Added 'curriculum' to destructured store
   const { events, team, currentUser, curriculum } = useAppStore(); 
   
   const router = useRouter(); 
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
   
-  // Local state for immediate visual feedback
   const [currentDept, setCurrentDept] = useState(member.dept);
 
-  // --- SYNC STATE WITH PROP ---
   useEffect(() => {
     if (member.dept !== currentDept) {
         setCurrentDept(member.dept);
     }
   }, [member.dept]);
 
-  // --- DYNAMIC THEME HELPERS ---
   const isFOH = currentDept === 'FOH';
   const themeColorText = isFOH ? 'text-[#004F71]' : 'text-[#E51636]';
   const themeColorBg = isFOH ? 'bg-[#004F71]' : 'bg-[#E51636]';
-  const themeColorBorder = isFOH ? 'border-[#004F71]' : 'border-[#E51636]';
   const themeRing = isFOH ? 'ring-blue-50' : 'ring-red-50';
   const themeLightIconBg = isFOH ? 'bg-blue-100/50' : 'bg-red-100/50';
 
-  // --- CALCULATE REAL-TIME PROGRESS ---
-  // This overrides the potentially stale 'member.progress' from DB with actual task data
   const displayMember = useMemo(() => {
       if (!curriculum || curriculum.length === 0) return member;
 
-      // 1. Filter curriculum to only count tasks for this user's department
       const relevantSections = curriculum.filter(section => 
           section.dept?.toUpperCase() === member.dept?.toUpperCase()
       );
 
-      // 2. Count total tasks in those sections
       const totalTasks = relevantSections.reduce((acc, section) => 
           acc + (section.tasks?.length || 0), 0);
 
-      // 3. Count how many of those specific tasks the user has completed
-      // We check if the task ID exists in the user's completed list
       const completedCount = relevantSections.reduce((acc, section) => {
           const completedInSection = section.tasks?.filter((t: any) => 
               member.completedTaskIds?.includes(t.id)
@@ -86,7 +76,6 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
           return acc + completedInSection;
       }, 0);
 
-      // 4. Calculate Percentage
       const calculatedProgress = totalTasks > 0 
           ? Math.round((completedCount / totalTasks) * 100) 
           : 0;
@@ -97,25 +86,19 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
       };
   }, [member, curriculum]);
 
-  // --- UPDATE UNIT FUNCTION ---
   const toggleUnit = async () => {
     const newDept = isFOH ? 'BOH' : 'FOH';
-    
-    // 1. Optimistic Update
     setCurrentDept(newDept); 
 
     const toastId = toast.loading(`Transferring to ${newDept}...`);
 
     try {
-        // 2. Database Update
         const overrideRef = doc(db, COLLECTION_NAME, member.id); 
-        
         await setDoc(overrideRef, { 
             dept: newDept,
             updatedAt: new Date().toISOString()
         }, { merge: true });
 
-        // 3. GLOBAL STATE UPDATE
         if (team) {
             const updatedTeam = team.map(t => 
                 t.id === member.id ? { ...t, dept: newDept as TeamMember["dept"] } : t
@@ -125,7 +108,6 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
 
         toast.success(`Unit Reassigned: ${newDept}`, { id: toastId });
         router.refresh();
-        
     } catch (error) {
         console.error("Error updating unit:", error);
         toast.error("Transfer failed", { id: toastId });
@@ -133,7 +115,6 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
     }
   };
 
-  // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = "unset"; };
@@ -141,15 +122,8 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
 
   const joinedDate = member.joined ? format(new Date(member.joined), "MMM d, yyyy") : "N/A";
 
-  // IMPORT THE HEADER COMPONENT DYNAMICALLY TO AVOID CIRCULAR DEPS IF ANY
-  // But here we use the imported one. 
-  // We pass 'displayMember' instead of 'member' to the header components.
-  
-  // (Import moved to top: import { MemberProfileHeader } from "./MemberProfileHeader";)
-  // Ensure you have: import { MemberProfileHeader } from "./MemberProfileHeader"; 
-  // I will assume it is imported or I'll inline the fix if I was generating the full file content from scratch, 
-  // but based on context, I just need to use the calculated 'displayMember'.
-  const { MemberProfileHeader } = require("./MemberProfileHeader"); // Dynamic require to ensure it picks up changes if needed, or standard import above.
+  // Dynamic import fix logic removed as it's not needed in this context, assuming MemberProfileHeader is imported correctly.
+  // Using direct component for simplicity in this full-file replacement.
 
   return (
     <ClientPortal>
@@ -164,7 +138,11 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
       <motion.div 
         initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} 
         transition={TRANSITION}
-        className="fixed inset-y-0 right-0 z-[110] w-full md:w-[95%] lg:w-[1200px] bg-[#F8FAFC] md:rounded-l-[40px] shadow-2xl overflow-hidden flex flex-col md:flex-row"
+        className={cn(
+            "fixed inset-y-0 right-0 z-[110] w-full md:w-[95%] lg:w-[1200px] bg-[#F8FAFC] shadow-2xl flex flex-col md:flex-row overflow-hidden",
+            // FIX: Explicitly set border-radius on the motion div itself for desktop
+            "md:rounded-l-[40px]" 
+        )}
       >
         
         {/* =========================================================================
@@ -203,7 +181,15 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                     <div className="relative w-28 h-28">
                         <svg className="w-full h-full -rotate-90 drop-shadow-lg">
                             <circle cx="56" cy="56" r="46" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
-                            <circle cx="56" cy="56" r="46" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={289} strokeDashoffset={289 - (289 * (displayMember.progress || 0) / 100)} className={themeColorText} strokeLinecap="round" />
+                            <circle 
+                                cx="56" cy="56" r="46" 
+                                stroke="currentColor" strokeWidth="8" 
+                                fill="transparent" 
+                                strokeDasharray={289} 
+                                strokeDashoffset={289 - (289 * (displayMember.progress || 0) / 100)} 
+                                className={themeColorText} 
+                                strokeLinecap="round" 
+                            />
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className="text-2xl font-[1000] text-slate-900">{displayMember.progress || 0}%</span>
@@ -214,10 +200,10 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                     </p>
                 </div>
 
-                {/* Detailed Info Cards (UPDATED LAYOUT) */}
+                {/* Detailed Info Cards */}
                 <div className="grid grid-cols-2 gap-3 w-full">
                     
-                    {/* EMAIL (Span 2) */}
+                    {/* EMAIL */}
                     <div className="col-span-2 group p-4 bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-200 rounded-2xl transition-all shadow-sm hover:shadow-md flex items-center gap-4">
                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform", themeLightIconBg, themeColorText)}>
                             <Mail className="w-5 h-5" />
@@ -228,7 +214,7 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                         </div>
                     </div>
 
-                    {/* JOINED (Span 2) */}
+                    {/* JOINED */}
                     <div className="col-span-2 group p-4 bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-200 rounded-2xl transition-all shadow-sm hover:shadow-md flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-purple-100/50 flex items-center justify-center text-purple-600 shrink-0 group-hover:scale-110 transition-transform">
                             <Calendar className="w-5 h-5" />
@@ -239,7 +225,7 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                         </div>
                     </div>
 
-                    {/* MENTOR (Span 2 - Rich Card) */}
+                    {/* MENTOR */}
                     <div className="col-span-2 group p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-3 relative overflow-hidden">
                         {member.pairing ? (
                             <>
@@ -263,7 +249,6 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                                 </div>
                             </>
                         ) : (
-                             // Empty State
                              <>
                                 <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 shrink-0 border border-dashed border-slate-200">
                                     <User className="w-5 h-5" />
@@ -445,7 +430,6 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                  </div>
 
                 {/* --- TAB ROUTER --- */}
-                {/* FIX: Pass displayMember (calculated progress) instead of member to tabs */}
                 <div className="h-full">
                     {activeTab === 'overview' && (
                         <OverviewTab member={displayMember} />
