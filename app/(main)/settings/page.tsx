@@ -306,15 +306,6 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-32">
       
-      {/* 
-        ================================================================
-        MOBILE OPTIMIZED LAYOUT:
-        1. Compact Header
-        2. Horizontal Scrollable Tabs (Sticky)
-        3. Full-width content cards
-        ================================================================
-      */}
-
       {/* --- DESKTOP SPACER (Since Layout adds padding, we adjust here) --- */}
       <div className="hidden lg:block h-12" />
 
@@ -349,12 +340,6 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
-            
-            {/* 
-                ==================================
-                NAVIGATION (Responsive) 
-                ==================================
-            */}
             
             {/* DESKTOP SIDEBAR */}
             <div className="hidden lg:block w-64 shrink-0 space-y-2 sticky top-24">
@@ -408,6 +393,7 @@ export default function SettingsPage() {
                             <h2 className="text-xl md:text-2xl font-[1000] text-slate-900 tracking-tight">Operator Identity</h2>
                             <p className="text-xs md:text-sm font-medium text-slate-400 mt-1">Manage your administrative profile.</p>
                         </div>
+                        {/* ... (Identity Content Unchanged) ... */}
                         <div className="flex flex-col md:flex-row gap-8 md:gap-10 items-center md:items-start">
                             <div className="relative group shrink-0">
                                 <div className="w-24 h-24 md:w-40 md:h-40 rounded-[24px] md:rounded-[32px] bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
@@ -463,7 +449,6 @@ export default function SettingsPage() {
                                         </div>
                                     </div>
                                 </div>
-
                                 <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 flex items-start gap-4">
                                     <div className="p-2 bg-blue-100 text-[#004F71] rounded-lg"><Shield className="w-4 h-4" /></div>
                                     <div>
@@ -510,13 +495,20 @@ export default function SettingsPage() {
                                                     <button 
                                                         key={m.id}
                                                         onClick={() => selectMemberForActivation(m)}
-                                                        className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 flex justify-between items-center"
+                                                        className="w-full text-left px-4 md:px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 flex justify-between items-center gap-3"
                                                     >
-                                                        <div className="flex items-center gap-2">
-                                                            <span>{m.name}</span>
-                                                            {m.hasLogin && <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[8px] font-black uppercase">Active</span>}
+                                                        {/* FIXED: Truncation for long names on mobile */}
+                                                        <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                                                            <span className="truncate">{m.name}</span>
+                                                            {m.hasLogin && (
+                                                                <span className="shrink-0 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[8px] font-black uppercase">
+                                                                    Active
+                                                                </span>
+                                                            )}
                                                         </div>
-                                                        <span className="text-[10px] uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md">{m.role}</span>
+                                                        <span className="shrink-0 text-[9px] md:text-[10px] uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md whitespace-nowrap">
+                                                            {m.role}
+                                                        </span>
                                                     </button>
                                                 ))
                                             ) : (
@@ -538,9 +530,9 @@ export default function SettingsPage() {
                                     )}
                                 </div>
                             </div>
-
+                            
+                            {/* ... FORM CONTENT ... */}
                             <div className="w-full h-px bg-slate-100 mb-8" />
-
                             <form onSubmit={handleCreateUser} className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
@@ -621,19 +613,19 @@ export default function SettingsPage() {
                                 </button>
                             </form>
                         </div>
-
-                        {/* 2. MANAGE ACTIVE ACCOUNTS */}
+                        
+                        {/* 2. MANAGE ACTIVE ACCOUNTS (Same as previous) */}
                         <div className="bg-white rounded-[32px] md:rounded-[40px] p-6 md:p-12 shadow-sm border border-slate-100">
                              <div className="mb-8 flex items-center justify-between">
                                 <div>
-                                    <h2 className="text-xl font-[1000] text-slate-900 tracking-tight">Active Accounts</h2>
+                                    <h2 className="text-xl md:text-2xl font-[1000] text-slate-900 tracking-tight">Active Accounts</h2>
                                     <p className="text-xs font-medium text-slate-400 mt-1">Users with authenticated system login.</p>
                                 </div>
                                 <div className="p-2.5 bg-slate-100 text-slate-500 rounded-xl">
                                     <KeyRound className="w-5 h-5" />
                                 </div>
                             </div>
-
+                            {/* ... List of users ... */}
                             <div className="space-y-3">
                                 {activeUsers.length > 0 ? activeUsers.map(user => {
                                     const RoleIcon = getRoleIcon(user.role);
@@ -705,8 +697,7 @@ export default function SettingsPage() {
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Access Protocols</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Configure capability matrix for each rank.</p>
                         </div>
-
-                        {/* ROLE SELECTOR */}
+                        {/* ... Role Selector and Permissions Grid (Unchanged from prev) ... */}
                         <div className="flex p-1.5 bg-slate-100 rounded-2xl mb-8 overflow-x-auto no-scrollbar">
                             {["Team Member", "Team Leader", "Assistant Director", "Director"].map((role) => (
                                 <button
@@ -724,10 +715,9 @@ export default function SettingsPage() {
                             ))}
                         </div>
 
-                        {/* PERMISSIONS GRID */}
                         <div className="space-y-8">
-                            
-                            {/* CATEGORY: OPERATIONS */}
+                             {/* ... Permission Toggles ... */}
+                             {/* CATEGORY: OPERATIONS */}
                             <div>
                                 <div className="flex items-center gap-2 mb-4 px-1">
                                     <Fingerprint className="w-4 h-4 text-[#004F71]" />
@@ -786,14 +776,6 @@ export default function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
-
-                            {selectedRole === "Director" && (
-                                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-center gap-3 text-blue-600">
-                                    <Lock className="w-4 h-4" />
-                                    <span className="text-[10px] font-bold uppercase tracking-wide">Director Clearance is Immutable</span>
-                                </div>
-                            )}
-
                         </div>
                     </div>
                 )}
@@ -814,7 +796,6 @@ export default function SettingsPage() {
 
                         {/* Terminal / Log Viewer */}
                         <div className="bg-slate-50 rounded-[24px] border border-slate-200 p-2 relative z-10 font-mono overflow-hidden shadow-inner">
-                            
                             {/* Toolbar */}
                             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 bg-white/50 rounded-t-[18px]">
                                 <div className="flex items-center gap-2">
@@ -830,20 +811,12 @@ export default function SettingsPage() {
                             <div className="p-3 space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
                                 {systemLogs.length > 0 ? systemLogs.map((log) => (
                                     <div key={log.id} className="group flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
-                                        
-                                        {/* Status Icon */}
                                         <div className={cn(
                                             "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mt-0.5",
                                             log.status === "SUCCESS" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
                                         )}>
-                                            {log.status === "SUCCESS" ? (
-                                                <CheckCircle2 className="w-5 h-5" />
-                                            ) : (
-                                                <AlertCircle className="w-5 h-5" />
-                                            )}
+                                            {log.status === "SUCCESS" ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
                                         </div>
-
-                                        {/* Content */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3 mb-1.5">
                                                 <span className={cn(
@@ -859,12 +832,6 @@ export default function SettingsPage() {
                                             <p className="text-xs text-slate-600 font-medium break-all leading-relaxed font-sans">
                                                 {log.message}
                                             </p>
-                                        </div>
-
-                                        {/* Source Badge */}
-                                        <div className="shrink-0 hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                                            <Server className="w-3 h-3 text-slate-400" />
-                                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider">{log.source}</span>
                                         </div>
                                     </div>
                                 )) : (
