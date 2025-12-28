@@ -438,11 +438,33 @@ export default function TrainingBuilderPage() {
                               <div className="flex items-center gap-3 md:gap-4">
                                   {!previewMode ? <GripVertical className="w-4 h-4 text-slate-200 shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-slate-300 shrink-0" />}
                                   <div className="flex-1">
-                                      {previewMode ? <p className="text-sm font-medium text-slate-700">{task.title || "Untitled Objective"}</p> : <input value={task.title} onChange={e => { const newTasks = section.tasks.map(t => t.id === task.id ? { ...t, title: e.target.value } : t); updateSection(section.id, { tasks: newTasks }); }} className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300" placeholder="Enter objective..." />}
+                                      {/* UPDATED: Textarea instead of input for wrapping text */}
+                                      {previewMode ? (
+                                          <p className="text-sm font-medium text-slate-700 whitespace-pre-wrap break-words">{task.title || "Untitled Objective"}</p>
+                                      ) : (
+                                          <textarea 
+                                              value={task.title} 
+                                              onChange={e => { 
+                                                  const newTasks = section.tasks.map(t => t.id === task.id ? { ...t, title: e.target.value } : t); 
+                                                  updateSection(section.id, { tasks: newTasks });
+                                                  e.target.style.height = 'auto';
+                                                  e.target.style.height = `${e.target.scrollHeight}px`;
+                                              }} 
+                                              className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300 resize-none overflow-hidden" 
+                                              placeholder="Enter objective..."
+                                              rows={1}
+                                              ref={(el) => {
+                                                  if (el) {
+                                                      el.style.height = 'auto';
+                                                      el.style.height = `${el.scrollHeight}px`;
+                                                  }
+                                              }}
+                                          />
+                                      )}
                                   </div>
                                   <AnimatePresence>
                                      {!previewMode && (
-                                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
+                                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 self-start pt-1">
                                              <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
                                              <button onClick={() => updateDoc(doc(db, "curriculum", section.id), { tasks: section.tasks.filter(t => t.id !== task.id) })} className="p-2 text-slate-300 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
                                          </motion.div>
