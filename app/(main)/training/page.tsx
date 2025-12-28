@@ -364,7 +364,7 @@ export default function TrainingBuilderPage() {
   const [viewingImage, setViewingImage] = useState<{ id: string, url: string } | null>(null);
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   
-  // FIX 1: Lock variable to prevent scroll listener from overwriting selection
+  // Lock variable to prevent scroll listener from overwriting selection
   const isAutoScrolling = useRef(false);
   
   const dragControls = useDragControls();
@@ -377,9 +377,9 @@ export default function TrainingBuilderPage() {
       const sortedData = data.sort((a, b) => (a.order || 0) - (b.order || 0));
       setSections(sortedData);
       
-      // Initial Load
+      // Initial Load - Ensure we default to the first section if nothing selected
       if (data.length > 0 && !activeSectionId) {
-          setActiveSectionId(data[0].id);
+          setActiveSectionId(sortedData[0].id);
       }
     });
     return () => unsubscribe();
@@ -501,22 +501,22 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    // FIX 2: Removed overflow-x-hidden from main wrapper to allow sticky positioning to work
     <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       
+      {/* 
+          Passed activePhaseIndex (ensuring fallback to 0) 
+          and activePhaseTitle (fallback to 'Loading...') 
+          to the Dynamic Island so it updates instantly.
+      */}
       <TrainingDynamicIsland 
         activeDept={activeDept}
         setActiveDept={setActiveDept}
         activePhaseIndex={activeIndex !== -1 ? activeIndex : 0}
-        activePhaseTitle={activeSection?.title}
+        activePhaseTitle={activeSection?.title || "New Phase"}
         previewMode={previewMode}
         setPreviewMode={setPreviewMode}
       />
 
-      {/* 
-         UPDATED MAIN GRID:
-         1. items-stretch ensures right column matches height of left column (allows sticky)
-      */}
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-stretch relative z-10 pb-32">
          
          {/* LEFT COLUMN */}
