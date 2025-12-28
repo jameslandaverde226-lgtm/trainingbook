@@ -364,7 +364,7 @@ export default function TrainingBuilderPage() {
   const [viewingImage, setViewingImage] = useState<{ id: string, url: string } | null>(null);
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   
-  // FIX: Lock variable to prevent scroll listener from overwriting selection
+  // FIX 1: Lock variable to prevent scroll listener from overwriting selection
   const isAutoScrolling = useRef(false);
   
   const dragControls = useDragControls();
@@ -501,7 +501,8 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
+    // FIX 2: Removed overflow-x-hidden from main wrapper to allow sticky positioning to work
+    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       
       <TrainingDynamicIsland 
         activeDept={activeDept}
@@ -512,6 +513,10 @@ export default function TrainingBuilderPage() {
         setPreviewMode={setPreviewMode}
       />
 
+      {/* 
+         UPDATED MAIN GRID:
+         1. items-stretch ensures right column matches height of left column (allows sticky)
+      */}
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-stretch relative z-10 pb-32">
          
          {/* LEFT COLUMN */}
