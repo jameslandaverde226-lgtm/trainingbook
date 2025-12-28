@@ -1,7 +1,7 @@
 // app/(main)/training/page.tsx
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { 
   motion, AnimatePresence, useDragControls, LayoutGroup, Transition, Reorder 
 } from "framer-motion";
@@ -215,7 +215,8 @@ const DraggableTask = ({
     handleFileUpload, 
     updateSection, 
     setViewingImage, 
-    section 
+    section,
+    onInteract // NEW PROP
 }: any) => {
     const controls = useDragControls();
     const isSubject = task.type === 'subject';
@@ -276,6 +277,8 @@ const DraggableTask = ({
                                     e.target.style.height = 'auto';
                                     e.target.style.height = `${e.target.scrollHeight}px`;
                                 }}
+                                onFocus={() => onInteract(true)}  // LOCK
+                                onBlur={() => onInteract(false)}  // UNLOCK
                                 className={cn(
                                     "w-full bg-transparent outline-none resize-none overflow-hidden",
                                     isSubject 
@@ -366,8 +369,9 @@ export default function TrainingBuilderPage() {
   
   // LOCKS
   const isAutoScrolling = useRef(false);
-  const sectionsRef = useRef<Section[]>([]);
+  const isInteractionLocked = useRef(false); // CRITICAL FIX: Global interaction lock
   
+  const sectionsRef = useRef<Section[]>([]);
   const dragControls = useDragControls();
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -391,6 +395,20 @@ export default function TrainingBuilderPage() {
   const activeIndex = sections.findIndex(s => s.id === activeSectionId);
   const activeSection = useMemo(() => sections[activeIndex] || sections[0], [sections, activeIndex]);
 
+  // --- INTERACTION HANDLERS ---
+  // Called by Inputs/Textareas to lock scroll spy
+  const handleInteraction = useCallback((isLocked: boolean, sectionId?: string) => {
+      if (isLocked && sectionId) {
+          isInteractionLocked.current = true;
+          setActiveSectionId(sectionId); // Force correct section immediately
+      } else {
+          // Add a small delay on unlock to prevent "blur -> scroll" jitter
+          setTimeout(() => {
+              isInteractionLocked.current = false;
+          }, 500);
+      }
+  }, []);
+
   // --- MANUAL SCROLL HANDLER (Triggered by Click or Add) ---
   const scrollToSection = (id: string) => {
       if (activeSectionId === id) return;
@@ -413,47 +431,49 @@ export default function TrainingBuilderPage() {
       }
   };
 
-  // --- AUTO SCROLL DETECTION (Stable & Input-Safe) ---
+  // --- AUTO SCROLL DETECTION (Improved Logic) ---
   useEffect(() => {
     const handleScroll = () => {
-        // 1. HARD STOP: If typing, do not update dynamic island.
-        // This stops the "Reset to Phase 1" bug because we ignore resizing textareas
-        if (
-             isAutoScrolling.current || 
-             document.activeElement?.tagName === "TEXTAREA" || 
-             document.activeElement?.tagName === "INPUT"
-        ) {
+        // 1. GLOBAL BLOCKER: If the user is typing or auto-scrolling, STOP.
+        if (isAutoScrolling.current || isInteractionLocked.current) {
             return;
         }
 
-        // 2. STABLE THRESHOLD
-        const triggerPoint = window.innerHeight * 0.3; 
+        // 2. THRESHOLD STRATEGY
+        // We find the last element that has crossed the "Trigger Line" (30% from top).
+        // This ensures that even if you scroll past Phase 1, Phase 2 becomes active 
+        // as soon as it hits the reading area.
+        const triggerLine = window.innerHeight * 0.3; 
         
-        let closestId: string | null = null;
-        let minDistance = Infinity;
+        let newActiveId: string | null = null;
         
+        // Iterate through all sections to see which ones are "above" the trigger line
         sectionsRef.current.forEach((s) => {
             const el = sectionRefs.current[s.id];
             if (el) {
                 const rect = el.getBoundingClientRect();
-                const distance = Math.abs(rect.top - triggerPoint);
-                if (rect.top < window.innerHeight && rect.bottom > triggerPoint) {
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        closestId = s.id;
-                    }
+                // If the top of the element is above (or at) the trigger line...
+                if (rect.top <= triggerLine) {
+                    // ...this is a candidate. Since we loop in order, the LAST one 
+                    // that matches this condition is the one currently at the top.
+                    newActiveId = s.id;
                 }
             }
         });
+
+        // Special case: If we are at the very top and nothing crossed yet, default to first
+        if (!newActiveId && sectionsRef.current.length > 0) {
+            newActiveId = sectionsRef.current[0].id;
+        }
         
-        if (closestId) {
-             setActiveSectionId((prev) => (prev !== closestId ? closestId : prev));
+        if (newActiveId && newActiveId !== activeSectionId) {
+             setActiveSectionId(newActiveId);
         }
     };
     
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, []); 
+  }, [activeSectionId]); // Added activeSectionId dep to ensure state is fresh
 
   const getEmbedUrl = () => {
     if (!activeSection || !activeSection.pageStart) return null;
@@ -515,7 +535,6 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    // FIX 1: Removed overflow-x-hidden to allow sticky to work
     <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       
       <TrainingDynamicIsland 
@@ -536,25 +555,24 @@ export default function TrainingBuilderPage() {
                return (
                  <div key={section.id} ref={el => { sectionRefs.current[section.id] = el; }} className={cn("relative transition-all duration-500 w-full max-w-2xl", isActive ? "z-30" : "z-0")}>
                     
-                    {/* Background glow - Keep this, it doesn't affect layout */}
+                    {/* Background glow - Visual only, no layout impact */}
                     <AnimatePresence>
                         {isActive && (
                             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 0.2, scale: 1.15 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.6, ease: "easeOut" }} className={cn("absolute -inset-10 md:-inset-16 bg-gradient-to-r from-transparent via-current to-transparent blur-[80px] md:blur-[120px] rounded-[50%] -z-10 pointer-events-none hidden md:block", activeDept === "FOH" ? "text-blue-500" : "text-red-500")} />
                         )}
                     </AnimatePresence>
                     
-                    {/* Phase Number Badge */}
+                    {/* Phase Badge */}
                     <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                     
-                    {/* FIX 2: Removed scaling (scale-95/100) from the layout container. 
-                        Added visual dimming instead. This prevents layout shift/jitter. */}
+                    {/* MAIN CARD: Jitter-Free Version */}
                     <div onClick={() => scrollToSection(section.id)} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-300 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-80 hover:opacity-100")}>
                          <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
                             <div className="flex-1 space-y-2 md:space-y-3">
                                <div className="flex items-center gap-2 md:gap-3">
                                   <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner")}>
                                     <CalendarClock className="w-3.5 h-3.5" />
-                                    {previewMode ? <span className="font-black text-slate-600">{section.duration}</span> : <input value={section.duration} onChange={e => updateSection(section.id, { duration: e.target.value })} onClick={(e) => e.stopPropagation()} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}
+                                    {previewMode ? <span className="font-black text-slate-600">{section.duration}</span> : <input value={section.duration} onChange={e => updateSection(section.id, { duration: e.target.value })} onClick={(e) => e.stopPropagation()} onFocus={() => handleInteraction(true, section.id)} onBlur={() => handleInteraction(false)} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}
                                   </div>
                                   <span className="text-[9px] md:text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
                                </div>
@@ -569,7 +587,8 @@ export default function TrainingBuilderPage() {
                                             e.target.style.height = `${e.target.scrollHeight}px`;
                                         }}
                                         onClick={(e) => e.stopPropagation()}
-                                        onFocus={() => setActiveSectionId(section.id)} // Force phase selection on focus
+                                        onFocus={() => handleInteraction(true, section.id)} // LOCK SCROLL
+                                        onBlur={() => handleInteraction(false)} // UNLOCK SCROLL
                                         className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
                                         rows={1}
                                         ref={(el) => {
@@ -599,6 +618,7 @@ export default function TrainingBuilderPage() {
                                         updateSection={updateSection} 
                                         setViewingImage={setViewingImage} 
                                         section={section}
+                                        onInteract={(locked: boolean) => handleInteraction(locked, section.id)} // PASS LOCK HANDLER
                                     />
                                 ))}
                             </Reorder.Group>
@@ -620,9 +640,8 @@ export default function TrainingBuilderPage() {
             <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} onClick={addSection} className="w-full max-w-2xl py-12 md:py-16 border-4 border-dashed rounded-[32px] md:rounded-[44px] font-black uppercase transition-all flex flex-col items-center justify-center gap-4 group border-slate-200 text-slate-300 hover:border-[#004F71] hover:text-[#004F71] hover:bg-white mb-32 md:mb-0"><div className={cn("p-4 rounded-full transition-all group-hover:scale-110 shadow-sm bg-slate-50 group-hover:bg-[#004F71] group-hover:text-white")}><Plus className="w-8 h-8" /></div><span className="text-lg md:text-xl tracking-tighter">Create New Phase</span></motion.button>)}</AnimatePresence>
          </div>
 
-         {/* RIGHT COLUMN */}
+         {/* RIGHT COLUMN - Sticky Container */}
          <div className="hidden lg:block col-span-5 relative h-full">
-            {/* FIX 3: h-fit on this container ensures it doesn't stretch, allowing sticky to work inside it */}
             <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-40 blur-[120px] transition-colors duration-1000 -z-10", activeDept === "FOH" ? "from-blue-200" : "from-red-200")} />
                <div className="h-[calc(100vh-8rem)] bg-white rounded-[44px] border border-slate-200/80 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col relative ring-1 ring-black/5">
