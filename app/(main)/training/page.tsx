@@ -1,14 +1,15 @@
+// app/(main)/training/page.tsx
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { 
-  motion, AnimatePresence, useDragControls, Reorder, LayoutGroup, Transition 
+  motion, AnimatePresence, useDragControls, LayoutGroup, Transition, Reorder 
 } from "framer-motion";
 import { 
   Plus, Trash2, GripVertical, Eye, Settings, X, Utensils, Coffee, 
   Cloud, Maximize2, CalendarClock, BookOpen, Loader2, 
   ChevronDown, Hash, ChevronRight, ChevronUp, Filter, Minimize2, CheckCircle2,
-  Expand, AlignLeft, ArrowLeft, LayoutGrid, List
+  Expand, AlignLeft, ArrowLeft, LayoutGrid, List, Clock, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +50,7 @@ const CANVA_LINKS: Record<string, string> = {
   Unassigned: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view" 
 };
 
-// --- PRESET COLORS ---
+// --- PRESET COLORS FOR SUBJECTS ---
 const SUBJECT_COLORS = [
     { id: "slate", hex: "#f8fafc", bg: "bg-slate-50", text: "text-slate-500", border: "border-slate-200", dot: "bg-slate-400" }, 
     { id: "navy", hex: "#f0f9ff", bg: "bg-[#004F71]/10", text: "text-[#004F71]", border: "border-[#004F71]/20", dot: "bg-[#004F71]" }, 
@@ -64,7 +65,7 @@ const SPRING_TRANSITION: Transition = {
   mass: 0.8
 };
 
-// --- UTILS: Custom Debounce ---
+// --- UTILS: Custom Debounce (No external dependency needed) ---
 function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
     let timeout: NodeJS.Timeout;
     return ((...args: any[]) => {
@@ -78,9 +79,9 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
 function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
     if (readOnly) {
         return (
-             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full border border-slate-200">
-                <Hash className="w-3 h-3 text-slate-400" />
-                <span className="text-[10px] font-black text-slate-600 uppercase tracking-wide">
+             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-50/50 rounded-lg border border-slate-200/60">
+                <Hash className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">
                     Pg {start}-{end}
                 </span>
             </div>
@@ -94,7 +95,7 @@ function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
     };
 
     return (
-        <div className="flex items-center bg-white/90 backdrop-blur-md border border-slate-200 rounded-full p-1.5 shadow-lg ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center bg-white/90 backdrop-blur-md border border-slate-200 rounded-full p-1.5 shadow-lg ring-1 ring-black/5">
             <div className="px-3 flex items-center gap-2 border-r border-slate-200/60">
                 <Hash className="w-3.5 h-3.5 text-[#004F71]" />
                 <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Pages</span>
@@ -361,7 +362,6 @@ export default function TrainingBuilderPage() {
   const handleInteraction = useCallback((isLocked: boolean, sectionId?: string) => {
       if (isLocked && sectionId) {
           isInteractionLocked.current = true;
-          // In Detail mode, activeSectionId is already set, but good to reinforce
       } else {
           setTimeout(() => { isInteractionLocked.current = false; }, 800);
       }
@@ -383,12 +383,10 @@ export default function TrainingBuilderPage() {
     lockInteraction();
     const nextOrder = sections.length > 0 ? (sections[sections.length - 1].order || 0) + 1 : 0;
     const lastPage = sections.length > 0 ? (Number(sections[sections.length - 1].pageEnd) || 0) : 0;
-    const docRef = await addDoc(collection(db, "curriculum"), {
+    await addDoc(collection(db, "curriculum"), {
         title: "New Training Phase", duration: "Day 1", pageStart: lastPage + 1, pageEnd: lastPage + 2,
         tasks: [], dept: activeDept, order: nextOrder, createdAt: serverTimestamp()
     });
-    // In Grid mode, we don't necessarily need to auto-open, but we can if desired.
-    // For now, let's just add it to the grid.
   };
 
   const handleFileUpload = async (section: Section, taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -409,7 +407,7 @@ export default function TrainingBuilderPage() {
   const enterPhase = (id: string) => {
       setActiveSectionId(id);
       setViewMode('detail');
-      window.scrollTo({ top: 0, behavior: 'smooth' }); // Reset scroll
+      window.scrollTo({ top: 0, behavior: 'smooth' }); 
   };
 
   const exitPhase = () => {
@@ -439,29 +437,43 @@ export default function TrainingBuilderPage() {
                         key={section.id} 
                         layoutId={`card-${section.id}`}
                         onClick={() => enterPhase(section.id)}
-                        className="bg-white rounded-[32px] p-8 border border-slate-100 hover:border-[#004F71]/30 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between min-h-[280px]"
+                        className={cn(
+                            "bg-white rounded-[32px] p-8 border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group flex flex-col justify-between min-h-[280px]",
+                            activeDept === "FOH" ? "hover:border-[#004F71]/20 hover:shadow-[#004F71]/5" : "hover:border-[#E51636]/20 hover:shadow-[#E51636]/5"
+                        )}
                      >
                         <div className="space-y-4">
                             <div className="flex justify-between items-start">
-                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-lg", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")}>
+                                {/* Beautiful Phase Badge */}
+                                <div className={cn(
+                                    "w-14 h-14 rounded-2xl flex items-center justify-center font-black text-white shadow-lg transition-transform group-hover:scale-110", 
+                                    activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]"
+                                )}>
                                     <span className="text-[10px] opacity-60 uppercase font-black mr-0.5">Ph</span>
-                                    <span className="text-xl">{idx + 1}</span>
+                                    <span className="text-2xl">{idx + 1}</span>
                                 </div>
-                                <div className="px-3 py-1 bg-slate-50 rounded-full border border-slate-100 text-[10px] font-black uppercase text-slate-400">
-                                    {section.duration}
+                                <div className="p-2 rounded-full bg-slate-50 border border-slate-100 group-hover:bg-white transition-colors">
+                                    <ArrowRightIcon />
                                 </div>
                             </div>
-                            <h3 className="text-2xl font-black text-slate-900 tracking-tighter leading-tight group-hover:text-[#004F71] transition-colors line-clamp-3">
+                            <h3 className="text-3xl font-black text-slate-900 tracking-tighter leading-tight group-hover:text-slate-700 transition-colors line-clamp-3">
                                 {section.title}
                             </h3>
                         </div>
-                        <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                            <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-widest">
-                                <List className="w-4 h-4" />
-                                <span>{section.tasks.length} Modules</span>
+                        
+                        {/* Rich Metadata Footer */}
+                        <div className="flex items-center gap-3 pt-6 border-t border-slate-50 mt-4">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg text-slate-500 text-xs font-bold uppercase tracking-wide">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>{section.duration}</span>
                             </div>
-                            <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center group-hover:bg-[#004F71] group-hover:text-white transition-colors">
-                                <ArrowRightIcon />
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg text-slate-500 text-xs font-bold uppercase tracking-wide">
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>Pg {section.pageStart}-{section.pageEnd}</span>
+                            </div>
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg text-slate-500 text-xs font-bold uppercase tracking-wide ml-auto">
+                                <List className="w-3.5 h-3.5" />
+                                <span>{section.tasks.length}</span>
                             </div>
                         </div>
                      </motion.div>
@@ -477,14 +489,14 @@ export default function TrainingBuilderPage() {
              </motion.div>
          )}
 
-         {/* --- DETAIL VIEW (Split Screen) --- */}
+         {/* --- DETAIL VIEW --- */}
          {viewMode === 'detail' && activeSection && (
              <div className="grid grid-cols-12 gap-6 md:gap-12 items-start animate-in fade-in zoom-in-95 duration-300">
                  
                  {/* LEFT: Editor */}
                  <div className="col-span-12 lg:col-span-7 space-y-6">
-                     <button onClick={exitPhase} className="flex items-center gap-2 text-slate-400 hover:text-[#004F71] font-bold uppercase text-xs tracking-widest mb-4 transition-colors">
-                         <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm"><ArrowLeft className="w-4 h-4" /></div>
+                     <button onClick={exitPhase} className="flex items-center gap-2 text-slate-400 hover:text-[#004F71] font-bold uppercase text-xs tracking-widest mb-4 transition-colors group">
+                         <div className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform"><ArrowLeft className="w-4 h-4" /></div>
                          Back to Grid
                      </button>
 
@@ -574,7 +586,6 @@ export default function TrainingBuilderPage() {
                     <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
                        <div className={cn("absolute inset-0 bg-gradient-to-br opacity-40 blur-[120px] transition-colors duration-1000 -z-10", activeDept === "FOH" ? "from-blue-200" : "from-red-200")} />
                        <div className="h-[calc(100vh-8rem)] bg-white rounded-[44px] border border-slate-200/80 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col relative ring-1 ring-black/5">
-                          {/* ... Keep existing Canva Header/Body/Footer code ... */}
                           <div className="px-7 py-5 border-b border-slate-100 flex justify-between items-center bg-white/80 backdrop-blur-xl shrink-0 z-20">
                              <div className="flex items-center gap-3">
                                  <div className={cn("p-2 rounded-xl text-white shadow-md transition-colors", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")}><BookOpen className="w-4 h-4" /></div>
@@ -635,5 +646,5 @@ export default function TrainingBuilderPage() {
 
 // Arrow Icon Helper
 function ArrowRightIcon() {
-    return <ChevronRight className="w-4 h-4" />
+    return <ChevronRight className="w-4 h-4 text-slate-400" />
 }
