@@ -1,3 +1,4 @@
+// app/(main)/training/page.tsx
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
@@ -453,7 +454,8 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
+    // FIX 1: Removed overflow-x-hidden to prevent sticky breaking
+    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       
       <TrainingDynamicIsland 
         activeDept={activeDept}
@@ -466,10 +468,10 @@ export default function TrainingBuilderPage() {
 
       {/* 
          UPDATED MAIN GRID:
-         1. Changed items-stretch to items-start so columns don't force height
+         1. FIX 2: Changed items-start to items-stretch (default) to ensure columns have equal height for sticky positioning
          2. Adjusted padding
       */}
-      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-start relative z-10 pb-32">
+      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-stretch relative z-10 pb-32">
          
          {/* LEFT COLUMN (Scrollable List) */}
          <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-0 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative flex flex-col items-center w-full">
@@ -555,7 +557,7 @@ export default function TrainingBuilderPage() {
          <div className="hidden lg:block col-span-5 relative h-full">
              {/* 
                 STICKY CONTAINER:
-                top-28: Sits nicely below the floating header.
+                top-28: Sits nicely below the floating header (header ~64px + margin).
                 h-fit: Ensures it doesn't take up more space than needed.
              */}
             <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
