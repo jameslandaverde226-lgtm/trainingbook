@@ -363,6 +363,10 @@ export default function TrainingBuilderPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [viewingImage, setViewingImage] = useState<{ id: string, url: string } | null>(null);
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
+  
+  // FIX: Lock variable to prevent scroll listener from overwriting selection
+  const isAutoScrolling = useRef(false);
+  
   const dragControls = useDragControls();
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
@@ -372,7 +376,11 @@ export default function TrainingBuilderPage() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Section[];
       const sortedData = data.sort((a, b) => (a.order || 0) - (b.order || 0));
       setSections(sortedData);
-      if (data.length > 0 && !activeSectionId) setActiveSectionId(data[0].id);
+      
+      // Initial Load
+      if (data.length > 0 && !activeSectionId) {
+          setActiveSectionId(data[0].id);
+      }
     });
     return () => unsubscribe();
   }, [activeDept]);
@@ -380,11 +388,37 @@ export default function TrainingBuilderPage() {
   const activeIndex = sections.findIndex(s => s.id === activeSectionId);
   const activeSection = useMemo(() => sections[activeIndex] || sections[0], [sections, activeIndex]);
 
+  // --- MANUAL SCROLL HANDLER (Triggered by Click or Add) ---
+  const scrollToSection = (id: string) => {
+      isAutoScrolling.current = true; // LOCK
+      setActiveSectionId(id);
+      
+      const el = sectionRefs.current[id];
+      if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      // Unlock after scroll finishes (approx 800ms)
+      setTimeout(() => {
+          isAutoScrolling.current = false;
+      }, 800);
+      
+      // Mobile logic
+      if(window.innerWidth < 1024) { 
+          setMobileViewerOpen(true); 
+          setIframeLoading(true); 
+      }
+  };
+
+  // --- AUTO SCROLL DETECTION (Updates Island while scrolling) ---
   useEffect(() => {
     const handleScroll = () => {
+        if (isAutoScrolling.current) return; // SKIP IF LOCKED
+
         const viewportCenter = window.innerHeight / 2;
         let closestId = activeSectionId;
         let minDistance = Infinity;
+        
         sections.forEach((s) => {
             const el = sectionRefs.current[s.id];
             if (el) {
@@ -399,6 +433,7 @@ export default function TrainingBuilderPage() {
         });
         if (closestId && closestId !== activeSectionId) setActiveSectionId(closestId);
     };
+    
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [sections, activeSectionId]);
@@ -419,12 +454,27 @@ export default function TrainingBuilderPage() {
   }, [activeSectionId, mobileViewerOpen]);
 
   const addSection = async () => {
+    isAutoScrolling.current = true; // Lock immediately
+    
     const nextOrder = sections.length > 0 ? (sections[sections.length - 1].order || 0) + 1 : 0;
     const lastPage = sections.length > 0 ? (Number(sections[sections.length - 1].pageEnd) || 0) : 0;
-    await addDoc(collection(db, "curriculum"), {
+    
+    const docRef = await addDoc(collection(db, "curriculum"), {
         title: "New Training Phase", duration: "Day 1", pageStart: lastPage + 1, pageEnd: lastPage + 2,
         tasks: [], dept: activeDept, order: nextOrder, createdAt: serverTimestamp()
     });
+    
+    // Explicitly set the new ID active immediately
+    setActiveSectionId(docRef.id);
+    
+    // Wait for DOM to update then scroll
+    setTimeout(() => {
+        const el = sectionRefs.current[docRef.id];
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        setTimeout(() => { isAutoScrolling.current = false; }, 800);
+    }, 200);
   };
 
   const updateSection = async (id: string, updates: Partial<Section>) => {
@@ -433,10 +483,7 @@ export default function TrainingBuilderPage() {
 
   // --- REORDER LOGIC ---
   const handleReorder = (sectionId: string, newTasks: Task[]) => {
-      // 1. Optimistic Update (Immediate)
       setSections(prev => prev.map(s => s.id === sectionId ? { ...s, tasks: newTasks } : s));
-
-      // 2. Database Update
       updateDoc(doc(db, "curriculum", sectionId), { tasks: newTasks });
   };
 
@@ -454,8 +501,7 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    // FIX 1: Removed overflow-x-hidden to prevent sticky breaking
-    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
+    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
       
       <TrainingDynamicIsland 
         activeDept={activeDept}
@@ -466,14 +512,9 @@ export default function TrainingBuilderPage() {
         setPreviewMode={setPreviewMode}
       />
 
-      {/* 
-         UPDATED MAIN GRID:
-         1. FIX 2: Changed items-start to items-stretch (default) to ensure columns have equal height for sticky positioning
-         2. Adjusted padding
-      */}
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-stretch relative z-10 pb-32">
          
-         {/* LEFT COLUMN (Scrollable List) */}
+         {/* LEFT COLUMN */}
          <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-0 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative flex flex-col items-center w-full">
             {sections.map((section, idx) => {
                const isActive = activeSectionId === section.id;
@@ -487,7 +528,8 @@ export default function TrainingBuilderPage() {
                     
                     <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                     
-                    <div onClick={() => { setActiveSectionId(section.id); if(window.innerWidth < 1024) { setMobileViewerOpen(true); setIframeLoading(true); } }} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 scale-100 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]")}>
+                    {/* CLICK HANDLER USES NEW FUNCTION */}
+                    <div onClick={() => scrollToSection(section.id)} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 scale-100 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]")}>
                          <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
                             <div className="flex-1 space-y-2 md:space-y-3">
                                <div className="flex items-center gap-2 md:gap-3">
@@ -557,7 +599,7 @@ export default function TrainingBuilderPage() {
          <div className="hidden lg:block col-span-5 relative h-full">
              {/* 
                 STICKY CONTAINER:
-                top-28: Sits nicely below the floating header (header ~64px + margin).
+                top-28: Sits nicely below the floating header.
                 h-fit: Ensures it doesn't take up more space than needed.
              */}
             <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
@@ -625,15 +667,15 @@ export default function TrainingBuilderPage() {
 
       <AnimatePresence>
             {viewingImage && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10">
-                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setViewingImage(null)} className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl cursor-zoom-out" />
-                     <motion.div layoutId={`image-${viewingImage.id}`} drag="y" dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.2} onDragEnd={(_, info) => { if (Math.abs(info.offset.y) > 100) setViewingImage(null); }} className="relative w-full max-w-6xl max-h-[85vh] md:max-h-[90vh] pointer-events-auto flex items-center justify-center">
-                         <motion.img src={viewingImage.url} className="w-full h-full object-contain rounded-2xl md:rounded-3xl shadow-2xl bg-black/5" />
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 pointer-events-none">
+                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl cursor-zoom-out pointer-events-auto" onClick={() => setViewingImage(null)} />
+                     <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-6xl max-h-[85vh] md:max-h-[90vh] pointer-events-auto flex items-center justify-center">
+                         <img src={viewingImage.url} className="w-full h-full object-contain rounded-2xl md:rounded-3xl shadow-2xl bg-black/5" />
                          <button onClick={() => setViewingImage(null)} className="absolute -top-12 md:-top-4 md:-right-12 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md border border-white/10"><X className="w-6 h-6" /></button>
                      </motion.div>
                 </div>
             )}
-      </AnimatePresence>
+        </AnimatePresence>
     </div>
   );
 }
