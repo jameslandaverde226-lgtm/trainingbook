@@ -8,14 +8,34 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { currentUser, authLoading, checkAuth } = useAppStore();
+  // Destructure subscribe methods from the store
+  const { currentUser, authLoading, checkAuth, subscribeTeam, subscribeEvents } = useAppStore();
   const router = useRouter();
   const pathname = usePathname();
 
+  // 1. Initial Auth Check
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
+  // 2. Global Data Subscription
+  // Once the user is confirmed logged in, start listening to Firestore immediately.
+  // This ensures data is available on ALL pages (Settings, Team, Calendar, etc.)
+  useEffect(() => {
+    if (currentUser) {
+       console.log("✅ [AuthGuard] User authenticated. Initializing global data streams...");
+       const unsubTeam = subscribeTeam();
+       const unsubEvents = subscribeEvents();
+       
+       // Cleanup listeners on unmount (e.g. logout)
+       return () => {
+           unsubTeam();
+           unsubEvents();
+       };
+    }
+  }, [currentUser, subscribeTeam, subscribeEvents]);
+
+  // 3. Route Protection
   useEffect(() => {
     if (!authLoading && !currentUser && pathname !== "/login") {
        router.push("/login");
@@ -49,7 +69,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
                   />
               </div>
 
-              {/* UPDATED: Branding Text matches DynamicHeader style */}
+              {/* Branding Text */}
               <h2 className="text-3xl font-black tracking-tight text-slate-900 mb-2">
                 Training<span className="text-[#004F71]">book</span>
               </h2>
