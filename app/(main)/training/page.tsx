@@ -8,7 +8,7 @@ import {
   Plus, Trash2, GripVertical, Eye, Settings, X, Utensils, Coffee, 
   Cloud, Maximize2, CalendarClock, BookOpen, Loader2, 
   ChevronDown, Hash, ChevronRight, ChevronUp, Layers, Filter, Minimize2, CheckCircle2,
-  ImageIcon, Expand
+  ImageIcon, Expand, FolderOpen, AlignLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +28,7 @@ interface Task {
   title: string;
   image?: string;
   duration?: string;
+  type?: 'task' | 'subject'; // UPDATED: Added type discriminator
 }
 
 interface Section {
@@ -271,9 +272,7 @@ export default function TrainingBuilderPage() {
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [iframeLoading, setIframeLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  
   const [viewingImage, setViewingImage] = useState<{ id: string, url: string } | null>(null);
-  
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   const dragControls = useDragControls();
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -403,14 +402,12 @@ export default function TrainingBuilderPage() {
                                     value={section.title}
                                     onChange={(e) => {
                                         updateSection(section.id, { title: e.target.value });
-                                        // Auto-expand height
                                         e.target.style.height = 'auto';
                                         e.target.style.height = `${e.target.scrollHeight}px`;
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                     className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
                                     rows={1}
-                                    // Initial height adjustment on render
                                     ref={(el) => {
                                         if (el) {
                                             el.style.height = 'auto';
@@ -428,19 +425,45 @@ export default function TrainingBuilderPage() {
                      
                      <div className="space-y-2 md:space-y-2.5">
                         <LayoutGroup>
-                        {section.tasks.map(task => (
+                        {section.tasks.map(task => {
+                           const isSubject = task.type === 'subject';
+                           
+                           return (
                            <motion.div 
                                 layout 
                                 key={task.id} 
-                                className="group bg-slate-50/50 rounded-xl md:rounded-2xl p-3 md:p-4 border border-transparent hover:border-slate-200 hover:bg-white transition-all flex flex-col gap-3" 
+                                // Conditional Styling for Subject vs Task
+                                className={cn(
+                                    "group transition-all flex flex-col gap-3",
+                                    isSubject 
+                                        ? "mt-6 mb-2" 
+                                        : "bg-slate-50/50 rounded-xl md:rounded-2xl p-3 md:p-4 border border-transparent hover:border-slate-200 hover:bg-white"
+                                )}
                                 onClick={(e) => e.stopPropagation()}
                            >
                               <div className="flex items-center gap-3 md:gap-4">
-                                  {!previewMode ? <GripVertical className="w-4 h-4 text-slate-200 shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-slate-300 shrink-0" />}
+                                  {/* --- ICON COLUMN --- */}
+                                  <div className="shrink-0">
+                                     {isSubject ? (
+                                         <div className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-lg">
+                                             <AlignLeft className="w-3.5 h-3.5 text-slate-400" />
+                                         </div>
+                                     ) : !previewMode ? (
+                                         <GripVertical className="w-4 h-4 text-slate-200" />
+                                     ) : (
+                                         <CheckCircle2 className="w-4 h-4 text-slate-300" />
+                                     )}
+                                  </div>
+
+                                  {/* --- INPUT COLUMN --- */}
                                   <div className="flex-1">
-                                      {/* UPDATED: Textarea instead of input for wrapping text */}
                                       {previewMode ? (
-                                          <p className="text-sm font-medium text-slate-700 whitespace-pre-wrap break-words">{task.title || "Untitled Objective"}</p>
+                                          <p className={cn(
+                                              "whitespace-pre-wrap break-words",
+                                              isSubject 
+                                                ? "text-xs font-[900] uppercase tracking-[0.2em] text-slate-400" 
+                                                : "text-sm font-medium text-slate-700"
+                                          )}>{task.title || (isSubject ? "UNNAMED SUBJECT" : "Untitled Objective")}</p>
                                       ) : (
                                           <textarea 
                                               value={task.title} 
@@ -450,8 +473,13 @@ export default function TrainingBuilderPage() {
                                                   e.target.style.height = 'auto';
                                                   e.target.style.height = `${e.target.scrollHeight}px`;
                                               }} 
-                                              className="w-full bg-transparent text-sm font-bold text-slate-700 outline-none placeholder:text-slate-300 resize-none overflow-hidden" 
-                                              placeholder="Enter objective..."
+                                              className={cn(
+                                                  "w-full bg-transparent outline-none resize-none overflow-hidden",
+                                                  isSubject 
+                                                    ? "text-xs font-[900] uppercase tracking-[0.2em] text-slate-400 placeholder:text-slate-200" 
+                                                    : "text-sm font-bold text-slate-700 placeholder:text-slate-300"
+                                              )}
+                                              placeholder={isSubject ? "SUBJECT HEADER..." : "Enter objective..."}
                                               rows={1}
                                               ref={(el) => {
                                                   if (el) {
@@ -462,55 +490,89 @@ export default function TrainingBuilderPage() {
                                           />
                                       )}
                                   </div>
+
+                                  {/* --- ACTIONS COLUMN --- */}
                                   <AnimatePresence>
                                      {!previewMode && (
                                          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 self-start pt-1">
-                                             <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
+                                             {!isSubject && (
+                                                 <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
+                                             )}
                                              <button onClick={() => updateDoc(doc(db, "curriculum", section.id), { tasks: section.tasks.filter(t => t.id !== task.id) })} className="p-2 text-slate-300 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
                                          </motion.div>
                                      )}
                                  </AnimatePresence>
                               </div>
 
-                              {/* --- GORGEOUS CINEMATIC BANNER WITH BLURRED FILL --- */}
-                              {task.image && (
+                              {/* --- IMAGES (Only for Tasks) --- */}
+                              {!isSubject && task.image && (
                                 <motion.div 
                                     layoutId={`image-${task.id}`}
                                     onClick={() => setViewingImage({ id: task.id, url: task.image! })}
                                     className={cn(
                                         "relative w-full overflow-hidden rounded-xl border shadow-sm cursor-zoom-in group/img transition-all bg-slate-100",
-                                        // Cinematic Aspect Ratios for Banner Look
                                         "aspect-[16/9] md:aspect-[21/9]", 
                                         activeDept === "FOH" ? "border-[#004F71]/10 hover:border-[#004F71]/40" : "border-[#E51636]/10 hover:border-[#E51636]/40"
                                     )}
                                 >
-                                    {/* LAYER 1: BLURRED BACKGROUND FILL (Ensures no empty space) */}
-                                    <img 
-                                        src={task.image} 
-                                        alt=""
-                                        className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200"
-                                        aria-hidden="true"
-                                    />
-
-                                    {/* LAYER 2: MAIN IMAGE (Perfectly fitted, nothing cut off) */}
-                                    <motion.img 
-                                        src={task.image} 
-                                        className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" 
-                                    />
-                                    
-                                    {/* HOVER OVERLAY */}
+                                    <img src={task.image} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200" aria-hidden="true" />
+                                    <motion.img src={task.image} className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" />
                                     <div className="absolute inset-0 z-20 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 pointer-events-none">
-                                        <div className="bg-white/20 backdrop-blur-md p-2.5 rounded-full text-white border border-white/40 shadow-lg">
-                                            <Expand className="w-5 h-5" />
-                                        </div>
+                                        <div className="bg-white/20 backdrop-blur-md p-2.5 rounded-full text-white border border-white/40 shadow-lg"><Expand className="w-5 h-5" /></div>
                                     </div>
                                 </motion.div>
                               )}
                            </motion.div>
-                        ))}
+                        );
+                        })}
                         </LayoutGroup>
 
-                        <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} onClick={(e) => { e.stopPropagation(); const newTask = { id: Math.random().toString(36).substr(2, 9), title: "", duration: "15m" }; updateSection(section.id, { tasks: [...section.tasks, newTask] }); }} className="w-full py-4 md:py-3.5 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"><Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block</motion.button>)}</AnimatePresence>
+                        <AnimatePresence>
+                            {!previewMode && (
+                                <motion.div 
+                                    initial={{ opacity: 0, height: 0 }} 
+                                    animate={{ opacity: 1, height: "auto" }} 
+                                    exit={{ opacity: 0, height: 0 }} 
+                                    className="flex gap-2"
+                                >
+                                    {/* ADD MODULE BUTTON */}
+                                    <button 
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            // FIX: Explicit 'task' type
+                                            const newTask: Task = { 
+                                                id: Math.random().toString(36).substr(2, 9), 
+                                                title: "", 
+                                                duration: "15m", 
+                                                type: "task" 
+                                            }; 
+                                            updateSection(section.id, { tasks: [...section.tasks, newTask] }); 
+                                        }} 
+                                        className="flex-1 py-4 md:py-3.5 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"
+                                    >
+                                        <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block
+                                    </button>
+
+                                    {/* ADD SUBJECT BUTTON */}
+                                    <button 
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            // FIX: Explicit 'subject' type
+                                            const newSubject: Task = { 
+                                                id: Math.random().toString(36).substr(2, 9), 
+                                                title: "", 
+                                                type: "subject" 
+                                            }; 
+                                            updateSection(section.id, { tasks: [...section.tasks, newSubject] }); 
+                                        }} 
+                                        className="w-14 md:w-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group"
+                                        title="Add Subject Heading"
+                                    >
+                                        <AlignLeft className="w-4 h-4" />
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                      </div>
                      <div className="lg:hidden mt-4 md:mt-6 flex justify-center text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 bg-slate-50 py-3 rounded-xl border border-slate-100"><span>Tap card to open manual</span><ChevronRight className="w-3 h-3" /></div>
                   </div>
@@ -539,10 +601,9 @@ export default function TrainingBuilderPage() {
          </div>
       </div>
 
-      {/* --- MOBILE MANUAL VIEWER --- */}
+      {/* ... (Mobile Viewer & Lightbox remain the same) ... */}
       <AnimatePresence>{mobileViewerOpen && (<ClientPortal><div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileViewerOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.05} onDragEnd={(_, info) => { if (info.offset.y > 100) setMobileViewerOpen(false); }} className="pointer-events-auto bg-white w-full h-[92vh] rounded-t-[40px] shadow-2xl relative flex flex-col overflow-hidden"><div className="absolute top-0 left-0 right-0 h-10 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm cursor-grab active:cursor-grabbing touch-none" onPointerDown={(e) => dragControls.start(e)}><div className="w-12 h-1.5 bg-slate-300 rounded-full" /></div><div className="px-6 py-4 pt-10 border-b border-slate-100 flex justify-between items-center shrink-0 bg-white z-40"><div className="flex flex-col"><span className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">{activeSection?.title || "Manual"}</span><div className="flex items-center gap-2"><div className={cn("w-2 h-2 rounded-full", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")} /><span className="text-lg font-bold text-slate-900 leading-none">Pages {activeSection?.pageStart || "?"} - {activeSection?.pageEnd || "?"}</span></div></div><button onClick={() => setMobileViewerOpen(false)} className="p-2.5 bg-slate-100 rounded-full active:scale-95 transition-all"><Minimize2 className="w-5 h-5 text-slate-500" /></button></div><div className="flex-1 relative bg-slate-50 overflow-y-auto no-scrollbar touch-pan-y">{iframeLoading && (<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50"><Loader2 className={cn("w-10 h-10 animate-spin mb-4", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Manual...</span></div>)}{getEmbedUrl() ? (<iframe src={getEmbedUrl()!} className="w-full h-full border-none" loading="lazy" onLoad={() => setIframeLoading(false)} />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><BookOpen className="w-12 h-12 opacity-20 mb-2" /><p>No content available</p></div>)}</div><div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 w-full justify-center px-4"><div className="flex-1 max-w-[280px]"><PageRangeSelector start={activeSection?.pageStart} end={activeSection?.pageEnd} onUpdate={(u: any) => activeSectionId && updateSection(activeSectionId, u)} readOnly={true} /></div><a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a></div></motion.div></div></ClientPortal>)}</AnimatePresence>
 
-      {/* --- BEAUTIFUL IMAGE LIGHTBOX --- */}
       <AnimatePresence>
             {viewingImage && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10">
