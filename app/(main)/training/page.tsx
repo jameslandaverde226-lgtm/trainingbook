@@ -8,7 +8,7 @@ import {
   Plus, Trash2, GripVertical, Eye, Settings, X, Utensils, Coffee, 
   Cloud, Maximize2, CalendarClock, BookOpen, Loader2, 
   ChevronDown, Hash, ChevronRight, ChevronUp, Layers, Filter, Minimize2, CheckCircle2,
-  ImageIcon, Expand, FolderOpen, AlignLeft
+  ImageIcon, Expand, FolderOpen, AlignLeft, PaintBucket
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,7 @@ interface Task {
   image?: string;
   duration?: string;
   type?: 'task' | 'subject'; 
+  color?: string; // UPDATED: Added color property for subjects
 }
 
 interface Section {
@@ -48,7 +49,16 @@ const CANVA_LINKS: Record<string, string> = {
   Unassigned: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view" 
 };
 
-// --- ANIMATION PHYSICS ---
+// --- PRESET COLORS FOR SUBJECTS ---
+const SUBJECT_COLORS = [
+    { id: "slate", hex: "#f1f5f9", text: "text-slate-500", border: "border-slate-200" }, // Default
+    { id: "blue", hex: "#eff6ff", text: "text-blue-600", border: "border-blue-200" },
+    { id: "red", hex: "#fef2f2", text: "text-red-600", border: "border-red-200" },
+    { id: "green", hex: "#f0fdf4", text: "text-emerald-600", border: "border-emerald-200" },
+    { id: "amber", hex: "#fffbeb", text: "text-amber-600", border: "border-amber-200" },
+    { id: "purple", hex: "#faf5ff", text: "text-purple-600", border: "border-purple-200" },
+];
+
 const SPRING_TRANSITION: Transition = {
   type: "spring",
   stiffness: 350,
@@ -56,7 +66,7 @@ const SPRING_TRANSITION: Transition = {
   mass: 0.8
 };
 
-// --- SUB-COMPONENTS ---
+// ... (PageRangeSelector remains unchanged) ...
 function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
     if (readOnly) {
         return (
@@ -100,7 +110,7 @@ function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
     );
 }
 
-// ... (TrainingDynamicIsland Component remains unchanged) ...
+// ... (TrainingDynamicIsland remains unchanged) ...
 function TrainingDynamicIsland({ 
     activeDept, setActiveDept, 
     activePhaseIndex, activePhaseTitle,
@@ -211,6 +221,15 @@ const DraggableTask = ({
 }: any) => {
     const controls = useDragControls();
     const isSubject = task.type === 'subject';
+    
+    // Determine styles based on color prop or default
+    const colorTheme = SUBJECT_COLORS.find(c => c.id === task.color) || SUBJECT_COLORS[0];
+    const subjectStyle = isSubject 
+        ? cn(colorTheme.hex, colorTheme.text, "rounded-xl border", colorTheme.border) 
+        : "bg-slate-50/50 rounded-xl md:rounded-2xl border border-transparent hover:border-slate-200 hover:bg-white";
+
+    // Inject bg color into inline style for Tailwind arb values if needed, but here using classes
+    const containerStyle = isSubject ? { backgroundColor: colorTheme.hex } : {};
 
     return (
         <Reorder.Item
@@ -218,21 +237,15 @@ const DraggableTask = ({
             dragListener={false}
             dragControls={controls}
             className="relative"
-            // Prevent drag from interfering with input clicks
-            onDragEnd={() => {
-                // Optional: Snap logic if needed
-            }}
         >
             <motion.div 
                 layout 
                 className={cn(
-                    "group transition-all flex flex-col gap-3 relative",
-                    isSubject 
-                        ? "mt-6 mb-2" 
-                        : "bg-slate-50/50 rounded-xl md:rounded-2xl p-3 md:p-4 border border-transparent hover:border-slate-200 hover:bg-white"
+                    "group transition-all flex flex-col gap-3 relative p-3 md:p-4",
+                    isSubject ? "mt-4 mb-2" : "", // Margins for subject spacing
+                    subjectStyle
                 )}
-                // Removing onClick stopPropagation to allow drag events to bubble where needed, 
-                // but input focus handles itself.
+                style={containerStyle}
             >
                 <div className="flex items-center gap-3 md:gap-4">
                     {/* --- DRAG HANDLE --- */}
@@ -241,8 +254,8 @@ const DraggableTask = ({
                         onPointerDown={(e) => !previewMode && controls.start(e)}
                     >
                         {isSubject ? (
-                            <div className="w-6 h-6 flex items-center justify-center bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
-                                <AlignLeft className="w-3.5 h-3.5 text-slate-400" />
+                            <div className="w-6 h-6 flex items-center justify-center bg-white/50 rounded-lg">
+                                <AlignLeft className={cn("w-3.5 h-3.5", colorTheme.text)} />
                             </div>
                         ) : !previewMode ? (
                             <GripVertical className="w-4 h-4 text-slate-200 hover:text-slate-400 transition-colors" />
@@ -257,7 +270,7 @@ const DraggableTask = ({
                             <p className={cn(
                                 "whitespace-pre-wrap break-words",
                                 isSubject 
-                                ? "text-xs font-[900] uppercase tracking-[0.2em] text-slate-400" 
+                                ? cn("text-xs font-[900] uppercase tracking-[0.2em]", colorTheme.text)
                                 : "text-sm font-medium text-slate-700"
                             )}>{task.title || (isSubject ? "UNNAMED SUBJECT" : "Untitled Objective")}</p>
                         ) : (
@@ -272,12 +285,12 @@ const DraggableTask = ({
                                 className={cn(
                                     "w-full bg-transparent outline-none resize-none overflow-hidden",
                                     isSubject 
-                                    ? "text-xs font-[900] uppercase tracking-[0.2em] text-slate-400 placeholder:text-slate-200" 
+                                    ? cn("text-xs font-[900] uppercase tracking-[0.2em] placeholder:opacity-50", colorTheme.text)
                                     : "text-sm font-bold text-slate-700 placeholder:text-slate-300"
                                 )}
                                 placeholder={isSubject ? "SUBJECT HEADER..." : "Enter objective..."}
                                 rows={1}
-                                onClick={(e) => e.stopPropagation()} // Allow clicking into text area
+                                onClick={(e) => e.stopPropagation()} 
                                 ref={(el) => {
                                     if (el) {
                                         el.style.height = 'auto';
@@ -292,6 +305,29 @@ const DraggableTask = ({
                     <AnimatePresence>
                         {!previewMode && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 self-start pt-1">
+                                
+                                {/* SUBJECT COLOR PICKER */}
+                                {isSubject && (
+                                    <div className="flex gap-1 bg-white/50 p-1 rounded-lg border border-slate-200/50">
+                                        {SUBJECT_COLORS.map(c => (
+                                            <button
+                                                key={c.id}
+                                                onClick={() => {
+                                                    const newTasks = section.tasks.map((t: Task) => t.id === task.id ? { ...t, color: c.id } : t);
+                                                    updateSection(section.id, { tasks: newTasks });
+                                                }}
+                                                className={cn(
+                                                    "w-3 h-3 rounded-full transition-transform hover:scale-125",
+                                                    task.color === c.id ? "ring-2 ring-slate-400 scale-110" : ""
+                                                )}
+                                                style={{ backgroundColor: c.hex === "#f1f5f9" ? "#cbd5e1" : c.hex.replace('50', '400').replace('100', '400').replace('eff6ff', '#60a5fa').replace('fef2f2', '#f87171').replace('f0fdf4', '#4ade80').replace('fffbeb', '#fbbf24').replace('faf5ff', '#a78bfa') }} 
+                                                // Using rough darken mapping for the dots to be visible on white
+                                                title={c.id}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+
                                 {!isSubject && (
                                     <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
                                 )}
@@ -324,7 +360,7 @@ const DraggableTask = ({
     );
 };
 
-// --- MAIN PAGE ---
+// ... (Main Page Component unchanged) ...
 export default function TrainingBuilderPage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [activeDept, setActiveDept] = useState<Department>("FOH");
@@ -463,7 +499,7 @@ export default function TrainingBuilderPage() {
                               <span className="text-[9px] md:text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
                            </div>
                            
-                           {/* Use Textarea for Title */}
+                           {/* MODIFIED: Use textarea for multiline title to prevent cut-off */}
                            {previewMode ? (
                                <h3 className="text-lg md:text-3xl font-black text-slate-900 tracking-tighter leading-tight break-words whitespace-pre-wrap">{section.title}</h3>
                            ) : (
@@ -471,12 +507,14 @@ export default function TrainingBuilderPage() {
                                     value={section.title}
                                     onChange={(e) => {
                                         updateSection(section.id, { title: e.target.value });
+                                        // Auto-expand height
                                         e.target.style.height = 'auto';
                                         e.target.style.height = `${e.target.scrollHeight}px`;
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                     className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
                                     rows={1}
+                                    // Initial height adjustment on render
                                     ref={(el) => {
                                         if (el) {
                                             el.style.height = 'auto';
@@ -527,6 +565,7 @@ export default function TrainingBuilderPage() {
                                     <button 
                                         onClick={(e) => { 
                                             e.stopPropagation(); 
+                                            // FIX: Explicit 'task' type
                                             const newTask: Task = { 
                                                 id: Math.random().toString(36).substr(2, 9), 
                                                 title: "", 
@@ -544,10 +583,12 @@ export default function TrainingBuilderPage() {
                                     <button 
                                         onClick={(e) => { 
                                             e.stopPropagation(); 
+                                            // FIX: Explicit 'subject' type
                                             const newSubject: Task = { 
                                                 id: Math.random().toString(36).substr(2, 9), 
                                                 title: "", 
-                                                type: "subject" 
+                                                type: "subject",
+                                                color: "slate" // Default color
                                             }; 
                                             updateSection(section.id, { tasks: [...section.tasks, newSubject] }); 
                                         }} 
