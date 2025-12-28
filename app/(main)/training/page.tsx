@@ -215,9 +215,7 @@ const DraggableTask = ({
     handleFileUpload, 
     updateSection, 
     setViewingImage, 
-    section,
-    onFocus, // NEW PROP
-    onBlur   // NEW PROP
+    section 
 }: any) => {
     const controls = useDragControls();
     const isSubject = task.type === 'subject';
@@ -278,8 +276,7 @@ const DraggableTask = ({
                                     e.target.style.height = 'auto';
                                     e.target.style.height = `${e.target.scrollHeight}px`;
                                 }}
-                                onFocus={onFocus} // NEW: Updates Ref + State
-                                onBlur={onBlur}   // NEW: Clears Ref
+                                // NOTE: Manual onFocus removed in favor of global activeElement check
                                 className={cn(
                                     "w-full bg-transparent outline-none resize-none overflow-hidden",
                                     isSubject 
@@ -370,8 +367,6 @@ export default function TrainingBuilderPage() {
   
   // LOCKS
   const isAutoScrolling = useRef(false);
-  // NEW LOCK: Prevents scroll spy from running while user is typing
-  const isUserInteracting = useRef<string | null>(null);
   
   // Ref to store sections to break dependency loop in scroll listener
   const sectionsRef = useRef<Section[]>([]);
@@ -399,19 +394,6 @@ export default function TrainingBuilderPage() {
   const activeIndex = sections.findIndex(s => s.id === activeSectionId);
   const activeSection = useMemo(() => sections[activeIndex] || sections[0], [sections, activeIndex]);
 
-  // --- INTERACTION HANDLERS ---
-  const handleFocus = (sectionId: string) => {
-      isUserInteracting.current = sectionId;
-      setActiveSectionId(sectionId); // Force update state immediately
-  };
-
-  const handleBlur = () => {
-      // Small delay prevents "flicker" when tabbing between inputs in the same card
-      setTimeout(() => {
-          isUserInteracting.current = null;
-      }, 200);
-  };
-
   // --- MANUAL SCROLL HANDLER (Triggered by Click or Add) ---
   const scrollToSection = (id: string) => {
       if (activeSectionId === id) return;
@@ -434,27 +416,40 @@ export default function TrainingBuilderPage() {
       }
   };
 
-  // --- AUTO SCROLL DETECTION (Updates Island while scrolling) ---
+  // --- AUTO SCROLL DETECTION (Fixed for Stability) ---
   useEffect(() => {
     const handleScroll = () => {
-        // If auto-scrolling OR user is typing/focused, DO NOT update active section based on scroll
-        if (isAutoScrolling.current || isUserInteracting.current) return;
+        // 1. GLOBAL BLOCKER: If the user is typing, DO NOT update the dynamic island.
+        // This prevents the "jumping" glitch when textareas resize.
+        if (
+             isAutoScrolling.current || 
+             document.activeElement?.tagName === "TEXTAREA" || 
+             document.activeElement?.tagName === "INPUT"
+        ) {
+            return;
+        }
 
-        const viewportHeight = window.innerHeight;
+        // 2. STABLE THRESHOLD LOGIC
+        // Instead of calculating "area coverage", we just check what element is 
+        // currently crossing the top 30% of the screen.
+        const triggerPoint = window.innerHeight * 0.3; 
+        
         let closestId: string | null = null;
-        let maxVisibleHeight = 0;
+        let minDistance = Infinity;
         
         sectionsRef.current.forEach((s) => {
             const el = sectionRefs.current[s.id];
             if (el) {
                 const rect = el.getBoundingClientRect();
-                const visibleTop = Math.max(0, rect.top);
-                const visibleBottom = Math.min(viewportHeight, rect.bottom);
-                const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+                // Distance from trigger point
+                const distance = Math.abs(rect.top - triggerPoint);
                 
-                if (visibleHeight > maxVisibleHeight) {
-                    maxVisibleHeight = visibleHeight;
-                    closestId = s.id;
+                // Check if element is roughly on screen (top is above fold, bottom is below trigger)
+                if (rect.top < window.innerHeight && rect.bottom > triggerPoint) {
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestId = s.id;
+                    }
                 }
             }
         });
@@ -528,7 +523,7 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
+    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
       
       <TrainingDynamicIsland 
         activeDept={activeDept}
@@ -555,7 +550,8 @@ export default function TrainingBuilderPage() {
                     
                     <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                     
-                    <div onClick={() => scrollToSection(section.id)} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 scale-100 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]")}>
+                    {/* NOTE: REMOVED SCALING (scale-95 etc) TO PREVENT JITTER */}
+                    <div onClick={() => scrollToSection(section.id)} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-300 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-80 hover:opacity-100")}>
                          <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
                             <div className="flex-1 space-y-2 md:space-y-3">
                                <div className="flex items-center gap-2 md:gap-3">
@@ -576,8 +572,6 @@ export default function TrainingBuilderPage() {
                                             e.target.style.height = `${e.target.scrollHeight}px`;
                                         }}
                                         onClick={(e) => e.stopPropagation()}
-                                        onFocus={() => handleFocus(section.id)} // <--- NEW: Updates Interaction Ref
-                                        onBlur={handleBlur}                     // <--- NEW: Clears Interaction Ref
                                         className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
                                         rows={1}
                                         ref={(el) => {
@@ -607,8 +601,6 @@ export default function TrainingBuilderPage() {
                                         updateSection={updateSection} 
                                         setViewingImage={setViewingImage} 
                                         section={section}
-                                        onFocus={() => handleFocus(section.id)} // <--- NEW
-                                        onBlur={handleBlur}                     // <--- NEW
                                     />
                                 ))}
                             </Reorder.Group>
