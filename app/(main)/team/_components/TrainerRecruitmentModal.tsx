@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { 
   AnimatePresence, 
   motion, 
@@ -10,7 +10,7 @@ import {
   MotionValue,
   Variants
 } from "framer-motion";
-import { X, Crown, Search, ArrowRight, UserPlus } from "lucide-react";
+import { X, Crown, Search, ArrowRight } from "lucide-react";
 import { useAppStore } from "@/lib/store/useStore";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
@@ -22,7 +22,8 @@ function DockIcon({
     mouseX,
     onHoverStart,
     onHoverEnd,
-    isSelected
+    isSelected,
+    isMobile // New Prop
 }: { 
     trainer: TeamMember; 
     onSelect: (trainer: TeamMember) => void;
@@ -30,10 +31,11 @@ function DockIcon({
     onHoverStart: () => void;
     onHoverEnd: () => void;
     isSelected: boolean;
+    isMobile: boolean;
 }) {
     const ref = useRef<HTMLButtonElement>(null);
 
-    // --- PHYSICS ENGINE ---
+    // --- PHYSICS ENGINE (Desktop Only) ---
     const distance = useTransform(mouseX, (val) => {
         const bounds = ref.current?.getBoundingClientRect() ?? { x: 0, width: 0 };
         return val - bounds.x - bounds.width / 2;
@@ -69,9 +71,13 @@ function DockIcon({
     return (
         <motion.button
             ref={ref}
-            style={{ width }}
+            // On mobile, use static width (56px) instead of dynamic physics
+            style={{ width: isMobile ? 56 : width }}
             onClick={() => onSelect(trainer)}
-            className="relative flex flex-col items-center justify-end aspect-square shrink-0 mb-4 focus:outline-none group"
+            className={cn(
+                "relative flex flex-col items-center justify-end aspect-square shrink-0 mb-4 focus:outline-none group",
+                isMobile ? "mx-1" : "" // Add spacing on mobile since physics gap is gone
+            )}
             onMouseEnter={onHoverStart}
             onMouseLeave={onHoverEnd}
             whileTap={{ scale: 0.9 }}
@@ -89,7 +95,7 @@ function DockIcon({
                         alt={trainer.name} 
                     />
                 ) : (
-                    <div className={cn("w-full h-full flex items-center justify-center text-white font-[1000] text-xl tracking-tight", brandColor)}>
+                    <div className={cn("w-full h-full flex items-center justify-center text-white font-[1000] text-lg md:text-xl tracking-tight", brandColor)}>
                         {initials}
                     </div>
                 )}
@@ -116,6 +122,14 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeade
     const [filterQuery, setFilterQuery] = useState("");
     const mouseX = useMotionValue(Infinity);
     const [hoveredTrainer, setHoveredTrainer] = useState<TeamMember | null>(null);
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     const availableMentors = useMemo(() => {
         return team.filter(member => 
@@ -152,12 +166,12 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeade
                         initial="hidden"
                         animate="visible"
                         exit="exit"
-                        className="fixed bottom-10 inset-x-0 mx-auto w-fit z-[130] flex flex-col items-center pointer-events-auto max-w-[95vw]"
+                        className="fixed bottom-6 md:bottom-10 inset-x-0 mx-auto w-full md:w-fit z-[130] flex flex-col items-center pointer-events-auto px-4 md:px-0"
                         onMouseMove={(e) => mouseX.set(e.pageX)}
                         onMouseLeave={() => { mouseX.set(Infinity); setHoveredTrainer(null); }}
                     >
                         {/* --- FLOATING HEADER (Label / Search / Active Banner) --- */}
-                        <div className="h-16 mb-1 flex items-center justify-center pointer-events-none relative min-w-[320px]">
+                        <div className="h-14 md:h-16 mb-2 flex items-center justify-center pointer-events-none relative min-w-[280px] md:min-w-[320px] w-full">
                             <AnimatePresence mode="wait">
                                 {selectedLeaderId && activeLeader ? (
                                     /* STATE 3: "CONNECTING WITH WHO?" (Assignment Mode) */
@@ -166,36 +180,36 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeade
                                         initial={{ opacity: 0, y: 10, scale: 0.9 }}
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: -10, scale: 0.9 }}
-                                        className="bg-slate-900/90 backdrop-blur-3xl text-white pl-2 pr-6 py-2 rounded-full shadow-2xl border border-white/20 flex items-center gap-4 pointer-events-auto cursor-pointer group hover:bg-slate-900 transition-colors"
+                                        className="bg-slate-900/90 backdrop-blur-3xl text-white pl-2 pr-4 py-2 rounded-full shadow-2xl border border-white/20 flex items-center gap-3 pointer-events-auto cursor-pointer group hover:bg-slate-900 transition-colors"
                                         onClick={() => onSelectLeader(null)} // Click to Cancel
                                     >
                                         {/* LEADER CHIP */}
-                                        <div className="flex items-center gap-3 bg-white/10 pr-4 py-1.5 rounded-full pl-1.5">
-                                            <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/30">
+                                        <div className="flex items-center gap-2 bg-white/10 pr-3 py-1 rounded-full pl-1">
+                                            <div className="relative w-6 h-6 rounded-full overflow-hidden border border-white/30">
                                                 {activeLeader.image ? (
                                                     <img src={activeLeader.image} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full bg-white text-slate-900 flex items-center justify-center font-black text-[10px]">
+                                                    <div className="w-full h-full bg-white text-slate-900 flex items-center justify-center font-black text-[9px]">
                                                         {activeLeader.name.charAt(0)}
                                                     </div>
                                                 )}
                                             </div>
-                                            <span className="text-xs font-bold uppercase tracking-wide leading-none">
+                                            <span className="text-[10px] font-bold uppercase tracking-wide leading-none max-w-[80px] truncate">
                                                 {activeLeader.name}
                                             </span>
                                         </div>
 
                                         {/* INSTRUCTION */}
-                                        <div className="flex items-center gap-2 animate-pulse">
-                                            <ArrowRight className="w-4 h-4 text-emerald-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
-                                                Select Team Member
+                                        <div className="flex items-center gap-1.5 animate-pulse">
+                                            <ArrowRight className="w-3 h-3 text-emerald-400" />
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">
+                                                Select
                                             </span>
                                         </div>
 
-                                        <div className="w-px h-4 bg-white/20" />
+                                        <div className="w-px h-3 bg-white/20" />
                                         
-                                        <X className="w-4 h-4 text-slate-500 group-hover:text-white transition-colors" />
+                                        <X className="w-3.5 h-3.5 text-slate-500 group-hover:text-white transition-colors" />
                                     </motion.div>
                                 ) : hoveredTrainer ? (
                                     /* STATE 2: HOVER PREVIEW */
@@ -205,11 +219,11 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeade
                                         animate={{ opacity: 1, y: 0, scale: 1 }}
                                         exit={{ opacity: 0, y: 10, scale: 0.9 }}
                                         transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                        className="bg-white/90 backdrop-blur-md text-slate-900 px-5 py-2.5 rounded-full shadow-xl border border-white/60 flex items-center gap-3"
+                                        className="bg-white/90 backdrop-blur-md text-slate-900 px-4 py-2 rounded-full shadow-xl border border-white/60 flex items-center gap-2 max-w-[90vw]"
                                     >
-                                        <span className="text-xs font-[900] uppercase tracking-widest">{hoveredTrainer.name}</span>
+                                        <span className="text-xs font-[900] uppercase tracking-widest truncate">{hoveredTrainer.name}</span>
                                         <span className={cn(
-                                            "text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider",
+                                            "text-[8px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap",
                                             hoveredTrainer.dept === "FOH" 
                                                 ? "bg-blue-50 text-[#004F71]" 
                                                 : hoveredTrainer.dept === "BOH"
@@ -235,7 +249,7 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeade
                                             value={filterQuery}
                                             onChange={(e) => setFilterQuery(e.target.value)}
                                             placeholder="Find a Leader..."
-                                            className="bg-transparent outline-none text-xs font-black uppercase tracking-widest text-slate-700 placeholder:text-slate-400 w-40 md:w-56 px-2"
+                                            className="bg-transparent outline-none text-xs font-black uppercase tracking-widest text-slate-700 placeholder:text-slate-400 w-32 md:w-56 px-2"
                                             autoFocus
                                         />
                                         <button onClick={onClose} className="w-9 h-9 rounded-full bg-slate-100 hover:bg-[#E51636] hover:text-white transition-colors flex items-center justify-center text-slate-400">
@@ -248,15 +262,17 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeade
 
                         {/* --- THE GLASS DOCK --- */}
                         <div className={cn(
-                            "flex items-end gap-1 px-4 pb-2 pt-4 rounded-[32px] transition-all duration-300 mx-auto ring-1 ring-white/80",
+                            "flex items-end gap-1 px-4 pb-2 pt-4 rounded-[32px] transition-all duration-300 mx-auto ring-1 ring-white/80 max-w-full",
+                            // On mobile: Enable horizontal scroll, hide scrollbar
+                            "overflow-x-auto overflow-y-hidden no-scrollbar w-full md:w-auto",
                             selectedLeaderId 
                                 ? "bg-slate-900/10 backdrop-blur-[10px] border-white/10 opacity-60 grayscale hover:opacity-100 hover:grayscale-0"
                                 : "bg-white/60 backdrop-blur-[40px] border border-white/50 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.2)]"
                         )}>
                             
-                            {/* STATIC BADGE (Pool Indicator) */}
+                            {/* STATIC BADGE (Pool Indicator) - Hide on very small screens if needed */}
                             {!selectedLeaderId && (
-                                <div className="hidden md:flex flex-col items-center justify-center gap-2 mr-4 opacity-100 mb-5 ml-2">
+                                <div className="hidden md:flex flex-col items-center justify-center gap-2 mr-4 opacity-100 mb-5 ml-2 shrink-0">
                                     <div className="w-12 h-12 bg-[#E51636] rounded-[18px] flex items-center justify-center shadow-lg border-2 border-white relative group cursor-default">
                                         <div className="absolute inset-0 bg-white/20 rounded-[18px] opacity-0 group-hover:opacity-100 transition-opacity" />
                                         <Crown className="w-6 h-6 text-white fill-white drop-shadow-md" />
@@ -268,9 +284,9 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeade
                             )}
 
                             {/* SEPARATOR */}
-                            {!selectedLeaderId && <div className="hidden md:block w-px h-16 bg-slate-900/10 mx-2 mb-4" />}
+                            {!selectedLeaderId && <div className="hidden md:block w-px h-16 bg-slate-900/10 mx-2 mb-4 shrink-0" />}
 
-                            {/* ICONS ROW */}
+                            {/* ICONS ROW - SCROLLABLE ON MOBILE */}
                             <div className="flex items-end gap-2 px-1 pb-1">
                                 {availableMentors.length > 0 ? (
                                     availableMentors.map((trainer) => (
@@ -282,13 +298,16 @@ export default function TrainerRecruitmentModal({ isOpen, onClose, onSelectLeade
                                             onHoverStart={() => setHoveredTrainer(trainer)}
                                             onHoverEnd={() => setHoveredTrainer(null)}
                                             isSelected={selectedLeaderId === trainer.id}
+                                            isMobile={isMobile}
                                         />
                                     ))
                                 ) : (
-                                    <div className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest italic opacity-60">
+                                    <div className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest italic opacity-60 whitespace-nowrap">
                                         No leaders found
                                     </div>
                                 )}
+                                {/* Spacer for scroll padding */}
+                                <div className="w-4 shrink-0 md:hidden" />
                             </div>
                         </div>
 
