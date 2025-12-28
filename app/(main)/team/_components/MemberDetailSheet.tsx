@@ -122,9 +122,6 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
 
   const joinedDate = member.joined ? format(new Date(member.joined), "MMM d, yyyy") : "N/A";
 
-  // Dynamic import fix logic removed as it's not needed in this context, assuming MemberProfileHeader is imported correctly.
-  // Using direct component for simplicity in this full-file replacement.
-
   return (
     <ClientPortal>
       {/* Backdrop */}
@@ -140,15 +137,15 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
         transition={TRANSITION}
         className={cn(
             "fixed inset-y-0 right-0 z-[110] w-full md:w-[95%] lg:w-[1200px] bg-[#F8FAFC] shadow-2xl flex flex-col md:flex-row overflow-hidden",
-            // FIX: Explicitly set border-radius on the motion div itself for desktop
-            "md:rounded-l-[40px]" 
+            "md:rounded-l-[40px] will-change-transform" 
         )}
       >
         
         {/* =========================================================================
             DESKTOP SIDEBAR 
            ========================================================================= */}
-        <div className="hidden md:flex w-[380px] bg-white border-r border-slate-100 flex-col h-full shrink-0 relative z-20 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)]">
+        {/* FIX: Added md:rounded-l-[40px] here too so the white bg respects the curve during animation */}
+        <div className="hidden md:flex w-[380px] bg-white border-r border-slate-100 flex-col h-full shrink-0 relative z-20 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] md:rounded-l-[40px] overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-64 bg-slate-50/50 -skew-y-6 transform origin-top-left z-0" />
             <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none z-0" />
             
@@ -176,7 +173,7 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">{member.role}</p>
                 </div>
 
-                {/* Growth Ring - USING CALCULATED PROGRESS */}
+                {/* Growth Ring */}
                 <div className="flex flex-col items-center mb-10">
                     <div className="relative w-28 h-28">
                         <svg className="w-full h-full -rotate-90 drop-shadow-lg">
@@ -270,7 +267,7 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
            ========================================================================= */}
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC]">
             
-            {/* --- MOBILE COLLAPSIBLE HEADER (USING CALCULATED PROGRESS) --- */}
+            {/* --- MOBILE COLLAPSIBLE HEADER --- */}
             <div className="md:hidden bg-white border-b border-slate-100 shrink-0 z-30 shadow-sm transition-all duration-300">
                 <div className="flex items-center justify-between p-4">
                     
