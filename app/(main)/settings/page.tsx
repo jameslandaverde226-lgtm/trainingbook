@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { 
   User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save,
   ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus, Lock, Unlock, FileKey, BarChart3, Users,
-  Terminal, Server, AlertCircle, CheckCircle2, Activity, Mail, Crown, Star, Briefcase, RefreshCcw
+  Terminal, Server, AlertCircle, CheckCircle2, Activity, Mail, Crown, Star, Briefcase, RefreshCcw,
+  Sparkles // Added Sparkles icon
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore } from "@/lib/store/useStore"; 
@@ -140,6 +141,24 @@ export default function SettingsPage() {
       toast.success(alreadyHasLogin ? `Editing Access: ${member.name}` : `Selected: ${member.name}`);
   };
 
+  // --- NEW: MANUALLY CREATE A MEMBER ID IF NOT FOUND ---
+  const handleManualCreationSelect = () => {
+      const generatedId = `manual_${Date.now()}`; // Simple unique ID
+      setIsUpdateMode(false);
+      
+      setNewUser({
+          ...newUser,
+          name: memberSearch, // Use the search term as the name
+          email: "",
+          role: "Team Member",
+          dept: "FOH",
+          linkedMemberId: generatedId,
+          password: ""
+      });
+      setMemberSearch("");
+      toast.success(`Creating New Profile: ${memberSearch}`);
+  };
+
   const provisionViaApi = async () => {
       if (!currentUser) return;
       if (!formData.password) throw new Error("Password required for initialization.");
@@ -208,7 +227,8 @@ export default function SettingsPage() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!newUser.linkedMemberId) return toast.error("Please select a team member from the roster first.");
+      // Ensure we have an ID (either selected or generated)
+      if (!newUser.linkedMemberId) return toast.error("Please select a team member or create a new one.");
       
       setIsCreating(true);
       try {
@@ -436,6 +456,7 @@ export default function SettingsPage() {
                                         placeholder="Search roster..."
                                         className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all"
                                     />
+                                    {/* DROPDOWN LOGIC */}
                                     {memberSearch.length > 0 && (
                                         <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-48 overflow-y-auto z-20">
                                             {filteredMembers.length > 0 ? (
@@ -453,7 +474,19 @@ export default function SettingsPage() {
                                                     </button>
                                                 ))
                                             ) : (
-                                                <div className="p-4 text-xs text-slate-400 font-bold text-center">No members found</div>
+                                                /* --- CREATE NEW OPTION --- */
+                                                <button 
+                                                    onClick={handleManualCreationSelect}
+                                                    className="w-full text-left px-5 py-4 hover:bg-emerald-50 text-sm font-bold text-slate-600 flex items-center gap-3 transition-colors"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                                                        <Plus className="w-4 h-4" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-emerald-700">Create New: &quot;{memberSearch}&quot;</p>
+                                                        <p className="text-[10px] font-medium text-emerald-600/70">Add manual entry to database</p>
+                                                    </div>
+                                                </button>
                                             )}
                                         </div>
                                     )}
@@ -537,8 +570,8 @@ export default function SettingsPage() {
                                         isUpdateMode ? "bg-[#004F71] hover:bg-[#003b55]" : "bg-slate-900 hover:bg-black"
                                     )}
                                 >
-                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : isUpdateMode ? <RefreshCcw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
-                                    {isUpdateMode ? "Update Credentials" : "Initialize Operative"}
+                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : isUpdateMode ? <RefreshCcw className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                                    {isUpdateMode ? "Update Credentials" : "Create & Initialize"}
                                 </button>
                             </form>
                         </div>
