@@ -2,13 +2,13 @@
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { 
-  motion, AnimatePresence, useDragControls, LayoutGroup, Transition, PanInfo, Reorder 
+  motion, AnimatePresence, useDragControls, LayoutGroup, Transition, Reorder 
 } from "framer-motion";
 import { 
   Plus, Trash2, GripVertical, Eye, Settings, X, Utensils, Coffee, 
   Cloud, Maximize2, CalendarClock, BookOpen, Loader2, 
-  ChevronDown, Hash, ChevronRight, ChevronUp, Layers, Filter, Minimize2, CheckCircle2,
-  ImageIcon, Expand, FolderOpen, AlignLeft, PaintBucket
+  ChevronDown, Hash, ChevronRight, ChevronUp, Filter, Minimize2, CheckCircle2,
+  Expand, AlignLeft, PaintBucket
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +64,8 @@ const SPRING_TRANSITION: Transition = {
   mass: 0.8
 };
 
-// ... (PageRangeSelector remains unchanged) ...
+// --- HELPER COMPONENTS ---
+
 function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
     if (readOnly) {
         return (
@@ -108,7 +109,6 @@ function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
     );
 }
 
-// ... (TrainingDynamicIsland remains unchanged) ...
 function TrainingDynamicIsland({ 
     activeDept, setActiveDept, 
     activePhaseIndex, activePhaseTitle,
@@ -207,7 +207,6 @@ function TrainingDynamicIsland({
     );
 }
 
-// ... (DraggableTask Component remains unchanged) ...
 const DraggableTask = ({ 
     task, 
     activeDept, 
@@ -322,7 +321,7 @@ const DraggableTask = ({
                                 )}
 
                                 {!isSubject && (
-                                    <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-500 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
+                                    <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-50 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
                                 )}
                                 <button onClick={() => updateDoc(doc(db, "curriculum", section.id), { tasks: section.tasks.filter((t: Task) => t.id !== task.id) })} className="p-2 text-slate-300 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
                             </motion.div>
@@ -465,163 +464,161 @@ export default function TrainingBuilderPage() {
         setPreviewMode={setPreviewMode}
       />
 
-      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-stretch relative z-10 pb-32">
+      {/* 
+         UPDATED MAIN GRID:
+         1. Changed items-stretch to items-start so columns don't force height
+         2. Adjusted padding
+      */}
+      <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-start relative z-10 pb-32">
          
-         {/* LEFT COLUMN */}
+         {/* LEFT COLUMN (Scrollable List) */}
          <div className="col-span-12 lg:col-span-7 space-y-6 md:space-y-12 pl-0 md:pl-12 border-l-0 md:border-l-2 border-slate-100 md:ml-8 relative flex flex-col items-center w-full">
             {sections.map((section, idx) => {
                const isActive = activeSectionId === section.id;
                return (
-               <div key={section.id} ref={el => { sectionRefs.current[section.id] = el; }} className={cn("relative transition-all duration-500 w-full max-w-2xl", isActive ? "z-30" : "z-0")}>
-                  <AnimatePresence>
-                    {isActive && (
-                        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 0.2, scale: 1.15 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.6, ease: "easeOut" }} className={cn("absolute -inset-10 md:-inset-16 bg-gradient-to-r from-transparent via-current to-transparent blur-[80px] md:blur-[120px] rounded-[50%] -z-10 pointer-events-none hidden md:block", activeDept === "FOH" ? "text-blue-500" : "text-red-500")} />
-                    )}
-                  </AnimatePresence>
-                  
-                  <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
-                  
-                  <div onClick={() => { setActiveSectionId(section.id); if(window.innerWidth < 1024) { setMobileViewerOpen(true); setIframeLoading(true); } }} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 scale-100 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]")}>
-                     <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
-                        <div className="flex-1 space-y-2 md:space-y-3">
-                           <div className="flex items-center gap-2 md:gap-3">
-                              <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner")}>
-                                <CalendarClock className="w-3.5 h-3.5" />
-                                {previewMode ? <span className="font-black text-slate-600">{section.duration}</span> : <input value={section.duration} onChange={e => updateSection(section.id, { duration: e.target.value })} onClick={(e) => e.stopPropagation()} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}
-                              </div>
-                              <span className="text-[9px] md:text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
-                           </div>
-                           
-                           {/* MODIFIED: Use textarea for multiline title to prevent cut-off */}
-                           {previewMode ? (
-                               <h3 className="text-lg md:text-3xl font-black text-slate-900 tracking-tighter leading-tight break-words whitespace-pre-wrap">{section.title}</h3>
-                           ) : (
-                               <textarea
-                                    value={section.title}
-                                    onChange={(e) => {
-                                        updateSection(section.id, { title: e.target.value });
-                                        // Auto-expand height
-                                        e.target.style.height = 'auto';
-                                        e.target.style.height = `${e.target.scrollHeight}px`;
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
-                                    rows={1}
-                                    // Initial height adjustment on render
-                                    ref={(el) => {
-                                        if (el) {
-                                            el.style.height = 'auto';
-                                            el.style.height = `${el.scrollHeight}px`;
-                                        }
-                                    }}
-                                />
-                           )}
-                        </div>
-                        <div className="flex items-start gap-2 md:gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-                            <div className="hidden md:block"><PageRangeSelector start={section.pageStart} end={section.pageEnd} onUpdate={(u: any) => updateSection(section.id, u)} readOnly={previewMode} /></div>
-                            <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} onClick={() => deleteDoc(doc(db, "curriculum", section.id))} className="p-2 md:p-3 text-slate-300 hover:text-red-500 transition-all bg-slate-50 rounded-xl md:rounded-2xl border border-slate-200 hover:shadow-md active:scale-90"><Trash2 className="w-4 h-4" /></motion.button>)}</AnimatePresence>
-                        </div>
-                     </div>
-                     
-                     <div className="space-y-2 md:space-y-2.5">
-                        
-                        {/* --- REORDERABLE LIST --- */}
-                        <Reorder.Group 
-                            axis="y" 
-                            values={section.tasks} 
-                            onReorder={(newOrder) => handleReorder(section.id, newOrder)}
-                            className="space-y-2"
-                        >
-                            {section.tasks.map(task => (
-                                <DraggableTask
-                                    key={task.id}
-                                    task={task}
-                                    activeDept={activeDept}
-                                    previewMode={previewMode}
-                                    handleFileUpload={handleFileUpload}
-                                    updateSection={updateSection}
-                                    setViewingImage={setViewingImage}
-                                    section={section}
-                                />
-                            ))}
-                        </Reorder.Group>
-
-                        <AnimatePresence>
-                            {!previewMode && (
-                                <motion.div 
-                                    initial={{ opacity: 0, height: 0 }} 
-                                    animate={{ opacity: 1, height: "auto" }} 
-                                    exit={{ opacity: 0, height: 0 }} 
-                                    className="flex gap-2"
-                                >
-                                    {/* ADD MODULE BUTTON */}
-                                    <button 
-                                        onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            // FIX: Explicit 'task' type
-                                            const newTask: Task = { 
-                                                id: Math.random().toString(36).substr(2, 9), 
-                                                title: "", 
-                                                duration: "15m", 
-                                                type: "task" 
-                                            }; 
-                                            updateSection(section.id, { tasks: [...section.tasks, newTask] }); 
-                                        }} 
-                                        className="flex-1 py-4 md:py-3.5 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"
-                                    >
-                                        <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block
-                                    </button>
-
-                                    {/* ADD SUBJECT BUTTON */}
-                                    <button 
-                                        onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            // FIX: Explicit 'subject' type
-                                            const newSubject: Task = { 
-                                                id: Math.random().toString(36).substr(2, 9), 
-                                                title: "", 
-                                                type: "subject",
-                                                color: "slate" // Default color
-                                            }; 
-                                            updateSection(section.id, { tasks: [...section.tasks, newSubject] }); 
-                                        }} 
-                                        className="w-14 md:w-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group"
-                                        title="Add Subject Heading"
-                                    >
-                                        <AlignLeft className="w-4 h-4" />
-                                    </button>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                     </div>
-                     <div className="lg:hidden mt-4 md:mt-6 flex justify-center text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 bg-slate-50 py-3 rounded-xl border border-slate-100"><span>Tap card to open manual</span><ChevronRight className="w-3 h-3" /></div>
-                  </div>
-               </div>
-            )})}
+                 <div key={section.id} ref={el => { sectionRefs.current[section.id] = el; }} className={cn("relative transition-all duration-500 w-full max-w-2xl", isActive ? "z-30" : "z-0")}>
+                    <AnimatePresence>
+                        {isActive && (
+                            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 0.2, scale: 1.15 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.6, ease: "easeOut" }} className={cn("absolute -inset-10 md:-inset-16 bg-gradient-to-r from-transparent via-current to-transparent blur-[80px] md:blur-[120px] rounded-[50%] -z-10 pointer-events-none hidden md:block", activeDept === "FOH" ? "text-blue-500" : "text-red-500")} />
+                        )}
+                    </AnimatePresence>
+                    
+                    <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
+                    
+                    <div onClick={() => { setActiveSectionId(section.id); if(window.innerWidth < 1024) { setMobileViewerOpen(true); setIframeLoading(true); } }} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-700 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 scale-100 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-60 md:scale-95 hover:scale-[0.98] md:hover:scale-[1.01]")}>
+                         <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
+                            <div className="flex-1 space-y-2 md:space-y-3">
+                               <div className="flex items-center gap-2 md:gap-3">
+                                  <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner")}>
+                                    <CalendarClock className="w-3.5 h-3.5" />
+                                    {previewMode ? <span className="font-black text-slate-600">{section.duration}</span> : <input value={section.duration} onChange={e => updateSection(section.id, { duration: e.target.value })} onClick={(e) => e.stopPropagation()} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}
+                                  </div>
+                                  <span className="text-[9px] md:text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
+                               </div>
+                               {previewMode ? (
+                                   <h3 className="text-lg md:text-3xl font-black text-slate-900 tracking-tighter leading-tight break-words whitespace-pre-wrap">{section.title}</h3>
+                               ) : (
+                                   <textarea
+                                        value={section.title}
+                                        onChange={(e) => {
+                                            updateSection(section.id, { title: e.target.value });
+                                            e.target.style.height = 'auto';
+                                            e.target.style.height = `${e.target.scrollHeight}px`;
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
+                                        rows={1}
+                                        ref={(el) => {
+                                            if (el) {
+                                                el.style.height = 'auto';
+                                                el.style.height = `${el.scrollHeight}px`;
+                                            }
+                                        }}
+                                    />
+                               )}
+                            </div>
+                            <div className="flex items-start gap-2 md:gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                <div className="hidden md:block"><PageRangeSelector start={section.pageStart} end={section.pageEnd} onUpdate={(u: any) => updateSection(section.id, u)} readOnly={previewMode} /></div>
+                                <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} onClick={() => deleteDoc(doc(db, "curriculum", section.id))} className="p-2 md:p-3 text-slate-300 hover:text-red-500 transition-all bg-slate-50 rounded-xl md:rounded-2xl border border-slate-200 hover:shadow-md active:scale-90"><Trash2 className="w-4 h-4" /></motion.button>)}</AnimatePresence>
+                            </div>
+                         </div>
+                         
+                         <div className="space-y-2 md:space-y-2.5">
+                            <Reorder.Group axis="y" values={section.tasks} onReorder={(newOrder) => handleReorder(section.id, newOrder)} className="space-y-2">
+                                {section.tasks.map(task => (
+                                    <DraggableTask key={task.id} task={task} activeDept={activeDept} previewMode={previewMode} handleFileUpload={handleFileUpload} updateSection={updateSection} setViewingImage={setViewingImage} section={section} />
+                                ))}
+                            </Reorder.Group>
+                            <AnimatePresence>
+                                {!previewMode && (
+                                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex gap-2">
+                                        <button onClick={(e) => { e.stopPropagation(); const newTask: Task = { id: Math.random().toString(36).substr(2, 9), title: "", duration: "15m", type: "task" }; updateSection(section.id, { tasks: [...section.tasks, newTask] }); }} className="flex-1 py-4 md:py-3.5 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"><Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block</button>
+                                        <button onClick={(e) => { e.stopPropagation(); const newSubject: Task = { id: Math.random().toString(36).substr(2, 9), title: "", type: "subject", color: "slate" }; updateSection(section.id, { tasks: [...section.tasks, newSubject] }); }} className="w-14 md:w-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group" title="Add Subject Heading"><AlignLeft className="w-4 h-4" /></button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                         </div>
+                         <div className="lg:hidden mt-4 md:mt-6 flex justify-center text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 bg-slate-50 py-3 rounded-xl border border-slate-100"><span>Tap card to open manual</span><ChevronRight className="w-3 h-3" /></div>
+                    </div>
+                 </div>
+               );
+            })}
             
             <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} onClick={addSection} className="w-full max-w-2xl py-12 md:py-16 border-4 border-dashed rounded-[32px] md:rounded-[44px] font-black uppercase transition-all flex flex-col items-center justify-center gap-4 group border-slate-200 text-slate-300 hover:border-[#004F71] hover:text-[#004F71] hover:bg-white mb-32 md:mb-0"><div className={cn("p-4 rounded-full transition-all group-hover:scale-110 shadow-sm bg-slate-50 group-hover:bg-[#004F71] group-hover:text-white")}><Plus className="w-8 h-8" /></div><span className="text-lg md:text-xl tracking-tighter">Create New Phase</span></motion.button>)}</AnimatePresence>
          </div>
 
-         {/* RIGHT COLUMN (Preview) */}
+         {/* 
+            ================================================
+            RIGHT COLUMN (The Floating Island Preview) 
+            ================================================
+         */}
          <div className="hidden lg:block col-span-5 relative h-full">
-            <div className="sticky top-[160px] z-40 transition-all duration-500">
-               <div className={cn("absolute inset-0 bg-gradient-to-br opacity-30 blur-[100px] transition-colors duration-1000 -z-10", activeDept === "FOH" ? "from-blue-200" : "from-red-200")} />
-               <div className="h-[calc(100vh-220px)] bg-white rounded-[44px] border border-slate-200/60 shadow-2xl overflow-hidden flex flex-col relative ring-1 ring-black/5">
-                  <div className="px-7 py-5 border-b flex justify-between items-center bg-white/50 backdrop-blur-md shrink-0">
-                     <div className="flex items-center gap-3"><div className={cn("p-2 rounded-xl text-white shadow-md", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")}><BookOpen className="w-4 h-4" /></div><span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">Preview Hub</span></div>
-                     <div className="flex items-center gap-3"><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Pages {activeSection?.pageStart || "?"}—{activeSection?.pageEnd || "?"}</span><div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" /></div>
+             {/* 
+                STICKY CONTAINER:
+                top-28: Sits nicely below the floating header.
+                h-fit: Ensures it doesn't take up more space than needed.
+             */}
+            <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
+               
+               {/* Decorative Glow behind the island */}
+               <div className={cn("absolute inset-0 bg-gradient-to-br opacity-40 blur-[120px] transition-colors duration-1000 -z-10", activeDept === "FOH" ? "from-blue-200" : "from-red-200")} />
+               
+               {/* The Card Itself 
+                   calc(100vh - 140px): Dynamically calculates height to fill screen minus header/padding.
+               */}
+               <div className="h-[calc(100vh-8rem)] bg-white rounded-[44px] border border-slate-200/80 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col relative ring-1 ring-black/5">
+                  
+                  {/* Header */}
+                  <div className="px-7 py-5 border-b border-slate-100 flex justify-between items-center bg-white/80 backdrop-blur-xl shrink-0 z-20">
+                     <div className="flex items-center gap-3">
+                         <div className={cn("p-2 rounded-xl text-white shadow-md transition-colors", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")}>
+                             <BookOpen className="w-4 h-4" />
+                         </div>
+                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-900">Preview Hub</span>
+                     </div>
+                     <div className="flex items-center gap-3">
+                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                             Pages {activeSection?.pageStart || "?"}—{activeSection?.pageEnd || "?"}
+                         </span>
+                         <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
+                     </div>
                   </div>
+                  
+                  {/* Iframe Content */}
                   <div className="flex-1 bg-slate-50 relative group isolate overflow-hidden">
-                     <AnimatePresence mode="wait">{iframeLoading && (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-12 text-center"><Loader2 className={cn("w-10 h-10 animate-spin mb-6", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} /><h3 className="text-sm font-black text-slate-900 uppercase tracking-tighter mb-1 leading-none">Syncing Intelligence</h3><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed mt-2">Loading Page {activeSection?.pageStart}...</p></motion.div>)}</AnimatePresence>
-                     {getEmbedUrl() ? (<iframe src={getEmbedUrl()!} className="w-full h-full border-none mix-blend-multiply transition-opacity duration-1000" loading="lazy" onLoad={() => setIframeLoading(false)} />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300 gap-2"><BookOpen className="w-8 h-8 opacity-20" /><p className="text-[10px] font-bold uppercase tracking-widest">Phase data required</p></div>)}
+                     <AnimatePresence mode="wait">
+                         {iframeLoading && (
+                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-12 text-center">
+                                 <Loader2 className={cn("w-10 h-10 animate-spin mb-6", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} />
+                                 <h3 className="text-sm font-black text-slate-900 uppercase tracking-tighter mb-1 leading-none">Syncing Intelligence</h3>
+                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed mt-2">Loading Page {activeSection?.pageStart}...</p>
+                             </motion.div>
+                         )}
+                     </AnimatePresence>
+                     
+                     {getEmbedUrl() ? (
+                         <iframe src={getEmbedUrl()!} className="w-full h-full border-none mix-blend-multiply transition-opacity duration-1000" loading="lazy" onLoad={() => setIframeLoading(false)} />
+                     ) : (
+                         <div className="w-full h-full flex flex-col items-center justify-center text-slate-300 gap-2">
+                             <BookOpen className="w-8 h-8 opacity-20" />
+                             <p className="text-[10px] font-bold uppercase tracking-widest">Phase data required</p>
+                         </div>
+                     )}
                   </div>
-                  <div className="px-7 py-4 bg-white/50 border-t border-slate-100 flex justify-between items-center shrink-0"><span className="text-[9px] font-bold uppercase text-slate-300 tracking-widest leading-none">Trainingbook Command v4.0</span><a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="flex items-center gap-2 text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest transition-all"><Maximize2 className="w-3 h-3" /> Fullscreen</a></div>
+
+                  {/* Footer */}
+                  <div className="px-7 py-4 bg-white/80 border-t border-slate-100 flex justify-between items-center shrink-0 z-20 backdrop-blur-md">
+                      <span className="text-[9px] font-bold uppercase text-slate-300 tracking-widest leading-none">Trainingbook Command v4.0</span>
+                      <a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="flex items-center gap-2 text-[10px] font-black text-blue-600 hover:underline uppercase tracking-widest transition-all">
+                          <Maximize2 className="w-3 h-3" /> Fullscreen
+                      </a>
+                  </div>
                </div>
             </div>
          </div>
       </div>
 
-      {/* ... (Mobile Viewer & Lightbox remain the same) ... */}
+      {/* MOBILE VIEWER */}
       <AnimatePresence>{mobileViewerOpen && (<ClientPortal><div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileViewerOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.05} onDragEnd={(_, info) => { if (info.offset.y > 100) setMobileViewerOpen(false); }} className="pointer-events-auto bg-white w-full h-[92vh] rounded-t-[40px] shadow-2xl relative flex flex-col overflow-hidden"><div className="absolute top-0 left-0 right-0 h-10 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm cursor-grab active:cursor-grabbing touch-none" onPointerDown={(e) => dragControls.start(e)}><div className="w-12 h-1.5 bg-slate-300 rounded-full" /></div><div className="px-6 py-4 pt-10 border-b border-slate-100 flex justify-between items-center shrink-0 bg-white z-40"><div className="flex flex-col"><span className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">{activeSection?.title || "Manual"}</span><div className="flex items-center gap-2"><div className={cn("w-2 h-2 rounded-full", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")} /><span className="text-lg font-bold text-slate-900 leading-none">Pages {activeSection?.pageStart || "?"} - {activeSection?.pageEnd || "?"}</span></div></div><button onClick={() => setMobileViewerOpen(false)} className="p-2.5 bg-slate-100 rounded-full active:scale-95 transition-all"><Minimize2 className="w-5 h-5 text-slate-500" /></button></div><div className="flex-1 relative bg-slate-50 overflow-y-auto no-scrollbar touch-pan-y">{iframeLoading && (<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50"><Loader2 className={cn("w-10 h-10 animate-spin mb-4", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Manual...</span></div>)}{getEmbedUrl() ? (<iframe src={getEmbedUrl()!} className="w-full h-full border-none" loading="lazy" onLoad={() => setIframeLoading(false)} />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><BookOpen className="w-12 h-12 opacity-20 mb-2" /><p>No content available</p></div>)}</div><div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 w-full justify-center px-4"><div className="flex-1 max-w-[280px]"><PageRangeSelector start={activeSection?.pageStart} end={activeSection?.pageEnd} onUpdate={(u: any) => activeSectionId && updateSection(activeSectionId, u)} readOnly={true} /></div><a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a></div></motion.div></div></ClientPortal>)}</AnimatePresence>
 
       <AnimatePresence>
