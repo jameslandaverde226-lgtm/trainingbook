@@ -461,6 +461,14 @@ export default function TrainingBuilderPage() {
       }
   }, []);
 
+  // NEW: Helper to lock interaction during button clicks (like adding tasks)
+  const lockInteraction = () => {
+      isInteractionLocked.current = true;
+      setTimeout(() => {
+          isInteractionLocked.current = false;
+      }, 1000);
+  };
+
   const scrollToSection = (id: string) => {
       // FIX: Mobile Viewer Logic - Always open on tap, regardless of active state
       if(window.innerWidth < 1024) { 
@@ -508,7 +516,6 @@ export default function TrainingBuilderPage() {
             }
         });
 
-        // FIXED FALLBACK: Only fallback to top if we are actually at top
         if (!newActiveId && sectionsRef.current.length > 0 && window.scrollY < 100) {
             newActiveId = sectionsRef.current[0].id;
         }
@@ -549,7 +556,7 @@ export default function TrainingBuilderPage() {
     
     setActiveSectionId(docRef.id);
     
-    // Explicitly update refs immediately to prevent null ref glitch
+    // Update ref locally to prevent "Phase 1" jump before snapshot returns
     sectionsRef.current = [...sections, { id: docRef.id, title: "New Training Phase", duration: "Day 1", pageStart: lastPage + 1, pageEnd: lastPage + 2, tasks: [], dept: activeDept, order: nextOrder } as Section];
 
     setTimeout(() => {
@@ -557,7 +564,6 @@ export default function TrainingBuilderPage() {
         if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
-        // KEEP LOCK ON for a bit longer to allow layout to settle
         setTimeout(() => { isAutoScrolling.current = false; }, 800);
     }, 200);
   };
@@ -611,10 +617,6 @@ export default function TrainingBuilderPage() {
                     
                     <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                     
-                    {/* FIX: Updated Click Logic 
-                       - Removed unconditional onClick on wrapper
-                       - Added conditional checks to only allow "Whole Card Click" on Desktop
-                    */}
                     <div 
                         onClick={() => {
                             if (window.innerWidth >= 1024) {
@@ -693,8 +695,8 @@ export default function TrainingBuilderPage() {
                             <AnimatePresence>
                                 {!previewMode && (
                                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex gap-2">
-                                        <button onClick={(e) => { e.stopPropagation(); const newTask: Task = { id: Math.random().toString(36).substr(2, 9), title: "", duration: "15m", type: "task" }; optimisticUpdateSection(section.id, { tasks: [...section.tasks, newTask] }); debouncedSaveSection(section.id, { tasks: [...section.tasks, newTask] }); }} className="flex-1 py-4 md:py-3.5 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"><Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block</button>
-                                        <button onClick={(e) => { e.stopPropagation(); const newSubject: Task = { id: Math.random().toString(36).substr(2, 9), title: "", type: "subject", color: "slate" }; optimisticUpdateSection(section.id, { tasks: [...section.tasks, newSubject] }); debouncedSaveSection(section.id, { tasks: [...section.tasks, newSubject] }); }} className="w-14 md:w-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group" title="Add Subject Heading"><AlignLeft className="w-4 h-4" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); lockInteraction(); const newTask: Task = { id: Math.random().toString(36).substr(2, 9), title: "", duration: "15m", type: "task" }; optimisticUpdateSection(section.id, { tasks: [...section.tasks, newTask] }); debouncedSaveSection(section.id, { tasks: [...section.tasks, newTask] }); }} className="flex-1 py-4 md:py-3.5 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"><Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block</button>
+                                        <button onClick={(e) => { e.stopPropagation(); lockInteraction(); const newSubject: Task = { id: Math.random().toString(36).substr(2, 9), title: "", type: "subject", color: "slate" }; optimisticUpdateSection(section.id, { tasks: [...section.tasks, newSubject] }); debouncedSaveSection(section.id, { tasks: [...section.tasks, newSubject] }); }} className="w-14 md:w-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group" title="Add Subject Heading"><AlignLeft className="w-4 h-4" /></button>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
