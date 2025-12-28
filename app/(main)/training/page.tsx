@@ -65,6 +65,15 @@ const SPRING_TRANSITION: Transition = {
   mass: 0.8
 };
 
+// --- UTILS: Custom Debounce (No external dependency needed) ---
+function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
+    let timeout: NodeJS.Timeout;
+    return ((...args: any[]) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    }) as T;
+}
+
 // --- HELPER COMPONENTS ---
 
 function PageRangeSelector({ start, end, onUpdate, readOnly }: any) {
@@ -213,10 +222,11 @@ const DraggableTask = ({
     activeDept, 
     previewMode, 
     handleFileUpload, 
-    updateSection, 
+    updateSection, // This is now the OPTIMISTIC updater
+    saveSection,   // This is the DEBOUNCED DB saver
     setViewingImage, 
     section,
-    onInteract // NEW PROP
+    onInteract 
 }: any) => {
     const controls = useDragControls();
     const isSubject = task.type === 'subject';
@@ -272,13 +282,20 @@ const DraggableTask = ({
                             <textarea 
                                 value={task.title} 
                                 onChange={e => { 
-                                    const newTasks = section.tasks.map((t: Task) => t.id === task.id ? { ...t, title: e.target.value } : t); 
+                                    const val = e.target.value;
+                                    const newTasks = section.tasks.map((t: Task) => t.id === task.id ? { ...t, title: val } : t); 
+                                    
+                                    // 1. Update UI Immediately (Optimistic)
                                     updateSection(section.id, { tasks: newTasks });
+                                    
+                                    // 2. Trigger Debounced Save
+                                    saveSection(section.id, { tasks: newTasks });
+
                                     e.target.style.height = 'auto';
                                     e.target.style.height = `${e.target.scrollHeight}px`;
                                 }}
-                                onFocus={() => onInteract(true)}  // LOCK
-                                onBlur={() => onInteract(false)}  // UNLOCK
+                                onFocus={() => onInteract(true, section.id)}
+                                onBlur={() => onInteract(false)}
                                 className={cn(
                                     "w-full bg-transparent outline-none resize-none overflow-hidden",
                                     isSubject 
@@ -312,6 +329,7 @@ const DraggableTask = ({
                                                 onClick={() => {
                                                     const newTasks = section.tasks.map((t: Task) => t.id === task.id ? { ...t, color: c.id } : t);
                                                     updateSection(section.id, { tasks: newTasks });
+                                                    saveSection(section.id, { tasks: newTasks });
                                                 }}
                                                 className={cn(
                                                     "w-3.5 h-3.5 rounded-full transition-transform hover:scale-125 border border-black/5",
@@ -327,7 +345,11 @@ const DraggableTask = ({
                                 {!isSubject && (
                                     <label className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-50 rounded-lg transition-all shrink-0"><Cloud className="w-4 h-4" /><input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(section, task.id, e)} /></label>
                                 )}
-                                <button onClick={() => updateDoc(doc(db, "curriculum", section.id), { tasks: section.tasks.filter((t: Task) => t.id !== task.id) })} className="p-2 text-slate-300 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
+                                <button onClick={() => {
+                                    const newTasks = section.tasks.filter((t: Task) => t.id !== task.id);
+                                    updateSection(section.id, { tasks: newTasks });
+                                    saveSection(section.id, { tasks: newTasks });
+                                }} className="p-2 text-slate-300 hover:text-red-500 shrink-0"><X className="w-4 h-4" /></button>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -369,15 +391,33 @@ export default function TrainingBuilderPage() {
   
   // LOCKS
   const isAutoScrolling = useRef(false);
-  const isInteractionLocked = useRef(false); // CRITICAL FIX: Global interaction lock
+  const isInteractionLocked = useRef(false); 
   
   const sectionsRef = useRef<Section[]>([]);
   const dragControls = useDragControls();
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
+  // --- 1. Debounced Saver: Prevents Firestore thrashing ---
+  // Using useMemo directly with our custom debounce to create a stable reference
+  const debouncedSaveSection = useMemo(() => debounce(async (id: string, updates: Partial<Section>) => {
+      await updateDoc(doc(db, "curriculum", id), updates);
+  }, 1000), []);
+
+  // --- 2. Optimistic Updater: Updates local state immediately ---
+  const optimisticUpdateSection = (id: string, updates: Partial<Section>) => {
+      setSections(prev => {
+          const next = prev.map(s => s.id === id ? { ...s, ...updates } : s);
+          sectionsRef.current = next; // Sync ref immediately
+          return next;
+      });
+  };
+
   useEffect(() => {
     const q = query(collection(db, "curriculum"), where("dept", "==", activeDept));
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      // Logic: Only update from snapshot if we ARE NOT typing to avoid overwriting local optimistic state
+      if (isInteractionLocked.current) return;
+
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Section[];
       const sortedData = data.sort((a, b) => (a.order || 0) - (b.order || 0));
       
@@ -396,20 +436,18 @@ export default function TrainingBuilderPage() {
   const activeSection = useMemo(() => sections[activeIndex] || sections[0], [sections, activeIndex]);
 
   // --- INTERACTION HANDLERS ---
-  // Called by Inputs/Textareas to lock scroll spy
   const handleInteraction = useCallback((isLocked: boolean, sectionId?: string) => {
       if (isLocked && sectionId) {
           isInteractionLocked.current = true;
-          setActiveSectionId(sectionId); // Force correct section immediately
+          setActiveSectionId(sectionId); 
       } else {
-          // Add a small delay on unlock to prevent "blur -> scroll" jitter
+          // Delay unlocking to survive the blur/refocus cycle
           setTimeout(() => {
               isInteractionLocked.current = false;
-          }, 500);
+          }, 800);
       }
   }, []);
 
-  // --- MANUAL SCROLL HANDLER (Triggered by Click or Add) ---
   const scrollToSection = (id: string) => {
       if (activeSectionId === id) return;
 
@@ -431,37 +469,27 @@ export default function TrainingBuilderPage() {
       }
   };
 
-  // --- AUTO SCROLL DETECTION (Improved Logic) ---
   useEffect(() => {
     const handleScroll = () => {
-        // 1. GLOBAL BLOCKER: If the user is typing or auto-scrolling, STOP.
+        // GLOBAL BLOCKER
         if (isAutoScrolling.current || isInteractionLocked.current) {
             return;
         }
 
-        // 2. THRESHOLD STRATEGY
-        // We find the last element that has crossed the "Trigger Line" (30% from top).
-        // This ensures that even if you scroll past Phase 1, Phase 2 becomes active 
-        // as soon as it hits the reading area.
+        // THRESHOLD STRATEGY: Last element crossing the 30% line
         const triggerLine = window.innerHeight * 0.3; 
-        
         let newActiveId: string | null = null;
         
-        // Iterate through all sections to see which ones are "above" the trigger line
         sectionsRef.current.forEach((s) => {
             const el = sectionRefs.current[s.id];
             if (el) {
                 const rect = el.getBoundingClientRect();
-                // If the top of the element is above (or at) the trigger line...
                 if (rect.top <= triggerLine) {
-                    // ...this is a candidate. Since we loop in order, the LAST one 
-                    // that matches this condition is the one currently at the top.
                     newActiveId = s.id;
                 }
             }
         });
 
-        // Special case: If we are at the very top and nothing crossed yet, default to first
         if (!newActiveId && sectionsRef.current.length > 0) {
             newActiveId = sectionsRef.current[0].id;
         }
@@ -473,7 +501,7 @@ export default function TrainingBuilderPage() {
     
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [activeSectionId]); // Added activeSectionId dep to ensure state is fresh
+  }, [activeSectionId]);
 
   const getEmbedUrl = () => {
     if (!activeSection || !activeSection.pageStart) return null;
@@ -492,7 +520,6 @@ export default function TrainingBuilderPage() {
 
   const addSection = async () => {
     isAutoScrolling.current = true;
-    
     const nextOrder = sections.length > 0 ? (sections[sections.length - 1].order || 0) + 1 : 0;
     const lastPage = sections.length > 0 ? (Number(sections[sections.length - 1].pageEnd) || 0) : 0;
     
@@ -512,13 +539,9 @@ export default function TrainingBuilderPage() {
     }, 200);
   };
 
-  const updateSection = async (id: string, updates: Partial<Section>) => {
-    await updateDoc(doc(db, "curriculum", id), updates);
-  };
-
   const handleReorder = (sectionId: string, newTasks: Task[]) => {
-      setSections(prev => prev.map(s => s.id === sectionId ? { ...s, tasks: newTasks } : s));
-      updateDoc(doc(db, "curriculum", sectionId), { tasks: newTasks });
+      optimisticUpdateSection(sectionId, { tasks: newTasks });
+      debouncedSaveSection(sectionId, { tasks: newTasks });
   };
 
   const handleFileUpload = async (section: Section, taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -530,6 +553,8 @@ export default function TrainingBuilderPage() {
       const snapshot = await uploadBytes(storageRef, file);
       const url = await getDownloadURL(snapshot.ref);
       const newTasks = section.tasks.map(t => t.id === taskId ? { ...t, image: url } : t);
+      
+      optimisticUpdateSection(section.id, { tasks: newTasks });
       await updateDoc(doc(db, "curriculum", section.id), { tasks: newTasks });
     } catch (error) { console.error(error); } finally { setIsProcessing(false); }
   };
@@ -555,24 +580,21 @@ export default function TrainingBuilderPage() {
                return (
                  <div key={section.id} ref={el => { sectionRefs.current[section.id] = el; }} className={cn("relative transition-all duration-500 w-full max-w-2xl", isActive ? "z-30" : "z-0")}>
                     
-                    {/* Background glow - Visual only, no layout impact */}
                     <AnimatePresence>
                         {isActive && (
                             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 0.2, scale: 1.15 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.6, ease: "easeOut" }} className={cn("absolute -inset-10 md:-inset-16 bg-gradient-to-r from-transparent via-current to-transparent blur-[80px] md:blur-[120px] rounded-[50%] -z-10 pointer-events-none hidden md:block", activeDept === "FOH" ? "text-blue-500" : "text-red-500")} />
                         )}
                     </AnimatePresence>
                     
-                    {/* Phase Badge */}
                     <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                     
-                    {/* MAIN CARD: Jitter-Free Version */}
                     <div onClick={() => scrollToSection(section.id)} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-300 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-80 hover:opacity-100")}>
                          <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
                             <div className="flex-1 space-y-2 md:space-y-3">
                                <div className="flex items-center gap-2 md:gap-3">
                                   <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner")}>
                                     <CalendarClock className="w-3.5 h-3.5" />
-                                    {previewMode ? <span className="font-black text-slate-600">{section.duration}</span> : <input value={section.duration} onChange={e => updateSection(section.id, { duration: e.target.value })} onClick={(e) => e.stopPropagation()} onFocus={() => handleInteraction(true, section.id)} onBlur={() => handleInteraction(false)} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}
+                                    {previewMode ? <span className="font-black text-slate-600">{section.duration}</span> : <input value={section.duration} onChange={e => { optimisticUpdateSection(section.id, { duration: e.target.value }); debouncedSaveSection(section.id, { duration: e.target.value }); }} onClick={(e) => e.stopPropagation()} onFocus={() => handleInteraction(true, section.id)} onBlur={() => handleInteraction(false)} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}
                                   </div>
                                   <span className="text-[9px] md:text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
                                </div>
@@ -582,13 +604,15 @@ export default function TrainingBuilderPage() {
                                    <textarea
                                         value={section.title}
                                         onChange={(e) => {
-                                            updateSection(section.id, { title: e.target.value });
+                                            const val = e.target.value;
+                                            optimisticUpdateSection(section.id, { title: val });
+                                            debouncedSaveSection(section.id, { title: val });
                                             e.target.style.height = 'auto';
                                             e.target.style.height = `${e.target.scrollHeight}px`;
                                         }}
                                         onClick={(e) => e.stopPropagation()}
-                                        onFocus={() => handleInteraction(true, section.id)} // LOCK SCROLL
-                                        onBlur={() => handleInteraction(false)} // UNLOCK SCROLL
+                                        onFocus={() => handleInteraction(true, section.id)}
+                                        onBlur={() => handleInteraction(false)}
                                         className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
                                         rows={1}
                                         ref={(el) => {
@@ -601,7 +625,7 @@ export default function TrainingBuilderPage() {
                                )}
                             </div>
                             <div className="flex items-start gap-2 md:gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                <div className="hidden md:block"><PageRangeSelector start={section.pageStart} end={section.pageEnd} onUpdate={(u: any) => updateSection(section.id, u)} readOnly={previewMode} /></div>
+                                <div className="hidden md:block"><PageRangeSelector start={section.pageStart} end={section.pageEnd} onUpdate={(u: any) => { optimisticUpdateSection(section.id, u); debouncedSaveSection(section.id, u); }} readOnly={previewMode} /></div>
                                 <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} onClick={() => deleteDoc(doc(db, "curriculum", section.id))} className="p-2 md:p-3 text-slate-300 hover:text-red-500 transition-all bg-slate-50 rounded-xl md:rounded-2xl border border-slate-200 hover:shadow-md active:scale-90"><Trash2 className="w-4 h-4" /></motion.button>)}</AnimatePresence>
                             </div>
                          </div>
@@ -615,18 +639,19 @@ export default function TrainingBuilderPage() {
                                         activeDept={activeDept} 
                                         previewMode={previewMode} 
                                         handleFileUpload={handleFileUpload} 
-                                        updateSection={updateSection} 
+                                        updateSection={optimisticUpdateSection} 
+                                        saveSection={debouncedSaveSection}
                                         setViewingImage={setViewingImage} 
                                         section={section}
-                                        onInteract={(locked: boolean) => handleInteraction(locked, section.id)} // PASS LOCK HANDLER
+                                        onInteract={handleInteraction}
                                     />
                                 ))}
                             </Reorder.Group>
                             <AnimatePresence>
                                 {!previewMode && (
                                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex gap-2">
-                                        <button onClick={(e) => { e.stopPropagation(); const newTask: Task = { id: Math.random().toString(36).substr(2, 9), title: "", duration: "15m", type: "task" }; updateSection(section.id, { tasks: [...section.tasks, newTask] }); }} className="flex-1 py-4 md:py-3.5 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"><Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block</button>
-                                        <button onClick={(e) => { e.stopPropagation(); const newSubject: Task = { id: Math.random().toString(36).substr(2, 9), title: "", type: "subject", color: "slate" }; updateSection(section.id, { tasks: [...section.tasks, newSubject] }); }} className="w-14 md:w-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group" title="Add Subject Heading"><AlignLeft className="w-4 h-4" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); const newTask: Task = { id: Math.random().toString(36).substr(2, 9), title: "", duration: "15m", type: "task" }; optimisticUpdateSection(section.id, { tasks: [...section.tasks, newTask] }); debouncedSaveSection(section.id, { tasks: [...section.tasks, newTask] }); }} className="flex-1 py-4 md:py-3.5 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-[10px] font-black uppercase text-slate-400 hover:border-[#004F71] hover:text-[#004F71] transition-all flex items-center justify-center gap-2 group"><Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" /> Add Logic Block</button>
+                                        <button onClick={(e) => { e.stopPropagation(); const newSubject: Task = { id: Math.random().toString(36).substr(2, 9), title: "", type: "subject", color: "slate" }; optimisticUpdateSection(section.id, { tasks: [...section.tasks, newSubject] }); debouncedSaveSection(section.id, { tasks: [...section.tasks, newSubject] }); }} className="w-14 md:w-16 flex items-center justify-center border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group" title="Add Subject Heading"><AlignLeft className="w-4 h-4" /></button>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -640,7 +665,7 @@ export default function TrainingBuilderPage() {
             <AnimatePresence>{!previewMode && (<motion.button initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} onClick={addSection} className="w-full max-w-2xl py-12 md:py-16 border-4 border-dashed rounded-[32px] md:rounded-[44px] font-black uppercase transition-all flex flex-col items-center justify-center gap-4 group border-slate-200 text-slate-300 hover:border-[#004F71] hover:text-[#004F71] hover:bg-white mb-32 md:mb-0"><div className={cn("p-4 rounded-full transition-all group-hover:scale-110 shadow-sm bg-slate-50 group-hover:bg-[#004F71] group-hover:text-white")}><Plus className="w-8 h-8" /></div><span className="text-lg md:text-xl tracking-tighter">Create New Phase</span></motion.button>)}</AnimatePresence>
          </div>
 
-         {/* RIGHT COLUMN - Sticky Container */}
+         {/* RIGHT COLUMN */}
          <div className="hidden lg:block col-span-5 relative h-full">
             <div className="sticky top-28 z-40 transition-all duration-500 h-fit">
                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-40 blur-[120px] transition-colors duration-1000 -z-10", activeDept === "FOH" ? "from-blue-200" : "from-red-200")} />
@@ -692,7 +717,7 @@ export default function TrainingBuilderPage() {
          </div>
       </div>
 
-      <AnimatePresence>{mobileViewerOpen && (<ClientPortal><div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileViewerOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.05} onDragEnd={(_, info) => { if (info.offset.y > 100) setMobileViewerOpen(false); }} className="pointer-events-auto bg-white w-full h-[92vh] rounded-t-[40px] shadow-2xl relative flex flex-col overflow-hidden"><div className="absolute top-0 left-0 right-0 h-10 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm cursor-grab active:cursor-grabbing touch-none" onPointerDown={(e) => dragControls.start(e)}><div className="w-12 h-1.5 bg-slate-300 rounded-full" /></div><div className="px-6 py-4 pt-10 border-b border-slate-100 flex justify-between items-center shrink-0 bg-white z-40"><div className="flex flex-col"><span className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">{activeSection?.title || "Manual"}</span><div className="flex items-center gap-2"><div className={cn("w-2 h-2 rounded-full", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")} /><span className="text-lg font-bold text-slate-900 leading-none">Pages {activeSection?.pageStart || "?"} - {activeSection?.pageEnd || "?"}</span></div></div><button onClick={() => setMobileViewerOpen(false)} className="p-2.5 bg-slate-100 rounded-full active:scale-95 transition-all"><Minimize2 className="w-5 h-5 text-slate-500" /></button></div><div className="flex-1 relative bg-slate-50 overflow-y-auto no-scrollbar touch-pan-y">{iframeLoading && (<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50"><Loader2 className={cn("w-10 h-10 animate-spin mb-4", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Manual...</span></div>)}{getEmbedUrl() ? (<iframe src={getEmbedUrl()!} className="w-full h-full border-none" loading="lazy" onLoad={() => setIframeLoading(false)} />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><BookOpen className="w-12 h-12 opacity-20 mb-2" /><p>No content available</p></div>)}</div><div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 w-full justify-center px-4"><div className="flex-1 max-w-[280px]"><PageRangeSelector start={activeSection?.pageStart} end={activeSection?.pageEnd} onUpdate={(u: any) => activeSectionId && updateSection(activeSectionId, u)} readOnly={true} /></div><a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a></div></motion.div></div></ClientPortal>)}</AnimatePresence>
+      <AnimatePresence>{mobileViewerOpen && (<ClientPortal><div className="fixed inset-0 z-[200] lg:hidden flex items-end justify-center pointer-events-none"><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setMobileViewerOpen(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm pointer-events-auto" /><motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 300 }} drag="y" dragControls={dragControls} dragListener={false} dragConstraints={{ top: 0, bottom: 0 }} dragElastic={0.05} onDragEnd={(_, info) => { if (info.offset.y > 100) setMobileViewerOpen(false); }} className="pointer-events-auto bg-white w-full h-[92vh] rounded-t-[40px] shadow-2xl relative flex flex-col overflow-hidden"><div className="absolute top-0 left-0 right-0 h-10 flex justify-center items-center z-50 bg-white/80 backdrop-blur-sm cursor-grab active:cursor-grabbing touch-none" onPointerDown={(e) => dragControls.start(e)}><div className="w-12 h-1.5 bg-slate-300 rounded-full" /></div><div className="px-6 py-4 pt-10 border-b border-slate-100 flex justify-between items-center shrink-0 bg-white z-40"><div className="flex flex-col"><span className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1">{activeSection?.title || "Manual"}</span><div className="flex items-center gap-2"><div className={cn("w-2 h-2 rounded-full", activeDept === "FOH" ? "bg-[#004F71]" : "bg-[#E51636]")} /><span className="text-lg font-bold text-slate-900 leading-none">Pages {activeSection?.pageStart || "?"} - {activeSection?.pageEnd || "?"}</span></div></div><button onClick={() => setMobileViewerOpen(false)} className="p-2.5 bg-slate-100 rounded-full active:scale-95 transition-all"><Minimize2 className="w-5 h-5 text-slate-500" /></button></div><div className="flex-1 relative bg-slate-50 overflow-y-auto no-scrollbar touch-pan-y">{iframeLoading && (<div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-50"><Loader2 className={cn("w-10 h-10 animate-spin mb-4", activeDept === "FOH" ? "text-[#004F71]" : "text-[#E51636]")} /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Manual...</span></div>)}{getEmbedUrl() ? (<iframe src={getEmbedUrl()!} className="w-full h-full border-none" loading="lazy" onLoad={() => setIframeLoading(false)} />) : (<div className="w-full h-full flex flex-col items-center justify-center text-slate-300"><BookOpen className="w-12 h-12 opacity-20 mb-2" /><p>No content available</p></div>)}</div><div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 w-full justify-center px-4"><div className="flex-1 max-w-[280px]"><PageRangeSelector start={activeSection?.pageStart} end={activeSection?.pageEnd} onUpdate={(u: any) => { if(activeSectionId) { optimisticUpdateSection(activeSectionId, u); debouncedSaveSection(activeSectionId, u); }}} readOnly={true} /></div><a href={CANVA_LINKS[activeDept] || CANVA_LINKS.FOH} target="_blank" className="p-3.5 bg-white/90 backdrop-blur-md border border-white/40 rounded-full text-slate-600 shadow-lg hover:text-slate-900 active:scale-95 transition-all"><Maximize2 className="w-5 h-5" /></a></div></motion.div></div></ClientPortal>)}</AnimatePresence>
 
       <AnimatePresence>
             {viewingImage && (
