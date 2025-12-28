@@ -1,7 +1,7 @@
 // app/(main)/training/page.tsx
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { 
   motion, AnimatePresence, useDragControls, LayoutGroup, Transition, Reorder 
 } from "framer-motion";
@@ -364,8 +364,11 @@ export default function TrainingBuilderPage() {
   const [viewingImage, setViewingImage] = useState<{ id: string, url: string } | null>(null);
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   
-  // Lock variable to prevent scroll listener from overwriting selection
+  // FIX: Lock variable to prevent scroll listener from overwriting selection
   const isAutoScrolling = useRef(false);
+  
+  // FIX: Ref to store sections to break dependency loop in scroll listener
+  const sectionsRef = useRef<Section[]>([]);
   
   const dragControls = useDragControls();
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -375,9 +378,11 @@ export default function TrainingBuilderPage() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Section[];
       const sortedData = data.sort((a, b) => (a.order || 0) - (b.order || 0));
-      setSections(sortedData);
       
-      // Initial Load - Ensure we default to the first section if nothing selected
+      setSections(sortedData);
+      sectionsRef.current = sortedData; // Update ref for scroll listener
+      
+      // Initial Load
       if (data.length > 0 && !activeSectionId) {
           setActiveSectionId(sortedData[0].id);
       }
@@ -413,13 +418,15 @@ export default function TrainingBuilderPage() {
   // --- AUTO SCROLL DETECTION (Updates Island while scrolling) ---
   useEffect(() => {
     const handleScroll = () => {
-        if (isAutoScrolling.current) return; // SKIP IF LOCKED
+        // If user just clicked/added, ignore scroll events for a moment
+        if (isAutoScrolling.current) return;
 
         const viewportCenter = window.innerHeight / 2;
-        let closestId = activeSectionId;
+        let closestId: string | null = null;
         let minDistance = Infinity;
         
-        sections.forEach((s) => {
+        // Use ref here to avoid stale closures or re-attaching listener constantly
+        sectionsRef.current.forEach((s) => {
             const el = sectionRefs.current[s.id];
             if (el) {
                 const rect = el.getBoundingClientRect();
@@ -431,12 +438,16 @@ export default function TrainingBuilderPage() {
                 }
             }
         });
-        if (closestId && closestId !== activeSectionId) setActiveSectionId(closestId);
+        
+        // Only update state if different to prevent re-renders
+        if (closestId) {
+             setActiveSectionId((prev) => (prev !== closestId ? closestId : prev));
+        }
     };
     
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [sections, activeSectionId]);
+  }, []); // Empty dependency array = listener attaches ONCE
 
   const getEmbedUrl = () => {
     if (!activeSection || !activeSection.pageStart) return null;
@@ -501,22 +512,23 @@ export default function TrainingBuilderPage() {
   };
 
   return (
+    // FIX 2: Removed overflow-x-hidden from main wrapper to allow sticky positioning to work
     <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       
-      {/* 
-          Passed activePhaseIndex (ensuring fallback to 0) 
-          and activePhaseTitle (fallback to 'Loading...') 
-          to the Dynamic Island so it updates instantly.
-      */}
       <TrainingDynamicIsland 
         activeDept={activeDept}
         setActiveDept={setActiveDept}
+        // FIX: Ensure calculation always defaults safely
         activePhaseIndex={activeIndex !== -1 ? activeIndex : 0}
         activePhaseTitle={activeSection?.title || "New Phase"}
         previewMode={previewMode}
         setPreviewMode={setPreviewMode}
       />
 
+      {/* 
+         UPDATED MAIN GRID:
+         1. items-stretch ensures right column matches height of left column (allows sticky)
+      */}
       <div className="max-w-[1800px] mx-auto px-4 md:px-6 pt-40 md:pt-48 grid grid-cols-12 gap-6 md:gap-12 items-stretch relative z-10 pb-32">
          
          {/* LEFT COLUMN */}
