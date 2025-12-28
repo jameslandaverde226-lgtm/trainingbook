@@ -449,6 +449,16 @@ export default function TrainingBuilderPage() {
   }, []);
 
   const scrollToSection = (id: string) => {
+      // FIX: Mobile Viewer Logic - Always open on tap, regardless of active state
+      if(window.innerWidth < 1024) { 
+          if(activeSectionId !== id) {
+              setActiveSectionId(id);
+          }
+          setMobileViewerOpen(true); 
+          setIframeLoading(true); 
+          return;
+      }
+
       if (activeSectionId === id) return;
 
       isAutoScrolling.current = true; // LOCK
@@ -462,11 +472,6 @@ export default function TrainingBuilderPage() {
       setTimeout(() => {
           isAutoScrolling.current = false;
       }, 800);
-      
-      if(window.innerWidth < 1024) { 
-          setMobileViewerOpen(true); 
-          setIframeLoading(true); 
-      }
   };
 
   useEffect(() => {
