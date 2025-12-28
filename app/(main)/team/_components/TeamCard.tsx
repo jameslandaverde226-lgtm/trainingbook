@@ -78,12 +78,13 @@ const TeamCardComponent = ({
   const isBOH = member.dept === "BOH";
   const isUnassigned = !isFOH && !isBOH;
   
+  // FIX: Simplified image check logic
   const hasImage = member.image && !member.image.includes('ui-avatars.com');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
   
-  const [imageLoaded, setImageLoaded] = useState(false);
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
   const progressTicks = Math.round((member.progress || 0) / 10);
   
@@ -91,7 +92,6 @@ const TeamCardComponent = ({
   const lastBadge = badgeCount > 0 ? member.badges![member.badges!.length - 1] : null;
   const LastBadgeIcon = lastBadge ? (TACTICAL_ICONS.find(i => i.id === lastBadge.iconId)?.icon || Award) : null;
 
-  // --- RESOLVE MENTOR DEPARTMENT COLOR ---
   const mentorDeptColor = useMemo(() => {
       if (!member.pairing?.id) return "bg-slate-800 text-white";
       const mentorObj = team.find(m => m.id === member.pairing?.id);
@@ -139,7 +139,6 @@ const TeamCardComponent = ({
       disabled={isMobile || isDragging} 
       className={cn(
         "relative group w-full aspect-[3/4] perspective-1000 cursor-pointer select-none",
-        // UPDATED: Only disable touch actions (scrolling) if NOT on mobile
         isMobile ? "touch-auto" : "touch-none",
         isDropTarget && !isDragging && "z-50 scale-[1.03]",
         isWaitingForMentor && "z-50 scale-[1.02]"
@@ -156,7 +155,6 @@ const TeamCardComponent = ({
          style={{ filter: isDragging ? 'brightness(1.1)' : 'none', zIndex: isDragging ? 100 : 1 }}
          className="h-full w-full relative"
        >
-        {/* --- OVERLAYS --- */}
         <AnimatePresence>
             {isDropTarget && (
                 <motion.div 
@@ -216,23 +214,11 @@ const TeamCardComponent = ({
           <div className="absolute inset-0 z-0 cursor-default">
             {hasImage ? (
               <>
-                <div 
-                    className={cn(
-                        "absolute inset-0 bg-slate-800 transition-opacity duration-700 z-10 pointer-events-none",
-                        imageLoaded ? "opacity-0" : "opacity-100"
-                    )}
-                >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" style={{ transform: 'skewX(-20deg)' }} />
-                </div>
+                {/* FIX: Removed loading logic, direct render */}
                 <img 
                     src={member.image} 
                     alt={member.name} 
-                    loading="lazy"
-                    onLoad={() => setImageLoaded(true)}
-                    className={cn(
-                        "w-full h-full object-cover transition-all duration-1000",
-                        imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"
-                    )} 
+                    className="w-full h-full object-cover" 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90 pointer-events-none" />
               </>
@@ -319,7 +305,6 @@ const TeamCardComponent = ({
                    <AnimatePresence mode="wait">
                        {member.pairing ? (
                            <motion.div key="paired" className="flex items-center gap-3 w-full">
-                               {/* Dynamic Department Color for Avatar/Placeholder */}
                                <div className="relative shrink-0 w-8 h-8">
                                    {member.pairing.image ? (
                                         <img src={member.pairing.image} className="w-full h-full rounded-lg object-cover border border-white/20" alt={member.pairing.name} />

@@ -32,7 +32,7 @@ interface Badge {
     hex: string;
     iconId: string;
     count?: number; 
-    awardedId?: string; // Specific instance ID if earned
+    awardedId?: string; 
 }
 
 // --- SUB-COMPONENT: BADGE LIST ITEM ---
@@ -176,11 +176,7 @@ const MemberAwardsSheet = ({
     onRemove: (badgeId: string) => void
 }) => {
     const [tab, setTab] = useState<'earned' | 'award'>('earned');
-    
-    // UPDATED: Use helper to group duplicates into counts
-    const memberUniqueBadges = useMemo(() => {
-        return getUniqueBadges(member.badges || []);
-    }, [member.badges]);
+    const memberUniqueBadges = useMemo(() => getUniqueBadges(member.badges || []), [member.badges]);
 
     return (
         <ClientPortal>
@@ -214,8 +210,13 @@ const MemberAwardsSheet = ({
                     <div className="px-6 py-6 border-b border-slate-100 flex flex-col gap-6 bg-white shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-sm overflow-hidden shadow-inner">
-                                {member.image ? <img src={member.image} className="w-full h-full object-cover" /> : member.name.charAt(0)}
+                                {/* FIX: Profile Image in Sheet Header */}
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-500 text-sm overflow-hidden shadow-inner border border-slate-100">
+                                    {member.image && !member.image.includes('ui-avatars') ? (
+                                        <img src={member.image} className="w-full h-full object-cover" alt={member.name} />
+                                    ) : (
+                                        <span>{member.name.charAt(0)}</span>
+                                    )}
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-[1000] text-slate-900 tracking-tight leading-none">{member.name}</h2>
@@ -251,7 +252,6 @@ const MemberAwardsSheet = ({
                     {/* CONTENT AREA */}
                     <div className="flex-1 overflow-y-auto p-6 space-y-3 pb-20 custom-scrollbar">
                         {tab === 'earned' ? (
-                            // EARNED LIST
                             memberUniqueBadges.length > 0 ? (
                                 memberUniqueBadges.map((badge: any, i: number) => (
                                     <BadgeListItem 
@@ -270,7 +270,6 @@ const MemberAwardsSheet = ({
                                 </div>
                             )
                         ) : (
-                            // INVENTORY LIST
                             inventory.map(badge => (
                                 <BadgeListItem 
                                     key={badge.id}
@@ -300,10 +299,7 @@ export default function CertificationsPage() {
   const [hoveredMemberId, setHoveredMemberId] = useState<string | null>(null);
   
   const [isArchitectOpen, setIsArchitectOpen] = useState(false);
-  
-  // Award Sheet State
   const [selectedMemberForAward, setSelectedMemberForAward] = useState<string | null>(null);
-
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null); 
   const [customAccolades, setCustomAccolades] = useState<any[]>([]);
@@ -347,20 +343,14 @@ export default function CertificationsPage() {
         };
 
         const updatedBadges = [...currentBadges, newBadgeEntry];
-        
-        // 1. Optimistic Update
         updateMemberLocal(targetId, { badges: updatedBadges });
 
-        // 2. Profile Write
         const memberRef = doc(db, "profileOverrides", targetId); 
         await setDoc(memberRef, {
             badges: arrayUnion(newBadgeEntry), 
             updatedAt: serverTimestamp() 
         }, { merge: true });
 
-        // 3. INTELLIGENT EVENT LOGGING (Event Sourcing)
-        // Automatically creates a "System Log" event in the live feed
-        // FIXED: Removed the "Module ID: ..." line from description
         await addDoc(collection(db, "events"), {
             title: `Awarded: ${badge.label}`,
             type: "Award",
@@ -386,22 +376,15 @@ export default function CertificationsPage() {
 
   const removeBadge = async (badgeId: string) => {
       if(!activeMember) return;
-      
-      // If we are deleting a GROUPED badge, 'badgeId' is the ID of the first instance in that group.
-      // So this logic works for deleting one instance of a duplicate stack too.
       const badgeToRemove = activeMember.badges?.find((b: any) => (b.awardedId === badgeId || b.id === badgeId));
       if (!badgeToRemove) return;
 
       const loadToast = toast.loading("Revoking Certification...");
-      
       try {
           const updatedBadges = activeMember.badges?.filter((b: any) => b !== badgeToRemove) || [];
-          
           updateMemberLocal(activeMember.id, { badges: updatedBadges });
-
           const memberRef = doc(db, "profileOverrides", activeMember.id);
           await setDoc(memberRef, { badges: updatedBadges, updatedAt: serverTimestamp() }, { merge: true });
-          
           toast.success("Certification Revoked", { id: loadToast });
       } catch (e) {
           toast.error("Failed to revoke", { id: loadToast });
@@ -436,7 +419,6 @@ export default function CertificationsPage() {
   const handleDragEnd = async (event: any, info: any, badge: any) => {
     setIsDragging(false);
     setHoveredMemberId(null);
-    
     let clientX, clientY;
     if (event.changedTouches && event.changedTouches.length > 0) {
         clientX = event.changedTouches[0].clientX;
@@ -448,15 +430,11 @@ export default function CertificationsPage() {
         clientX = info.point.x;
         clientY = info.point.y;
     }
-
     const elements = document.elementsFromPoint(clientX, clientY);
     const card = elements.find(el => el.hasAttribute("data-member-id") || el.closest('[data-member-id]'));
     const targetElement = card?.hasAttribute("data-member-id") ? card : card?.closest('[data-member-id]');
     const targetId = targetElement?.getAttribute("data-member-id");
-    
-    if (targetId) {
-        await awardBadge(targetId, badge);
-    }
+    if (targetId) await awardBadge(targetId, badge);
   };
 
   // --- CRUD HANDLERS ---
@@ -502,7 +480,6 @@ export default function CertificationsPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] relative font-sans select-none overflow-x-hidden pt-6 pb-40">
       
-      {/* --- DYNAMIC ISLAND --- */}
       <CertificationsDynamicIsland 
           activeView={activeView}
           setActiveView={setActiveView}
@@ -518,7 +495,6 @@ export default function CertificationsPage() {
       <div className="max-w-[1400px] mx-auto px-4 md:px-6 mt-32 md:mt-48">
         <AnimatePresence mode="wait">
             
-            {/* VIEW 1: EOTM */}
             {activeView === 'eotm' ? (
                 <motion.div
                     key="eotm"
@@ -530,7 +506,6 @@ export default function CertificationsPage() {
                     <EOTMView />
                 </motion.div>
             ) : (
-                /* VIEW 2: ROSTER */
                 <motion.div 
                     key="armory"
                     initial={{ opacity: 0, y: 10 }}
@@ -582,7 +557,6 @@ export default function CertificationsPage() {
                                     const isHoveredTarget = hoveredMemberId === member.id || selectedMemberForAward === member.id;
                                     const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
                                     
-                                    // GROUP BADGES FOR CARD DISPLAY
                                     const uniqueBadges = getUniqueBadges(member.badges || []);
                                     const hasBadges = uniqueBadges.length > 0;
                                     
@@ -602,7 +576,6 @@ export default function CertificationsPage() {
                                         >
                                             <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} />
                                             
-                                            {/* DROPPABLE OVERLAY */}
                                             {isDragging && (
                                                 <div className={cn(
                                                     "absolute inset-0 z-20 flex items-center justify-center transition-opacity bg-white/60 backdrop-blur-[1px] pointer-events-none",
@@ -616,11 +589,12 @@ export default function CertificationsPage() {
 
                                             <div className="p-5 pl-7 flex items-start gap-4">
                                                 <div className="relative shrink-0">
+                                                    {/* FIX: Use img for valid URLs, fallback to initials */}
                                                     <div className={cn(
-                                                        "h-12 w-12 rounded-2xl flex items-center justify-center text-sm font-black shadow-md relative overflow-hidden bg-slate-100 text-slate-400",
-                                                        member.image && "bg-white"
+                                                        "h-12 w-12 rounded-2xl flex items-center justify-center text-sm font-black shadow-md relative overflow-hidden",
+                                                        member.image && !member.image.includes('ui-avatars') ? "bg-white" : "bg-slate-100 text-slate-400"
                                                     )}>
-                                                        {member.image ? (
+                                                        {member.image && !member.image.includes('ui-avatars') ? (
                                                             <img src={member.image} className="w-full h-full object-cover" alt="" />
                                                         ) : (
                                                             initials
@@ -641,7 +615,6 @@ export default function CertificationsPage() {
                                                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{member.dept}</span>
                                                     </div>
                                                     
-                                                    {/* CARD BADGE PREVIEW */}
                                                     <div className="mt-3 flex flex-wrap gap-1.5 min-h-[28px]">
                                                         {hasBadges ? (
                                                             uniqueBadges.slice(0, 4).map((b: any, idx: number) => {
@@ -683,7 +656,6 @@ export default function CertificationsPage() {
         </AnimatePresence>
       </div>
 
-      {/* --- FORGE MODAL (ARCHITECT) --- */}
       <AnimatePresence>
         {isArchitectOpen && (
             <ForgeModal 
@@ -698,7 +670,6 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
-      {/* --- MEMBER AWARDS SHEET (Responsive) --- */}
       <AnimatePresence>
         {activeMember && (
             <MemberAwardsSheet 
@@ -711,7 +682,6 @@ export default function CertificationsPage() {
         )}
       </AnimatePresence>
 
-      {/* --- DELETE CONFIRMATION MODAL --- */}
       <AnimatePresence>
         {deleteTargetId && (
             <ClientPortal>

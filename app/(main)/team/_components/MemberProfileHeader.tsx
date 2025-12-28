@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { TeamMember } from "../../calendar/_components/types";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-// ADDED IMPORTS
 import { doc, serverTimestamp, writeBatch, collection, addDoc } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import toast from "react-hot-toast";
@@ -26,7 +25,10 @@ export function MemberProfileHeader({ member }: Props) {
   const brandText = isFOH ? 'text-[#004F71]' : isBOH ? 'text-[#E51636]' : 'text-slate-500';
   const brandBg = isFOH ? 'bg-[#004F71]' : isBOH ? 'bg-[#E51636]' : 'bg-slate-500';
   const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
+  
+  // FIX: Simplified check
   const hasValidImage = member.image && !member.image.includes('ui-avatars.com');
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -123,6 +125,7 @@ export function MemberProfileHeader({ member }: Props) {
                         "w-16 h-16 lg:w-32 lg:h-32 rounded-[20px] lg:rounded-[32px] p-1 shadow-sm lg:shadow-md border border-slate-100 lg:rotate-[-3deg] transition-transform group-hover/avatar:rotate-0 group-hover/avatar:scale-105 bg-white",
                     )}>
                         <div className="w-full h-full rounded-[16px] lg:rounded-[24px] overflow-hidden flex items-center justify-center bg-slate-50 relative">
+                            {/* FIX: Direct Image Render without Loading State */}
                             {hasValidImage ? (
                                 <img src={member.image} className="w-full h-full object-cover" alt="" />
                             ) : (
