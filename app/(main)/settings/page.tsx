@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { 
   User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save,
   ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus, Lock, Unlock, FileKey, BarChart3, Users,
-  Terminal, Server, AlertCircle, CheckCircle2, Activity, Mail, Crown, Star, Briefcase
+  Terminal, Server, AlertCircle, CheckCircle2, Activity, Mail, Crown, Star, Briefcase, RefreshCcw
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAppStore } from "@/lib/store/useStore"; 
@@ -18,7 +18,6 @@ import { PermissionToggle } from "./_components/PermissionToggle";
 import { format } from "date-fns";
 
 // --- PERMISSION LABELS MAP ---
-// "Sensitive Intel" (canViewSensitiveDocs) has been removed from this list.
 const PERMISSION_CONFIG: { key: keyof PermissionSet; label: string; desc: string; category: "ops" | "people" | "system" }[] = [
     { key: "canCreateEvents", label: "Create Missions", desc: "Start new operations or goals.", category: "ops" },
     { key: "canEditEvents", label: "Modify Logs", desc: "Edit details of existing records.", category: "ops" },
@@ -44,6 +43,9 @@ export default function SettingsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [memberSearch, setMemberSearch] = useState("");
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  
+  // NEW: Track if we are editing an existing user to change UI labels
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
 
   // --- ROLE MANAGEMENT STATE ---
   const [selectedRole, setSelectedRole] = useState<Status>("Team Member");
@@ -121,16 +123,21 @@ export default function SettingsPage() {
   };
 
   const selectMemberForActivation = (member: any) => {
+      // DETECT IF USER ALREADY HAS ACCESS
+      const alreadyHasLogin = member.hasLogin === true;
+      setIsUpdateMode(alreadyHasLogin);
+
       setNewUser({
           ...newUser,
           name: member.name,
           email: member.email || "", 
           role: member.role || "Team Member",
           dept: member.dept || "FOH",
-          linkedMemberId: member.id
+          linkedMemberId: member.id,
+          password: "" // Clear password field for new entry
       });
       setMemberSearch(""); 
-      toast.success(`Selected: ${member.name}`);
+      toast.success(alreadyHasLogin ? `Editing Access: ${member.name}` : `Selected: ${member.name}`);
   };
 
   const provisionViaApi = async () => {
@@ -220,8 +227,9 @@ export default function SettingsPage() {
           const data = await res.json();
           if (!res.ok) throw new Error(data.error);
 
-          toast.success(`Access Granted: ${newUser.name}`);
+          toast.success(isUpdateMode ? `Credentials Updated: ${newUser.name}` : `Access Granted: ${newUser.name}`);
           setNewUser({ name: "", email: "", password: "", role: "Team Member", dept: "FOH", linkedMemberId: "" });
+          setIsUpdateMode(false);
       } catch (error: any) {
           toast.error(error.message || "Failed to create operative");
       } finally {
@@ -411,8 +419,8 @@ export default function SettingsPage() {
                                     <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Personnel Onboarding</h2>
                                     <p className="text-sm font-medium text-slate-400 mt-1">Grant system access to existing team members.</p>
                                 </div>
-                                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-                                    <UserPlus className="w-6 h-6" />
+                                <div className={cn("p-3 rounded-2xl transition-colors", isUpdateMode ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600")}>
+                                    {isUpdateMode ? <RefreshCcw className="w-6 h-6" /> : <UserPlus className="w-6 h-6" />}
                                 </div>
                             </div>
 
@@ -437,7 +445,10 @@ export default function SettingsPage() {
                                                         onClick={() => selectMemberForActivation(m)}
                                                         className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 flex justify-between items-center"
                                                     >
-                                                        <span>{m.name}</span>
+                                                        <div className="flex items-center gap-2">
+                                                            <span>{m.name}</span>
+                                                            {m.hasLogin && <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[8px] font-black uppercase">Active</span>}
+                                                        </div>
                                                         <span className="text-[10px] uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md">{m.role}</span>
                                                     </button>
                                                 ))
@@ -462,7 +473,9 @@ export default function SettingsPage() {
                                         <input required type="email" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="john@trainingbook.com" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all" />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Initial Password</label>
+                                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">
+                                            {isUpdateMode ? "New Password" : "Initial Password"}
+                                        </label>
                                         <input required type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all" />
                                     </div>
                                     
@@ -519,10 +532,13 @@ export default function SettingsPage() {
                                 <button 
                                     type="submit"
                                     disabled={isCreating}
-                                    className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                    className={cn(
+                                        "w-full py-5 text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50",
+                                        isUpdateMode ? "bg-[#004F71] hover:bg-[#003b55]" : "bg-slate-900 hover:bg-black"
+                                    )}
                                 >
-                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                    Initialize Operative
+                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : isUpdateMode ? <RefreshCcw className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                                    {isUpdateMode ? "Update Credentials" : "Initialize Operative"}
                                 </button>
                             </form>
                         </div>
@@ -574,7 +590,11 @@ export default function SettingsPage() {
 
                                             {/* Actions Area */}
                                             <div className="flex items-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                <button className="p-2.5 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors" title="Reset Password">
+                                                <button 
+                                                    onClick={() => selectMemberForActivation(user)}
+                                                    className="p-2.5 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors" 
+                                                    title="Edit Password"
+                                                >
                                                     <RefreshCw className="w-4 h-4" />
                                                 </button>
                                                 <button 
@@ -702,7 +722,6 @@ export default function SettingsPage() {
                 {/* --- TAB: SYSTEM LOGS --- */}
                 {activeTab === 'logs' && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100 relative overflow-hidden">
-                        
                         {/* Header */}
                         <div className="mb-8 relative z-10 flex items-center justify-between">
                             <div>
