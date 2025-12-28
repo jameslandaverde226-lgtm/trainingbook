@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { 
   Check, HardDrive, BookOpen, Loader2, Maximize2, 
-  Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, LayoutGrid, CheckCircle2, Expand 
+  Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, LayoutGrid, CheckCircle2, Expand, AlignLeft
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TeamMember } from "../../../calendar/_components/types";
@@ -13,6 +13,14 @@ import { db } from "@/lib/firebase";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence, useDragControls, PanInfo } from "framer-motion";
 import ClientPortal from "@/components/core/ClientPortal";
+
+// --- COLOR MAP (Matches Builder Page) ---
+const SUBJECT_COLORS = [
+    { id: "slate", hex: "#f8fafc", bg: "bg-slate-50", text: "text-slate-500", border: "border-slate-200" }, 
+    { id: "navy", hex: "#f0f9ff", bg: "bg-[#004F71]/10", text: "text-[#004F71]", border: "border-[#004F71]/20" }, 
+    { id: "red", hex: "#fff1f2", bg: "bg-[#E51636]/10", text: "text-[#E51636]", border: "border-[#E51636]/20" }, 
+    { id: "amber", hex: "#fffbeb", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200" },
+];
 
 // --- MANUAL VIEWER MODAL (Unchanged) ---
 function ManualViewerModal({ url, title, pages, onClose, color }: { url: string, title: string, pages: string, onClose: () => void, color: string }) {
@@ -71,7 +79,11 @@ export function CurriculumTab({ member }: Props) {
   }, [curriculum, member.dept]);
   
   const globalTotalTasks = useMemo(() => {
-      return filteredCurriculum.reduce((acc, curr) => acc + (curr.tasks?.length || 0), 0);
+      // Only count actual tasks, not subjects
+      return filteredCurriculum.reduce((acc, curr) => {
+          const taskCount = curr.tasks?.filter((t: any) => t.type !== 'subject').length || 0;
+          return acc + taskCount;
+      }, 0);
   }, [filteredCurriculum]);
 
   const handleVerifyTask = async (taskId: string, taskTitle: string) => {
@@ -85,7 +97,6 @@ export function CurriculumTab({ member }: Props) {
       updateMemberLocal(member.id, { completedTaskIds: newCompletedIds, progress: newProgress });
 
       try {
-          // 1. Update Member Profile
           const memberRef = doc(db, "profileOverrides", member.id);
           await setDoc(memberRef, { 
               completedTaskIds: wasCompleted ? arrayRemove(taskId) : arrayUnion(taskId), 
@@ -93,12 +104,10 @@ export function CurriculumTab({ member }: Props) {
               updatedAt: serverTimestamp() 
           }, { merge: true });
           
-          // 2. Log to Live Feed
           if (!wasCompleted) {
               await addDoc(collection(db, "events"), {
                   title: `Module Verified: ${taskTitle}`,
                   type: "Training",
-                  startDate: new Date(),
                   status: "Done",
                   priority: "Normal",
                   assigneeId: "System",
@@ -112,7 +121,7 @@ export function CurriculumTab({ member }: Props) {
           }
       } catch (e) {
           toast.error("Sync Failed");
-          updateMemberLocal(member.id, { completedTaskIds: currentIds }); // Revert
+          updateMemberLocal(member.id, { completedTaskIds: currentIds }); 
       }
   };
 
@@ -182,8 +191,9 @@ export function CurriculumTab({ member }: Props) {
                     className="grid grid-cols-1 gap-4"
                 >
                     {filteredCurriculum.map((section, i) => {
-                        const totalTasks = section.tasks?.length || 0;
-                        const completedCount = section.tasks?.filter((t: any) => (member.completedTaskIds || []).includes(t.id)).length || 0;
+                        // Only count actual tasks for completion calculation
+                        const totalTasks = section.tasks?.filter((t: any) => t.type !== 'subject').length || 0;
+                        const completedCount = section.tasks?.filter((t: any) => t.type !== 'subject' && (member.completedTaskIds || []).includes(t.id)).length || 0;
                         const percent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
                         const isComplete = percent === 100 && totalTasks > 0;
 
@@ -253,6 +263,25 @@ export function CurriculumTab({ member }: Props) {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                         {activeSection.tasks?.map((task: any) => {
+                             const isSubject = task.type === 'subject';
+                             
+                             // 1. RENDER SUBJECT HEADER
+                             if (isSubject) {
+                                 // Default to Slate if no color provided
+                                 const colorTheme = SUBJECT_COLORS.find(c => c.id === task.color) || SUBJECT_COLORS[0];
+                                 return (
+                                     <div key={task.id} className={cn("col-span-1 md:col-span-2 mt-4 mb-2 flex items-center gap-3 px-2 py-3 rounded-xl border", colorTheme.bg, colorTheme.border)}>
+                                         <div className={cn("p-1.5 rounded-lg bg-white/50", colorTheme.text)}>
+                                             <AlignLeft className="w-4 h-4" />
+                                         </div>
+                                         <h4 className={cn("text-xs font-[900] uppercase tracking-[0.2em]", colorTheme.text)}>
+                                             {task.title}
+                                         </h4>
+                                     </div>
+                                 );
+                             }
+
+                             // 2. RENDER NORMAL TASK
                              const isCompleted = (member.completedTaskIds || []).includes(task.id);
                              const hasImage = !!task.image;
 
@@ -305,13 +334,12 @@ export function CurriculumTab({ member }: Props) {
                                          )}
                                      </div>
 
-                                     {/* BOTTOM ROW: Cinematic Banner Image (Only if exists & not complete) */}
+                                     {/* BOTTOM ROW: Cinematic Banner Image */}
                                      {hasImage && !isCompleted && (
                                          <motion.div 
                                             layoutId={`image-${task.id}`}
                                             className={cn(
                                                 "relative w-full overflow-hidden rounded-xl border shadow-sm cursor-zoom-in group/img transition-all bg-slate-100 mt-2",
-                                                // Cinematic Aspect Ratio
                                                 "aspect-[16/9] md:aspect-[21/9]",
                                                 isFOH ? "border-[#004F71]/10 hover:border-[#004F71]/40" : "border-[#E51636]/10 hover:border-[#E51636]/40"
                                             )}
@@ -320,21 +348,16 @@ export function CurriculumTab({ member }: Props) {
                                                 setViewingImage(task.image);
                                             }}
                                          >
-                                             {/* LAYER 1: BLURRED BACKGROUND FILL (Prevents whitespace) */}
                                              <img 
                                                 src={task.image} 
                                                 alt=""
                                                 className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200"
                                                 aria-hidden="true"
                                              />
-
-                                             {/* LAYER 2: MAIN IMAGE (Perfect fit) */}
                                              <motion.img 
                                                 src={task.image} 
                                                 className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" 
                                              />
-                                             
-                                             {/* HOVER OVERLAY */}
                                              <div className="absolute inset-0 z-20 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 pointer-events-none">
                                                  <div className="bg-white/20 backdrop-blur-md p-2 rounded-full text-white border border-white/40 shadow-lg">
                                                      <Expand className="w-4 h-4" />
@@ -367,7 +390,7 @@ export function CurriculumTab({ member }: Props) {
             )}
         </AnimatePresence>
 
-        {/* --- LIGHTBOX FOR TEAM MEMBERS --- */}
+        {/* --- LIGHTBOX --- */}
         <AnimatePresence>
             {viewingImage && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 pointer-events-none">
