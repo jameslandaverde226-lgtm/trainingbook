@@ -232,13 +232,14 @@ const TeamCardComponent = ({
           <div className="absolute inset-0 z-0 cursor-default">
             {hasImage ? (
               <>
-                {/* FIX: Use Next/Image for better handling and fill */}
+                {/* FIX: Added unoptimized to bypass Vercel 502 errors */}
                 <Image 
                     src={member.image} 
                     alt={member.name} 
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    unoptimized={true} 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90 pointer-events-none" />
               </>
@@ -310,7 +311,7 @@ const TeamCardComponent = ({
                   </div>
                </div>
 
-               {/* MENTOR DOCK - UPDATED WITH DEPT COLOR */}
+               {/* MENTOR DOCK - UPDATED WITH DEPT COLOR & IMAGE FIX */}
                <div 
                     onClick={(e) => { e.stopPropagation(); onAssignClick(member); }}
                     className={cn(
@@ -327,7 +328,14 @@ const TeamCardComponent = ({
                            <motion.div key="paired" className="flex items-center gap-3 w-full">
                                <div className="relative shrink-0 w-8 h-8">
                                    {member.pairing.image ? (
-                                        <Image src={member.pairing.image} fill className="rounded-lg object-cover border border-white/20" alt={member.pairing.name} />
+                                        // FIX: Added unoptimized to mentor avatar too
+                                        <Image 
+                                            src={member.pairing.image} 
+                                            fill 
+                                            className="rounded-lg object-cover border border-white/20" 
+                                            alt={member.pairing.name}
+                                            unoptimized={true}
+                                        />
                                    ) : (
                                         <div className={cn("w-full h-full rounded-lg flex items-center justify-center text-[10px] font-black border border-white/20", mentorDeptColor)}>
                                             {member.pairing.name.charAt(0)}
