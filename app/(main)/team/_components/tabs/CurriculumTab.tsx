@@ -68,7 +68,7 @@ interface Props {
 }
 
 export function CurriculumTab({ member }: Props) {
-  const { curriculum, updateMemberLocal } = useAppStore();
+  const { curriculum, updateMemberLocal, loading } = useAppStore(); // Added loading from store
   const [activeSection, setActiveSection] = useState<any | null>(null);
   const [manualSection, setManualSection] = useState<any | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
@@ -136,7 +136,17 @@ export function CurriculumTab({ member }: Props) {
   const isFOH = member.dept === "FOH";
   const brandBg = isFOH ? 'bg-[#004F71]' : 'bg-[#E51636]';
 
-  // --- EMPTY STATES ---
+  // --- EMPTY STATES & LOADERS ---
+  
+  if (loading) {
+     return (
+        <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+             <Loader2 className="w-8 h-8 animate-spin opacity-50" />
+             <p className="text-xs font-bold uppercase tracking-widest opacity-50">Syncing Curriculum...</p>
+        </div>
+     );
+  }
+
   if (member.dept === "Unassigned") {
       return (
           <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 p-8 text-center">
@@ -244,6 +254,8 @@ export function CurriculumTab({ member }: Props) {
                 <motion.div 
                     key="phase-detail"
                     layoutId={`card-${activeSection.id}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     className="space-y-4 md:space-y-6"
                 >
                     {/* Header Card */}
@@ -263,7 +275,7 @@ export function CurriculumTab({ member }: Props) {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                        {activeSection.tasks?.map((task: any) => {
+                        {activeSection.tasks?.map((task: any, index: number) => {
                              const isSubject = task.type === 'subject';
                              
                              // 1. RENDER SUBJECT HEADER
@@ -271,14 +283,20 @@ export function CurriculumTab({ member }: Props) {
                                  // Default to Slate if no color provided
                                  const colorTheme = SUBJECT_COLORS.find(c => c.id === task.color) || SUBJECT_COLORS[0];
                                  return (
-                                     <div key={task.id} className={cn("col-span-1 md:col-span-2 mt-4 mb-2 flex items-center gap-3 px-2 py-3 rounded-xl border", colorTheme.bg, colorTheme.border)}>
+                                     <motion.div 
+                                        key={task.id} 
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: index * 0.05 }}
+                                        className={cn("col-span-1 md:col-span-2 mt-4 mb-2 flex items-center gap-3 px-2 py-3 rounded-xl border", colorTheme.bg, colorTheme.border)}
+                                     >
                                          <div className={cn("p-1.5 rounded-lg bg-white/50", colorTheme.text)}>
                                              <AlignLeft className="w-4 h-4" />
                                          </div>
                                          <h4 className={cn("text-xs font-[900] uppercase tracking-[0.2em]", colorTheme.text)}>
                                              {task.title}
                                          </h4>
-                                     </div>
+                                     </motion.div>
                                  );
                              }
 
@@ -292,10 +310,11 @@ export function CurriculumTab({ member }: Props) {
                                     layout
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.03 }}
                                     onClick={() => handleVerifyTask(task.id, task.title)}
                                     whileTap={{ scale: 0.98 }}
                                     className={cn(
-                                        "relative overflow-hidden flex flex-col gap-3 p-4 md:p-5 rounded-[20px] md:rounded-[24px] border text-left group transition-all duration-300",
+                                        "relative overflow-hidden flex flex-col gap-3 p-4 md:p-5 rounded-[20px] md:rounded-[24px] border text-left group transition-all duration-300 min-h-[100px]",
                                         // Card Base Styles
                                         isCompleted 
                                             ? "bg-emerald-500 border-emerald-500 shadow-xl shadow-emerald-500/20" 
@@ -320,7 +339,7 @@ export function CurriculumTab({ member }: Props) {
                                              )}>
                                                  Module
                                              </span>
-                                             {/* MODIFIED: Replaced line-clamp-2 with whitespace-pre-wrap and break-words */}
+                                             {/* MODIFIED: Ensure text breaks correctly */}
                                              <span className={cn(
                                                  "text-sm md:text-base font-bold block transition-colors leading-tight whitespace-pre-wrap break-words",
                                                  isCompleted ? "text-white" : "text-slate-700"
