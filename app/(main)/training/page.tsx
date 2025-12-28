@@ -417,7 +417,7 @@ export default function TrainingBuilderPage() {
   useEffect(() => {
     const handleScroll = () => {
         // 1. HARD STOP: If typing, do not update dynamic island.
-        // This stops the "Reset to Phase 1" bug.
+        // This stops the "Reset to Phase 1" bug because we ignore resizing textareas
         if (
              isAutoScrolling.current || 
              document.activeElement?.tagName === "TEXTAREA" || 
@@ -569,6 +569,7 @@ export default function TrainingBuilderPage() {
                                             e.target.style.height = `${e.target.scrollHeight}px`;
                                         }}
                                         onClick={(e) => e.stopPropagation()}
+                                        onFocus={() => setActiveSectionId(section.id)} // Force phase selection on focus
                                         className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
                                         rows={1}
                                         ref={(el) => {
