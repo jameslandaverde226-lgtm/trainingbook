@@ -1,7 +1,7 @@
 // app/(main)/team/_components/tabs/CurriculumTab.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { 
   Check, HardDrive, BookOpen, Loader2, Maximize2, 
   Minimize2, AlertTriangle, Play, ArrowLeft, ChevronRight, LayoutGrid, CheckCircle2, Expand, AlignLeft
@@ -63,15 +63,45 @@ const CANVA_LINKS: Record<string, string> = {
   Unassigned: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view"
 };
 
+// --- SKELETON COMPONENT ---
+const CurriculumSkeleton = () => (
+    <div className="space-y-4 animate-pulse">
+        {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-slate-100 rounded-[32px] p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-4">
+                         <div className="w-12 h-12 rounded-2xl bg-slate-100" />
+                         <div>
+                             <div className="w-16 h-3 bg-slate-100 rounded-full mb-2" />
+                             <div className="w-32 h-5 bg-slate-200 rounded-lg" />
+                         </div>
+                    </div>
+                </div>
+            </div>
+        ))}
+    </div>
+);
+
 interface Props {
   member: TeamMember;
 }
 
 export function CurriculumTab({ member }: Props) {
-  const { curriculum, updateMemberLocal, loading } = useAppStore(); // Added loading from store
+  const { curriculum, updateMemberLocal, loading: globalLoading } = useAppStore();
   const [activeSection, setActiveSection] = useState<any | null>(null);
   const [manualSection, setManualSection] = useState<any | null>(null);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  
+  // Local loading state to prevent flash if global loading is false but data is empty initially
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+     if (!globalLoading) {
+         // Small delay to ensure render stability
+         const timer = setTimeout(() => setIsInitializing(false), 300);
+         return () => clearTimeout(timer);
+     }
+  }, [globalLoading]);
 
   const filteredCurriculum = useMemo(() => {
       if (member.dept === "Unassigned") return [];
@@ -80,7 +110,6 @@ export function CurriculumTab({ member }: Props) {
   }, [curriculum, member.dept]);
   
   const globalTotalTasks = useMemo(() => {
-      // Only count actual tasks, not subjects
       return filteredCurriculum.reduce((acc, curr) => {
           const taskCount = curr.tasks?.filter((t: any) => t.type !== 'subject').length || 0;
           return acc + taskCount;
@@ -94,7 +123,6 @@ export function CurriculumTab({ member }: Props) {
       const newCompletedIds = wasCompleted ? currentIds.filter(id => id !== taskId) : [...currentIds, taskId];
       const newProgress = globalTotalTasks > 0 ? Math.round((newCompletedIds.length / globalTotalTasks) * 100) : 0;
 
-      // Optimistic Update
       updateMemberLocal(member.id, { completedTaskIds: newCompletedIds, progress: newProgress });
 
       try {
@@ -136,29 +164,35 @@ export function CurriculumTab({ member }: Props) {
   const isFOH = member.dept === "FOH";
   const brandBg = isFOH ? 'bg-[#004F71]' : 'bg-[#E51636]';
 
-  // --- EMPTY STATES & LOADERS ---
-  
-  if (loading) {
-     return (
-        <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
-             <Loader2 className="w-8 h-8 animate-spin opacity-50" />
-             <p className="text-xs font-bold uppercase tracking-widest opacity-50">Syncing Curriculum...</p>
-        </div>
-     );
-  }
+  // --- RENDER LOGIC ---
 
   if (member.dept === "Unassigned") {
       return (
-          <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 p-8 text-center">
+          <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-4 p-8 text-center animate-fade-in">
               <div className="p-4 bg-amber-50 rounded-full border border-amber-100 animate-pulse"><AlertTriangle className="w-8 h-8 text-amber-500" /></div>
               <div><h3 className="text-sm font-black text-slate-900 uppercase tracking-wide mb-1">Unit Assignment Required</h3><p className="text-xs text-slate-400 font-medium">Please assign this member to FOH or BOH.</p></div>
           </div>
       );
   }
 
+  // Show Skeleton while loading or initializing to prevent jitter
+  if (globalLoading || isInitializing) {
+     return (
+        <div className="p-6 md:p-8 space-y-6">
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2 animate-pulse">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-200 rounded-2xl" />
+                    <div><div className="w-40 h-6 bg-slate-200 rounded-lg mb-1" /><div className="w-20 h-3 bg-slate-100 rounded-full" /></div>
+                </div>
+             </div>
+             <CurriculumSkeleton />
+        </div>
+     );
+  }
+
   if (filteredCurriculum.length === 0) {
       return (
-          <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
+          <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 animate-fade-in">
               <div className="p-4 bg-slate-50 rounded-full border border-slate-100"><BookOpen className="w-10 h-10 opacity-20" /></div>
               <p className="text-xs font-bold uppercase tracking-widest">No Curriculum Found</p>
           </div>
@@ -199,10 +233,10 @@ export function CurriculumTab({ member }: Props) {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3, ease: "easeOut" }}
                     className="grid grid-cols-1 gap-4"
                 >
                     {filteredCurriculum.map((section, i) => {
-                        // Only count actual tasks for completion calculation
                         const totalTasks = section.tasks?.filter((t: any) => t.type !== 'subject').length || 0;
                         const completedCount = section.tasks?.filter((t: any) => t.type !== 'subject' && (member.completedTaskIds || []).includes(t.id)).length || 0;
                         const percent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
@@ -278,9 +312,7 @@ export function CurriculumTab({ member }: Props) {
                         {activeSection.tasks?.map((task: any, index: number) => {
                              const isSubject = task.type === 'subject';
                              
-                             // 1. RENDER SUBJECT HEADER
                              if (isSubject) {
-                                 // Default to Slate if no color provided
                                  const colorTheme = SUBJECT_COLORS.find(c => c.id === task.color) || SUBJECT_COLORS[0];
                                  return (
                                      <motion.div 
@@ -300,7 +332,6 @@ export function CurriculumTab({ member }: Props) {
                                  );
                              }
 
-                             // 2. RENDER NORMAL TASK
                              const isCompleted = (member.completedTaskIds || []).includes(task.id);
                              const hasImage = !!task.image;
 
@@ -315,13 +346,11 @@ export function CurriculumTab({ member }: Props) {
                                     whileTap={{ scale: 0.98 }}
                                     className={cn(
                                         "relative overflow-hidden flex flex-col gap-3 p-4 md:p-5 rounded-[20px] md:rounded-[24px] border text-left group transition-all duration-300 min-h-[100px]",
-                                        // Card Base Styles
                                         isCompleted 
                                             ? "bg-emerald-500 border-emerald-500 shadow-xl shadow-emerald-500/20" 
                                             : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-lg"
                                     )}
                                  >
-                                     {/* TOP ROW: Title & Controls */}
                                      <div className="flex items-center gap-4 md:gap-5 w-full relative z-10">
                                          <div className={cn(
                                              "w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center border-[3px] shrink-0 transition-all duration-300 backdrop-blur-sm",
@@ -331,7 +360,6 @@ export function CurriculumTab({ member }: Props) {
                                          )}>
                                              <Check className="w-5 h-5 md:w-6 md:h-6" strokeWidth={4} />
                                          </div>
-                                         
                                          <div className="flex-1 min-w-0">
                                              <span className={cn(
                                                  "text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] block mb-1 transition-colors",
@@ -339,7 +367,6 @@ export function CurriculumTab({ member }: Props) {
                                              )}>
                                                  Module
                                              </span>
-                                             {/* MODIFIED: Ensure text breaks correctly */}
                                              <span className={cn(
                                                  "text-sm md:text-base font-bold block transition-colors leading-tight whitespace-pre-wrap break-words",
                                                  isCompleted ? "text-white" : "text-slate-700"
@@ -347,15 +374,12 @@ export function CurriculumTab({ member }: Props) {
                                                  {task.title}
                                              </span>
                                          </div>
-
                                          {!isCompleted && (
                                             <div className="transition-opacity absolute right-0 text-slate-200 group-hover:text-slate-300">
                                                 <Play className="w-12 h-12 -rotate-12 opacity-0 group-hover:opacity-100 transition-all duration-300" fill="currentColor" />
                                             </div>
                                          )}
                                      </div>
-
-                                     {/* BOTTOM ROW: Cinematic Banner Image */}
                                      {hasImage && !isCompleted && (
                                          <motion.div 
                                             layoutId={`image-${task.id}`}
@@ -369,25 +393,13 @@ export function CurriculumTab({ member }: Props) {
                                                 setViewingImage(task.image);
                                             }}
                                          >
-                                             <img 
-                                                src={task.image} 
-                                                alt=""
-                                                className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200"
-                                                aria-hidden="true"
-                                             />
-                                             <motion.img 
-                                                src={task.image} 
-                                                className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" 
-                                             />
+                                             <img src={task.image} alt="" className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-40 saturate-200" aria-hidden="true" />
+                                             <motion.img src={task.image} className="relative z-10 w-full h-full object-contain transition-transform duration-700 group-hover/img:scale-[1.02]" />
                                              <div className="absolute inset-0 z-20 bg-black/0 group-hover/img:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/img:opacity-100 pointer-events-none">
-                                                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-full text-white border border-white/40 shadow-lg">
-                                                     <Expand className="w-4 h-4" />
-                                                 </div>
+                                                 <div className="bg-white/20 backdrop-blur-md p-2 rounded-full text-white border border-white/40 shadow-lg"><Expand className="w-4 h-4" /></div>
                                              </div>
                                          </motion.div>
                                      )}
-
-                                     {/* Completed Texture Overlay */}
                                      {isCompleted && (
                                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 to-transparent opacity-50 pointer-events-none" />
                                      )}
@@ -411,7 +423,6 @@ export function CurriculumTab({ member }: Props) {
             )}
         </AnimatePresence>
 
-        {/* --- LIGHTBOX --- */}
         <AnimatePresence>
             {viewingImage && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10 pointer-events-none">
