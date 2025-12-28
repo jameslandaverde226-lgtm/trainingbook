@@ -96,7 +96,7 @@ function AmbientBackground({ activeDept }: { activeDept: Department }) {
                 }}
                 className="absolute bottom-[-20%] right-[-10%] w-[80vw] h-[80vw] transition-all duration-1000 blur-[100px]"
             />
-            {/* Texture Noise (Optional, for texture) */}
+            {/* Texture Noise */}
             <div className="absolute inset-0 opacity-[0.015] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] bg-repeat" />
         </div>
     );
@@ -444,7 +444,7 @@ export default function TrainingBuilderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] pb-32 font-sans relative">
       {/* 1. LAYERED AMBIENT BACKGROUND */}
       <AmbientBackground activeDept={activeDept} />
 
@@ -530,7 +530,7 @@ export default function TrainingBuilderPage() {
 
          {/* --- DETAIL VIEW --- */}
          {viewMode === 'detail' && activeSection && (
-             <div className="grid grid-cols-12 gap-6 md:gap-12 items-start animate-in fade-in zoom-in-95 duration-300">
+             <div className="grid grid-cols-12 gap-6 md:gap-12 items-stretch animate-in fade-in zoom-in-95 duration-300">
                  
                  {/* LEFT: Editor */}
                  <div className="col-span-12 lg:col-span-7 space-y-6">
