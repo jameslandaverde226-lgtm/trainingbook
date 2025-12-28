@@ -7,7 +7,8 @@ import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember } from "../../calendar/_components/types";
 import { storage, db } from "@/lib/firebase"; 
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { doc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
+// ADDED: writeBatch to update both collections atomically
+import { doc, setDoc, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore";
 import toast from "react-hot-toast";
 import { TACTICAL_ICONS } from "@/lib/icon-library";
 import { useAppStore } from "@/lib/store/useStore"; 
@@ -78,8 +79,8 @@ const TeamCardComponent = ({
   const isBOH = member.dept === "BOH";
   const isUnassigned = !isFOH && !isBOH;
   
-  // FIX: Simplified image check logic
-  const hasImage = member.image && !member.image.includes('ui-avatars.com');
+  // FIX: Ensure hasImage is true if image string is present and valid
+  const hasImage = !!member.image && !member.image.includes('ui-avatars.com');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -117,16 +118,32 @@ const TeamCardComponent = ({
         const file = e.target.files[0];
         const toastId = toast.loading("Processing Identity...");
         const storageRef = ref(storage, `team-avatars/${member.id}/${file.name}`);
+        
         try {
+            // 1. Upload to Storage
             await uploadBytes(storageRef, file);
             const url = await getDownloadURL(storageRef);
+            
+            // 2. Optimistic Update
             updateMemberLocal(member.id, { image: url });
-            await setDoc(doc(db, "profileOverrides", member.id), {
-                image: url,
-                updatedAt: serverTimestamp()
+
+            // 3. Update BOTH collections to ensure listener triggers
+            const batch = writeBatch(db);
+            const overrideRef = doc(db, "profileOverrides", member.id);
+            const baseRef = doc(db, "teamMembers", member.id);
+
+            batch.set(overrideRef, { 
+                image: url, 
+                updatedAt: serverTimestamp() 
             }, { merge: true });
+
+            batch.update(baseRef, { image: url });
+
+            await batch.commit();
+            
             toast.success("Identity Sync Complete", { id: toastId });
         } catch (error) {
+            console.error(error);
             toast.error("Upload Failed", { id: toastId });
         } finally {
             setIsUploading(false);
@@ -155,6 +172,7 @@ const TeamCardComponent = ({
          style={{ filter: isDragging ? 'brightness(1.1)' : 'none', zIndex: isDragging ? 100 : 1 }}
          className="h-full w-full relative"
        >
+        {/* --- OVERLAYS --- */}
         <AnimatePresence>
             {isDropTarget && (
                 <motion.div 
@@ -214,11 +232,13 @@ const TeamCardComponent = ({
           <div className="absolute inset-0 z-0 cursor-default">
             {hasImage ? (
               <>
-                {/* FIX: Removed loading logic, direct render */}
-                <img 
+                {/* FIX: Use Next/Image for better handling and fill */}
+                <Image 
                     src={member.image} 
                     alt={member.name} 
-                    className="w-full h-full object-cover" 
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/20 to-transparent opacity-90 pointer-events-none" />
               </>
@@ -307,7 +327,7 @@ const TeamCardComponent = ({
                            <motion.div key="paired" className="flex items-center gap-3 w-full">
                                <div className="relative shrink-0 w-8 h-8">
                                    {member.pairing.image ? (
-                                        <img src={member.pairing.image} className="w-full h-full rounded-lg object-cover border border-white/20" alt={member.pairing.name} />
+                                        <Image src={member.pairing.image} fill className="rounded-lg object-cover border border-white/20" alt={member.pairing.name} />
                                    ) : (
                                         <div className={cn("w-full h-full rounded-lg flex items-center justify-center text-[10px] font-black border border-white/20", mentorDeptColor)}>
                                             {member.pairing.name.charAt(0)}
