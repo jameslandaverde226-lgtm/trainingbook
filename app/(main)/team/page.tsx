@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+// ... existing imports ...
 import { AnimatePresence, motion, LayoutGroup, PanInfo } from "framer-motion";
 import { 
   Users, Search, Zap, Loader2,
@@ -9,7 +10,6 @@ import {
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-// Firebase Imports
 import { useAppStore } from "@/lib/store/useStore";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, serverTimestamp, collection, addDoc, updateDoc, writeBatch } from "firebase/firestore";
@@ -21,7 +21,7 @@ import TrainerRecruitmentModal from "./_components/TrainerRecruitmentModal";
 import TeamDynamicIsland from "./_components/TeamDynamicIsland";
 import UnitAssignmentModal from "./_components/UnitAssignmentModal";
 
-// --- PROMOTION HUD ---
+// ... PromotionHUD component remains unchanged ...
 function PromotionHUD({ 
     draggingMember, 
     onPromote 
@@ -29,6 +29,7 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
+    // ... code unchanged ...
     const visibleStages = STAGES;
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
@@ -103,7 +104,8 @@ function PromotionHUD({
 // --- MAIN PAGE ---
 export default function TeamBoardPage() {
     // 1. GET CURRENT USER
-    const { team, subscribeTeam, subscribeEvents, subscribeCurriculum, updateMemberLocal, currentUser } = useAppStore(); 
+    // Added 'curriculum' to store hook
+    const { team, subscribeTeam, subscribeEvents, subscribeCurriculum, updateMemberLocal, currentUser, curriculum } = useAppStore(); 
     
     // Filters
     const [activeStage, setActiveStage] = useState<Status>("Team Member");
@@ -116,7 +118,9 @@ export default function TeamBoardPage() {
     
     // Pagination / Infinite Scroll
     const [visibleCount, setVisibleCount] = useState(12);
-    
+    const visibleCountRef = useRef(visibleCount); 
+    const loadMoreRef = useRef<HTMLDivElement>(null);
+
     // Interaction State
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
     const [assignmentMember, setAssignmentMember] = useState<TeamMember | null>(null); 
@@ -147,9 +151,14 @@ export default function TeamBoardPage() {
 
     useEffect(() => {
         setVisibleCount(12);
+        visibleCountRef.current = 12;
     }, [activeStage, activeFilter, searchQuery]);
 
-    // 3. UPDATE FILTER LOGIC
+    useEffect(() => {
+        visibleCountRef.current = visibleCount;
+    }, [visibleCount]);
+
+    // 3. UPDATE FILTER LOGIC (WITH PROGRESS CALCULATION INJECTED)
     const filteredMembers = useMemo(() => {
         return team
             .filter(m => {
@@ -164,29 +173,62 @@ export default function TeamBoardPage() {
 
                 return matchesStage && matchesFilter && matchesSearch && matchesPairing;
             })
+            // --- INJECT REAL-TIME PROGRESS HERE ---
+            .map(m => {
+                // Same logic as Detail Sheet
+                if (!curriculum || curriculum.length === 0) return m;
+
+                const relevantSections = curriculum.filter(section => 
+                    section.dept?.toUpperCase() === m.dept?.toUpperCase()
+                );
+                
+                const totalTasks = relevantSections.reduce((acc, section) => 
+                    acc + (section.tasks?.length || 0), 0);
+
+                const completedCount = relevantSections.reduce((acc, section) => {
+                    const completedInSection = section.tasks?.filter((t: any) => 
+                        m.completedTaskIds?.includes(t.id)
+                    ).length || 0;
+                    return acc + completedInSection;
+                }, 0);
+
+                const calculatedProgress = totalTasks > 0 
+                    ? Math.round((completedCount / totalTasks) * 100) 
+                    : 0;
+
+                return { ...m, progress: calculatedProgress };
+            })
+            // --- END INJECTION ---
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [team, activeStage, activeFilter, searchQuery, showMyPairings, currentUser]);
+    }, [team, activeStage, activeFilter, searchQuery, showMyPairings, currentUser, curriculum]);
 
     const visibleMembers = useMemo(() => {
         return filteredMembers.slice(0, visibleCount);
     }, [filteredMembers, visibleCount]);
 
-    // --- ROBUST INFINITE SCROLL (CALLBACK REF) ---
-    // This pattern ensures the observer is always fresh when the loader element mounts
-    const observer = useRef<IntersectionObserver | null>(null);
-    
-    const lastElementRef = useCallback((node: HTMLDivElement) => {
-        if (observer.current) observer.current.disconnect();
+    // --- INFINITE SCROLL OBSERVER ---
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting) {
+                    if (visibleCountRef.current < filteredMembers.length) {
+                        setVisibleCount(prev => prev + 12);
+                    }
+                }
+            },
+            { root: null, rootMargin: "400px", threshold: 0 } 
+        );
 
-        observer.current = new IntersectionObserver(entries => {
-            if (entries[0].isIntersecting && visibleCount < filteredMembers.length) {
-                setVisibleCount(prev => prev + 12);
-            }
-        }, { rootMargin: "200px" });
+        const currentSentinel = loadMoreRef.current;
+        if (currentSentinel) observer.observe(currentSentinel);
+        
+        return () => { 
+            if (currentSentinel) observer.unobserve(currentSentinel); 
+        };
+    }, [filteredMembers.length]); 
 
-        if (node) observer.current.observe(node);
-    }, [visibleCount, filteredMembers.length]);
-
+    // ... (All Handlers and Render logic remain the same, just passing the new enriched 'member' object) ...
+    // Note: I will just verify the rest of the file structure is intact below.
 
     // --- SHARED: LINK LOGIC ---
     const linkMemberAndLeader = async (targetId: string, leaderId: string) => {
@@ -200,7 +242,6 @@ export default function TeamBoardPage() {
         isProcessingRef.current = true;
         const loadToast = toast.loading(`Linking ${leader.name} to ${targetMember.name}...`);
         
-        // 1. OPTIMISTIC UPDATE
         updateMemberLocal(targetMember.id, {
             pairing: { 
                 id: leader.id, 
@@ -211,7 +252,6 @@ export default function TeamBoardPage() {
         });
 
         try {
-            // 2. Database Update
             await setDoc(doc(db, "profileOverrides", targetMember.id), {
                 pairing: { id: leader.id, name: leader.name, role: leader.role, image: leader.image },
                 updatedAt: serverTimestamp()
@@ -233,13 +273,10 @@ export default function TeamBoardPage() {
             });
 
             toast.success("Mentorship Uplink Established", { id: loadToast });
-            
-            // RESET ALL STATES
             setActiveLeaderId(null);
             setRecipientMemberId(null);
             setIsTrainerPanelOpen(false);
         } catch (e) {
-            // Revert on failure
             updateMemberLocal(targetMember.id, { pairing: targetMember.pairing }); 
             toast.error("Failed", { id: loadToast });
         } finally {
@@ -250,7 +287,7 @@ export default function TeamBoardPage() {
     // --- HANDLERS ---
     const openRecruitment = (member: TeamMember) => {
         setActiveLeaderId(null);
-        setRecipientMemberId(member.id); // Highlight this card
+        setRecipientMemberId(member.id); 
         setIsTrainerPanelOpen(true);
     };
 
@@ -259,12 +296,10 @@ export default function TeamBoardPage() {
             setActiveLeaderId(null);
             return;
         }
-
         if (recipientMemberId) {
             linkMemberAndLeader(recipientMemberId, leader.id);
             return;
         }
-
         if (activeLeaderId === leader.id) {
             setActiveLeaderId(null);
         } else {
@@ -277,12 +312,10 @@ export default function TeamBoardPage() {
             setAssignmentMember(targetMember);
             return;
         }
-
         if (activeLeaderId) {
             linkMemberAndLeader(targetMember.id, activeLeaderId);
             return;
         }
-
         setSelectedMemberId(targetMember.id);
     };
 
@@ -322,7 +355,6 @@ export default function TeamBoardPage() {
         }
     };
 
-    // --- PROMOTION HANDLERS ---
     const handlePromoteMember = async (memberId: string, newRole: Status) => {
         if (isProcessingRef.current) return;
         const member = team.find(m => m.id === memberId);
@@ -434,7 +466,6 @@ export default function TeamBoardPage() {
         <div className="min-h-screen bg-[#F8FAFC] pb-40 md:pb-20 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
             <div className="absolute inset-0 pointer-events-none opacity-[0.4]" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
 
-            {/* --- 1. DYNAMIC ISLAND (Fixed Top) --- */}
             <TeamDynamicIsland 
                 activeStage={activeStage} 
                 setActiveStage={setActiveStage}
@@ -444,7 +475,6 @@ export default function TeamBoardPage() {
                 setShowMyPairings={setShowMyPairings}
             />
 
-            {/* --- 2. CONTROL BAR (Floating under island) --- */}
             <div className="hidden md:flex fixed top-44 left-0 right-0 z-40 justify-center pointer-events-none">
                  <motion.div 
                     initial={{ y: -20, opacity: 0 }} 
@@ -455,7 +485,6 @@ export default function TeamBoardPage() {
                  </motion.div>
             </div>
 
-            {/* --- 3. PAGE TITLE --- */}
             <div className="max-w-[1400px] mx-auto mt-[8rem] md:mt-72 px-4 md:px-8 space-y-6 relative z-10">
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div className="space-y-1 w-full text-center md:text-left">
@@ -464,7 +493,6 @@ export default function TeamBoardPage() {
                 </div>
             </div>
 
-            {/* --- 4. MAIN CONTENT GRID --- */}
             <div className="mt-8 relative z-10 w-full max-w-[100vw] overflow-visible">
                 <LayoutGroup id="roster">
                     <AnimatePresence mode="wait">
@@ -474,7 +502,6 @@ export default function TeamBoardPage() {
                                 <p className="text-xs font-black uppercase tracking-[0.2em]">No Team Members Found</p>
                             </motion.div>
                         ) : viewMode === "grid" ? (
-                            // --- GRID VIEW ---
                             <motion.div 
                                 key="grid"
                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -500,7 +527,6 @@ export default function TeamBoardPage() {
                                                 onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
                                                 isDragging={memberDraggingId === member.id} 
                                                 isDropTarget={!!activeLeaderId}
-                                                // HIGHLIGHT PROP:
                                                 isWaitingForMentor={recipientMemberId === member.id}
                                             />
                                         </motion.div>
@@ -509,9 +535,9 @@ export default function TeamBoardPage() {
                                 
                                 {visibleCount < filteredMembers.length && (
                                     <div 
-                                        ref={lastElementRef}
+                                        ref={loadMoreRef} 
                                         className="col-span-full py-12 flex justify-center w-full cursor-pointer"
-                                        onClick={() => setVisibleCount(prev => prev + 12)} // Manual fallback
+                                        onClick={() => setVisibleCount(prev => prev + 12)}
                                     >
                                         <div className="flex items-center gap-2 text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-100 shadow-sm hover:bg-white hover:text-slate-600 transition-colors">
                                             <Loader2 className="w-4 h-4 animate-spin" />
@@ -521,7 +547,6 @@ export default function TeamBoardPage() {
                                 )}
                             </motion.div>
                         ) : (
-                            // --- GALLERY VIEW (HORIZONTAL) ---
                             <motion.div 
                                 key="gallery"
                                 initial={{ opacity: 0, x: 20 }} 
@@ -544,11 +569,9 @@ export default function TeamBoardPage() {
                                             onDragEnd={(e, info) => handleMemberDragEnd(e, info, member)} 
                                             isDragging={memberDraggingId === member.id} 
                                             isDropTarget={!!activeLeaderId}
-                                            // HIGHLIGHT PROP:
                                             isWaitingForMentor={recipientMemberId === member.id}
                                         />
                                         
-                                        {/* Gallery Mode Decoration */}
                                         <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                             <ScanFace className="w-4 h-4" />
                                             <span className="text-[9px] font-black uppercase tracking-widest">View Profile</span>
@@ -556,7 +579,6 @@ export default function TeamBoardPage() {
                                     </div>
                                 ))}
                                 
-                                {/* End Spacer */}
                                 <div className="snap-center shrink-0 w-[10vw]" />
                             </motion.div>
                         )}
@@ -564,20 +586,18 @@ export default function TeamBoardPage() {
                 </LayoutGroup>
             </div>
 
-            {/* --- MOBILE FLOATING CONTROL (Bottom) --- */}
             <div className="md:hidden fixed bottom-28 left-0 right-0 z-40 flex items-center pointer-events-none justify-center px-4">
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="pointer-events-auto w-full max-w-sm">
                     <ControlBar />
                 </motion.div>
             </div>
 
-            {/* MODALS */}
             <TrainerRecruitmentModal 
                 isOpen={isTrainerPanelOpen} 
                 onClose={() => { 
                     setIsTrainerPanelOpen(false); 
                     setActiveLeaderId(null); 
-                    setRecipientMemberId(null); // Clear highlight
+                    setRecipientMemberId(null); 
                 }} 
                 onSelectLeader={handleSelectLeader}
                 selectedLeaderId={activeLeaderId}
