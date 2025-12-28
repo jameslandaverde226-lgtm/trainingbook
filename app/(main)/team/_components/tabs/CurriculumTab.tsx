@@ -1,3 +1,4 @@
+// app/(main)/team/_components/tabs/CurriculumTab.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -319,8 +320,9 @@ export function CurriculumTab({ member }: Props) {
                                              )}>
                                                  Module
                                              </span>
+                                             {/* MODIFIED: Replaced line-clamp-2 with whitespace-pre-wrap and break-words */}
                                              <span className={cn(
-                                                 "text-sm md:text-base font-bold block transition-colors leading-tight line-clamp-2",
+                                                 "text-sm md:text-base font-bold block transition-colors leading-tight whitespace-pre-wrap break-words",
                                                  isCompleted ? "text-white" : "text-slate-700"
                                              )}>
                                                  {task.title}
