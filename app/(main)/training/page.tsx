@@ -216,7 +216,8 @@ const DraggableTask = ({
     updateSection, 
     setViewingImage, 
     section,
-    onActivate // <--- NEW PROP
+    onFocus, // NEW PROP
+    onBlur   // NEW PROP
 }: any) => {
     const controls = useDragControls();
     const isSubject = task.type === 'subject';
@@ -277,7 +278,8 @@ const DraggableTask = ({
                                     e.target.style.height = 'auto';
                                     e.target.style.height = `${e.target.scrollHeight}px`;
                                 }}
-                                onFocus={onActivate} // <--- CRITICAL FIX: Update active phase on focus
+                                onFocus={onFocus} // NEW: Updates Ref + State
+                                onBlur={onBlur}   // NEW: Clears Ref
                                 className={cn(
                                     "w-full bg-transparent outline-none resize-none overflow-hidden",
                                     isSubject 
@@ -366,8 +368,10 @@ export default function TrainingBuilderPage() {
   const [viewingImage, setViewingImage] = useState<{ id: string, url: string } | null>(null);
   const [mobileViewerOpen, setMobileViewerOpen] = useState(false);
   
-  // Lock variable to prevent scroll listener from overwriting selection
+  // LOCKS
   const isAutoScrolling = useRef(false);
+  // NEW LOCK: Prevents scroll spy from running while user is typing
+  const isUserInteracting = useRef<string | null>(null);
   
   // Ref to store sections to break dependency loop in scroll listener
   const sectionsRef = useRef<Section[]>([]);
@@ -395,9 +399,21 @@ export default function TrainingBuilderPage() {
   const activeIndex = sections.findIndex(s => s.id === activeSectionId);
   const activeSection = useMemo(() => sections[activeIndex] || sections[0], [sections, activeIndex]);
 
+  // --- INTERACTION HANDLERS ---
+  const handleFocus = (sectionId: string) => {
+      isUserInteracting.current = sectionId;
+      setActiveSectionId(sectionId); // Force update state immediately
+  };
+
+  const handleBlur = () => {
+      // Small delay prevents "flicker" when tabbing between inputs in the same card
+      setTimeout(() => {
+          isUserInteracting.current = null;
+      }, 200);
+  };
+
   // --- MANUAL SCROLL HANDLER (Triggered by Click or Add) ---
   const scrollToSection = (id: string) => {
-      // Don't scroll if already there, just update state
       if (activeSectionId === id) return;
 
       isAutoScrolling.current = true; // LOCK
@@ -421,10 +437,10 @@ export default function TrainingBuilderPage() {
   // --- AUTO SCROLL DETECTION (Updates Island while scrolling) ---
   useEffect(() => {
     const handleScroll = () => {
-        if (isAutoScrolling.current) return;
+        // If auto-scrolling OR user is typing/focused, DO NOT update active section based on scroll
+        if (isAutoScrolling.current || isUserInteracting.current) return;
 
         const viewportHeight = window.innerHeight;
-        // Adjusted trigger point to be slightly higher to catch headers earlier
         let closestId: string | null = null;
         let maxVisibleHeight = 0;
         
@@ -560,7 +576,8 @@ export default function TrainingBuilderPage() {
                                             e.target.style.height = `${e.target.scrollHeight}px`;
                                         }}
                                         onClick={(e) => e.stopPropagation()}
-                                        onFocus={() => setActiveSectionId(section.id)} // <--- CRITICAL FIX: Update active phase on focus
+                                        onFocus={() => handleFocus(section.id)} // <--- NEW: Updates Interaction Ref
+                                        onBlur={handleBlur}                     // <--- NEW: Clears Interaction Ref
                                         className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
                                         rows={1}
                                         ref={(el) => {
@@ -590,7 +607,8 @@ export default function TrainingBuilderPage() {
                                         updateSection={updateSection} 
                                         setViewingImage={setViewingImage} 
                                         section={section}
-                                        onActivate={() => setActiveSectionId(section.id)} // <--- CRITICAL FIX: Pass activation handler
+                                        onFocus={() => handleFocus(section.id)} // <--- NEW
+                                        onBlur={handleBlur}                     // <--- NEW
                                     />
                                 ))}
                             </Reorder.Group>
