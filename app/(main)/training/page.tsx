@@ -327,7 +327,7 @@ const DraggableTask = ({
                                             <button
                                                 key={c.id}
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // FIX: Added stopPropagation
+                                                    e.stopPropagation(); 
                                                     const newTasks = section.tasks.map((t: Task) => t.id === task.id ? { ...t, color: c.id } : t);
                                                     updateSection(section.id, { tasks: newTasks });
                                                     saveSection(section.id, { tasks: newTasks });
@@ -345,7 +345,7 @@ const DraggableTask = ({
 
                                 {!isSubject && (
                                     <label 
-                                        onClick={(e) => e.stopPropagation()} // FIX: Added stopPropagation
+                                        onClick={(e) => e.stopPropagation()} 
                                         className="cursor-pointer p-2 hover:bg-blue-50 text-slate-300 hover:text-blue-50 rounded-lg transition-all shrink-0"
                                     >
                                         <Cloud className="w-4 h-4" />
@@ -354,7 +354,7 @@ const DraggableTask = ({
                                 )}
                                 <button 
                                     onClick={(e) => {
-                                        e.stopPropagation(); // FIX: Added stopPropagation
+                                        e.stopPropagation(); 
                                         const newTasks = section.tasks.filter((t: Task) => t.id !== task.id);
                                         updateSection(section.id, { tasks: newTasks });
                                         saveSection(section.id, { tasks: newTasks });
@@ -606,10 +606,30 @@ export default function TrainingBuilderPage() {
                     
                     <div className={cn("hidden md:flex absolute -left-[69px] top-0 w-12 h-12 rounded-2xl flex-col items-center justify-center font-black text-white shadow-lg transition-all duration-700 border-4 border-[#F8FAFC] z-20", isActive ? (activeDept === "FOH" ? "bg-[#004F71] scale-110" : "bg-[#E51636] scale-110") : "bg-slate-200 grayscale opacity-40")}><span className="text-[8px] opacity-60 uppercase font-black">Ph</span><span className="text-base">{idx + 1}</span></div>
                     
-                    <div onClick={() => scrollToSection(section.id)} className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-300 relative group/card cursor-pointer lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-80 hover:opacity-100")}>
+                    {/* FIX: Updated Click Logic 
+                       - Removed unconditional onClick on wrapper
+                       - Added conditional checks to only allow "Whole Card Click" on Desktop
+                    */}
+                    <div 
+                        onClick={() => {
+                            if (window.innerWidth >= 1024) {
+                                scrollToSection(section.id);
+                            }
+                        }}
+                        className={cn("bg-white rounded-[24px] md:rounded-[32px] p-4 md:p-8 border transition-all duration-300 relative group/card lg:cursor-default z-10 flex flex-col shadow-sm w-full", isActive ? "border-slate-200 ring-1 ring-black/5" : "border-transparent opacity-100 md:opacity-80 hover:opacity-100")}
+                    >
                          <div className="flex justify-between items-start mb-4 md:mb-8 gap-3 md:gap-6">
                             <div className="flex-1 space-y-2 md:space-y-3">
-                               <div className="flex items-center gap-2 md:gap-3">
+                               {/* HEADER: Explicitly clickable on mobile now */}
+                               <div 
+                                    onClick={(e) => {
+                                        if (window.innerWidth < 1024) {
+                                            e.stopPropagation();
+                                            scrollToSection(section.id);
+                                        }
+                                    }}
+                                    className="flex items-center gap-2 md:gap-3 cursor-pointer lg:cursor-auto"
+                                >
                                   <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-100 text-[10px] font-black uppercase text-slate-400 shadow-inner")}>
                                     <CalendarClock className="w-3.5 h-3.5" />
                                     {previewMode ? <span className="font-black text-slate-600">{section.duration}</span> : <input value={section.duration} onChange={e => { optimisticUpdateSection(section.id, { duration: e.target.value }); debouncedSaveSection(section.id, { duration: e.target.value }); }} onClick={(e) => e.stopPropagation()} onFocus={() => handleInteraction(true, section.id)} onBlur={() => handleInteraction(false)} className="bg-transparent border-none focus:outline-none w-16 md:w-20 p-0 font-black" />}
@@ -674,7 +694,17 @@ export default function TrainingBuilderPage() {
                                 )}
                             </AnimatePresence>
                          </div>
-                         <div className="lg:hidden mt-4 md:mt-6 flex justify-center text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 bg-slate-50 py-3 rounded-xl border border-slate-100"><span>Tap card to open manual</span><ChevronRight className="w-3 h-3" /></div>
+                         {/* FIX: Explicitly clickable "Tap card" button */}
+                         <div 
+                            onClick={(e) => { 
+                                e.stopPropagation(); 
+                                scrollToSection(section.id); 
+                            }} 
+                            className="lg:hidden mt-4 md:mt-6 flex justify-center text-slate-400 text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 bg-slate-50 py-3 rounded-xl border border-slate-100 cursor-pointer active:scale-95 transition-transform"
+                        >
+                            <span>Tap card to open manual</span>
+                            <ChevronRight className="w-3 h-3" />
+                        </div>
                     </div>
                  </div>
                );
