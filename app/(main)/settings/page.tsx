@@ -880,8 +880,8 @@ export default function SettingsPage() {
 
             </div>
             
-            {/* MOBILE SAVE BUTTON (Fixed Bottom) */}
-            <div className="lg:hidden fixed bottom-6 left-0 right-0 px-4 z-40 pointer-events-none">
+            {/* MOBILE SAVE BUTTON (Fixed Bottom - Raised to clear nav dock) */}
+            <div className="lg:hidden fixed bottom-28 left-0 right-0 px-4 z-40 pointer-events-none">
                  <div className="pointer-events-auto">
                     {activeTab === 'identity' && (
                         <button onClick={handleSaveProfile} disabled={isSaving} className="w-full py-4 bg-[#E51636] hover:bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.25em] shadow-xl shadow-red-500/20 flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50">
