@@ -394,7 +394,31 @@ export default function TrainingBuilderPage() {
                               </div>
                               <span className="text-[9px] md:text-[10px] font-bold text-slate-300 uppercase tracking-widest">{section.tasks.length} Modules</span>
                            </div>
-                           {previewMode ? <h3 className="text-lg md:text-3xl font-black text-slate-900 tracking-tighter leading-tight">{section.title}</h3> : <input value={section.title} onChange={e => updateSection(section.id, { title: e.target.value })} onClick={(e) => e.stopPropagation()} className="text-lg md:text-4xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter" />}
+                           
+                           {/* MODIFIED: Use textarea for multiline title to prevent cut-off */}
+                           {previewMode ? (
+                               <h3 className="text-lg md:text-3xl font-black text-slate-900 tracking-tighter leading-tight break-words whitespace-pre-wrap">{section.title}</h3>
+                           ) : (
+                               <textarea
+                                    value={section.title}
+                                    onChange={(e) => {
+                                        updateSection(section.id, { title: e.target.value });
+                                        // Auto-expand height
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = `${e.target.scrollHeight}px`;
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-lg md:text-3xl font-black text-slate-900 bg-transparent w-full outline-none border-none focus:ring-0 p-0 tracking-tighter resize-none overflow-hidden"
+                                    rows={1}
+                                    // Initial height adjustment on render
+                                    ref={(el) => {
+                                        if (el) {
+                                            el.style.height = 'auto';
+                                            el.style.height = `${el.scrollHeight}px`;
+                                        }
+                                    }}
+                                />
+                           )}
                         </div>
                         <div className="flex items-start gap-2 md:gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
                             <div className="hidden md:block"><PageRangeSelector start={section.pageStart} end={section.pageEnd} onUpdate={(u: any) => updateSection(section.id, u)} readOnly={previewMode} /></div>

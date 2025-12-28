@@ -18,6 +18,7 @@ import { PermissionToggle } from "./_components/PermissionToggle";
 import { format } from "date-fns";
 
 // --- PERMISSION LABELS MAP ---
+// "Sensitive Intel" (canViewSensitiveDocs) has been removed from this list.
 const PERMISSION_CONFIG: { key: keyof PermissionSet; label: string; desc: string; category: "ops" | "people" | "system" }[] = [
     { key: "canCreateEvents", label: "Create Missions", desc: "Start new operations or goals.", category: "ops" },
     { key: "canEditEvents", label: "Modify Logs", desc: "Edit details of existing records.", category: "ops" },
@@ -25,7 +26,6 @@ const PERMISSION_CONFIG: { key: keyof PermissionSet; label: string; desc: string
     { key: "canViewFullRoster", label: "View Global Roster", desc: "See all staff details.", category: "people" },
     { key: "canCreateUsers", label: "Onboard Operatives", desc: "Create new login accounts.", category: "people" },
     { key: "canPromoteUsers", label: "Promote Rank", desc: "Change security clearance levels.", category: "people" },
-    { key: "canViewSensitiveDocs", label: "Sensitive Intel", desc: "Access disciplinary docs.", category: "system" },
     { key: "canAccessSettings", label: "System Config", desc: "Access this settings panel.", category: "system" },
 ];
 
@@ -329,7 +329,6 @@ export default function SettingsPage() {
                 {/* --- TAB: IDENTITY --- */}
                 {activeTab === 'identity' && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
-                         {/* ... (Identity Content Same as Before) ... */}
                          <div className="mb-10">
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Operator Identity</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Manage your administrative profile.</p>
@@ -405,10 +404,9 @@ export default function SettingsPage() {
                 {/* --- TAB: OPERATIONS (Create & Manage) --- */}
                 {activeTab === 'ops' && canCreateAccounts && (
                     <div className="space-y-6">
-                        {/* 1. ONBOARDING CARD (Same as before) */}
+                        {/* 1. ONBOARDING CARD */}
                         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
-                             {/* ... (Create User Form - Unchanged) ... */}
-                             <div className="mb-10 flex items-center justify-between">
+                            <div className="mb-10 flex items-center justify-between">
                                 <div>
                                     <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Personnel Onboarding</h2>
                                     <p className="text-sm font-medium text-slate-400 mt-1">Grant system access to existing team members.</p>
@@ -417,6 +415,8 @@ export default function SettingsPage() {
                                     <UserPlus className="w-6 h-6" />
                                 </div>
                             </div>
+
+                            {/* --- TEAM MEMBER SELECTOR --- */}
                             <div className="mb-8 p-6 bg-slate-50 rounded-3xl border border-slate-200">
                                 <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] mb-3 block flex items-center gap-2">
                                     <Search className="w-3 h-3" /> Select Team Member to Activate
@@ -448,7 +448,9 @@ export default function SettingsPage() {
                                     )}
                                 </div>
                             </div>
+
                             <div className="w-full h-px bg-slate-100 mb-8" />
+
                             <form onSubmit={handleCreateUser} className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
@@ -463,42 +465,69 @@ export default function SettingsPage() {
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Initial Password</label>
                                         <input required type="password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="••••••••" className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all" />
                                     </div>
+                                    
                                     <div className="space-y-2 relative">
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Clearance Level</label>
-                                        <button type="button" onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all flex items-center justify-between">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-900 outline-none focus:border-[#E51636] transition-all flex items-center justify-between"
+                                        >
                                             <span>{availableRoles.find(r => r.id === newUser.role)?.label || newUser.role}</span>
                                             <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", isRoleDropdownOpen && "rotate-180")} />
                                         </button>
+                                        
                                         <AnimatePresence>
                                             {isRoleDropdownOpen && (
-                                                <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }} className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-30 overflow-hidden">
+                                                <motion.div 
+                                                    initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}
+                                                    className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-30 overflow-hidden"
+                                                >
                                                     {availableRoles.map(role => (
-                                                        <button key={role.id} type="button" onClick={() => { setNewUser({...newUser, role: role.id as Status}); setIsRoleDropdownOpen(false); }} className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 flex items-center gap-2">
-                                                            <span className={cn("w-2 h-2 rounded-full", newUser.role === role.id ? "bg-[#004F71]" : "bg-slate-200")} /> {role.label}
+                                                        <button
+                                                            key={role.id}
+                                                            type="button"
+                                                            onClick={() => { setNewUser({...newUser, role: role.id as Status}); setIsRoleDropdownOpen(false); }}
+                                                            className="w-full text-left px-5 py-3 hover:bg-slate-50 text-sm font-bold text-slate-700 flex items-center gap-2"
+                                                        >
+                                                            <span className={cn("w-2 h-2 rounded-full", newUser.role === role.id ? "bg-[#004F71]" : "bg-slate-200")} />
+                                                            {role.label}
                                                         </button>
                                                     ))}
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
                                     </div>
+
                                     <div className="space-y-2">
                                         <label className="text-[9px] font-black uppercase text-slate-400 tracking-[0.2em] pl-1">Unit Assignment</label>
                                         <div className="flex gap-4">
                                             {['FOH', 'BOH'].map(dept => (
-                                                <button key={dept} type="button" onClick={() => setNewUser({...newUser, dept})} className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${newUser.dept === dept ? (dept === 'FOH' ? 'bg-[#004F71] text-white border-[#004F71]' : 'bg-[#E51636] text-white border-[#E51636]') : 'bg-white border-slate-200 text-slate-400'}`}>
+                                                <button 
+                                                    key={dept}
+                                                    type="button"
+                                                    onClick={() => setNewUser({...newUser, dept})}
+                                                    className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest border transition-all ${newUser.dept === dept ? (dept === 'FOH' ? 'bg-[#004F71] text-white border-[#004F71]' : 'bg-[#E51636] text-white border-[#E51636]') : 'bg-white border-slate-200 text-slate-400'}`}
+                                                >
                                                     {dept}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
                                 </div>
-                                <button type="submit" disabled={isCreating} className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
-                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Initialize Operative
+                                
+                                <button 
+                                    type="submit"
+                                    disabled={isCreating}
+                                    className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-xl hover:scale-[1.01] active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                                >
+                                    {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                                    Initialize Operative
                                 </button>
                             </form>
                         </div>
 
-                        {/* 2. MANAGE ACTIVE ACCOUNTS (RE-DESIGNED) */}
+                        {/* 2. MANAGE ACTIVE ACCOUNTS */}
                         <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
                              <div className="mb-8 flex items-center justify-between">
                                 <div>
@@ -569,15 +598,16 @@ export default function SettingsPage() {
                     </div>
                 )}
 
-                {/* --- TAB: ROLES & LOGS (Unchanged - Keeping Structure) --- */}
+                {/* --- TAB: ROLES (RBAC) --- */}
                 {activeTab === 'roles' && canManageRoles && (
-                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
-                         {/* (Role Content ...) */}
-                         <div className="mb-10">
+                    <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100">
+                         {/* (Existing role content preserved) */}
+                        <div className="mb-10">
                             <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">Access Protocols</h2>
                             <p className="text-sm font-medium text-slate-400 mt-1">Configure capability matrix for each rank.</p>
                         </div>
-                         {/* ROLE SELECTOR */}
+
+                        {/* ROLE SELECTOR */}
                         <div className="flex p-1.5 bg-slate-100 rounded-2xl mb-8 overflow-x-auto no-scrollbar">
                             {["Team Member", "Team Leader", "Assistant Director", "Director"].map((role) => (
                                 <button
@@ -594,9 +624,12 @@ export default function SettingsPage() {
                                 </button>
                             ))}
                         </div>
+
+                        {/* PERMISSIONS GRID */}
                         <div className="space-y-8">
-                             {/* ... (Existing permission grids) ... */}
-                             <div>
+                            
+                            {/* CATEGORY: OPERATIONS */}
+                            <div>
                                 <div className="flex items-center gap-2 mb-4 px-1">
                                     <Fingerprint className="w-4 h-4 text-[#004F71]" />
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Operational Access</span>
@@ -614,8 +647,9 @@ export default function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
-                            {/* ... (People & System categories) ... */}
-                             <div>
+
+                            {/* CATEGORY: PEOPLE */}
+                            <div>
                                 <div className="flex items-center gap-2 mb-4 px-1">
                                     <Users className="w-4 h-4 text-[#E51636]" />
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Personnel Management</span>
@@ -633,6 +667,8 @@ export default function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
+
+                            {/* CATEGORY: SYSTEM */}
                             <div>
                                 <div className="flex items-center gap-2 mb-4 px-1">
                                     <Shield className="w-4 h-4 text-slate-900" />
@@ -651,12 +687,23 @@ export default function SettingsPage() {
                                     ))}
                                 </div>
                             </div>
-                        </div>
-                     </div>
-                )}
 
+                            {selectedRole === "Director" && (
+                                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl flex items-center gap-3 text-blue-600">
+                                    <Lock className="w-4 h-4" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wide">Director Clearance is Immutable</span>
+                                </div>
+                            )}
+
+                        </div>
+                    </div>
+                )}
+                
+                {/* --- TAB: SYSTEM LOGS --- */}
                 {activeTab === 'logs' && (
                     <div className="bg-white rounded-[40px] p-8 md:p-12 shadow-sm border border-slate-100 relative overflow-hidden">
+                        
+                        {/* Header */}
                         <div className="mb-8 relative z-10 flex items-center justify-between">
                             <div>
                                 <h2 className="text-2xl font-[1000] text-slate-900 tracking-tight">System Logs</h2>
@@ -666,7 +713,11 @@ export default function SettingsPage() {
                                 <Activity className="w-6 h-6 text-slate-400" />
                             </div>
                         </div>
+
+                        {/* Terminal / Log Viewer */}
                         <div className="bg-slate-50 rounded-[24px] border border-slate-200 p-2 relative z-10 font-mono overflow-hidden shadow-inner">
+                            
+                            {/* Toolbar */}
                             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200/60 bg-white/50 rounded-t-[18px]">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
@@ -676,19 +727,43 @@ export default function SettingsPage() {
                                 </div>
                                 <span className="text-[9px] font-black text-slate-300 uppercase">TrainingBook Kernel v4.2</span>
                             </div>
+
+                            {/* Logs List */}
                             <div className="p-3 space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
                                 {systemLogs.length > 0 ? systemLogs.map((log) => (
                                     <div key={log.id} className="group flex items-start gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm transition-all hover:shadow-md hover:border-slate-200">
-                                        <div className={cn("shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mt-0.5", log.status === "SUCCESS" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600")}>
-                                            {log.status === "SUCCESS" ? <CheckCircle2 className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+                                        
+                                        {/* Status Icon */}
+                                        <div className={cn(
+                                            "shrink-0 w-10 h-10 rounded-xl flex items-center justify-center mt-0.5",
+                                            log.status === "SUCCESS" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                                        )}>
+                                            {log.status === "SUCCESS" ? (
+                                                <CheckCircle2 className="w-5 h-5" />
+                                            ) : (
+                                                <AlertCircle className="w-5 h-5" />
+                                            )}
                                         </div>
+
+                                        {/* Content */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3 mb-1.5">
-                                                <span className={cn("text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border", log.status === "SUCCESS" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-red-50 border-red-100 text-red-700")}>{log.status}</span>
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{log.timestamp?.toDate ? format(log.timestamp.toDate(), "MMM dd • HH:mm:ss") : "Just now"}</span>
+                                                <span className={cn(
+                                                    "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border",
+                                                    log.status === "SUCCESS" ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-red-50 border-red-100 text-red-700"
+                                                )}>
+                                                    {log.status}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+                                                    {log.timestamp?.toDate ? format(log.timestamp.toDate(), "MMM dd • HH:mm:ss") : "Just now"}
+                                                </span>
                                             </div>
-                                            <p className="text-xs text-slate-600 font-medium break-all leading-relaxed font-sans">{log.message}</p>
+                                            <p className="text-xs text-slate-600 font-medium break-all leading-relaxed font-sans">
+                                                {log.message}
+                                            </p>
                                         </div>
+
+                                        {/* Source Badge */}
                                         <div className="shrink-0 hidden md:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
                                             <Server className="w-3 h-3 text-slate-400" />
                                             <span className="text-[9px] text-slate-500 font-black uppercase tracking-wider">{log.source}</span>

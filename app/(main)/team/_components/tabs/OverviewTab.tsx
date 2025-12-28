@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { 
   Zap, Users, Check, Award, Command, Activity, Target, 
-  ShieldAlert, CalendarClock, MessageSquare, Lightbulb, Goal, BookOpen, FileText, Star, StickyNote, File, ArrowLeftRight, UserPlus, Crown
+  ShieldAlert, CalendarClock, MessageSquare, Lightbulb, Goal, 
+  BookOpen, FileText, Star, StickyNote, File, ArrowLeftRight, 
+  UserPlus, Crown
 } from "lucide-react";
 import { cn, getProbationStatus } from "@/lib/utils";
 import { TeamMember, STAGES, CalendarEvent } from "../../../calendar/_components/types";
@@ -28,7 +30,7 @@ const getCategoryStyle = (type: string) => {
         case 'PROMOTION': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
         case 'TRANSFER': return 'bg-cyan-50 text-cyan-700 border-cyan-100';
         case 'ASSIGNMENT': return 'bg-sky-50 text-sky-700 border-sky-100';
-        case 'WINNER': return 'bg-amber-100 text-amber-800 border-amber-200'; // Added WINNER style
+        case 'WINNER': return 'bg-amber-100 text-amber-800 border-amber-200';
 
         case 'INCIDENT': return 'bg-red-50 text-red-700 border-red-100';
         case 'COMMENDATION': return 'bg-amber-50 text-amber-700 border-amber-100';
@@ -41,7 +43,6 @@ const getCategoryStyle = (type: string) => {
 
 export function OverviewTab({ member }: Props) {
   const { events, curriculum } = useAppStore();
-  const isFOH = member.dept === "FOH";
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
 
   // --- ACTIVITY DATA ---
@@ -70,7 +71,6 @@ export function OverviewTab({ member }: Props) {
              // Differentiate general awards from EOTM Winner logs
              if (title.startsWith("EOTM Winners")) {
                  category = 'WINNER';
-                 // Optionally clean up the description to just show relevant info if needed
              } else {
                  category = 'AWARD';
              }
@@ -121,42 +121,33 @@ export function OverviewTab({ member }: Props) {
 
   return (
     <div className="p-5 lg:p-10 space-y-6 lg:space-y-8 pb-32 h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
-        {/* ... Mentor & Probation Cards ... */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
-            {member.pairing ? (
-                <div className="bg-white p-4 lg:p-5 rounded-[24px] lg:rounded-[28px] border border-slate-200 shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
-                    <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", isFOH ? "bg-[#004F71]" : "bg-[#E51636]")} />
-                    <div className="flex items-center gap-4 pl-3">
-                        <div className="relative">
-                            <div className="w-12 h-12 rounded-2xl p-0.5 bg-gradient-to-br from-slate-100 to-slate-200 shadow-sm overflow-hidden flex items-center justify-center">
-                                {member.pairing.image ? (
-                                    <img src={member.pairing.image} className="w-full h-full rounded-[14px] object-cover" />
-                                ) : (
-                                    <span className="text-sm font-black text-slate-400">{member.pairing.name.charAt(0)}</span>
-                                )}
-                            </div>
-                            <div className="absolute -bottom-1 -right-1 bg-emerald-500 ring-2 ring-white rounded-full p-0.5"><Zap className="w-2.5 h-2.5 text-white fill-current" /></div>
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-0.5"><h4 className="text-sm font-bold text-slate-900 leading-none">{member.pairing.name}</h4><span className="px-1.5 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[8px] font-black uppercase text-slate-500 tracking-wider">Mentor</span></div>
-                            <p className="text-[10px] font-medium text-slate-400">{member.pairing.role}</p>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <div className="p-6 rounded-[24px] lg:rounded-[28px] border-2 border-dashed border-slate-200 flex items-center justify-center gap-3 text-slate-300 bg-slate-50/50"><Users className="w-5 h-5" /><span className="text-[10px] font-black uppercase tracking-widest">No Mentor Assigned</span></div>
-            )}
-            {probation && probation.isActive && (
+        
+        {/* --- PROBATION STATUS (Only show if active) --- */}
+        {probation && probation.isActive && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
                 <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 lg:p-5 rounded-[24px] lg:rounded-[28px] border border-amber-100 shadow-sm relative overflow-hidden">
                     <div className="flex justify-between items-start mb-2 relative z-10">
-                        <div className="flex items-center gap-2"><div className="p-1.5 bg-amber-100 rounded-lg text-amber-600"><ShieldAlert className="w-4 h-4" /></div><div><h4 className="text-xs font-black text-amber-900 uppercase tracking-wide">Probation</h4><p className="text-[10px] font-medium text-amber-600/80">30-Day Period</p></div></div>
-                        <div className="text-right"><span className="text-2xl font-black text-amber-500 leading-none">{probation.daysRemaining}</span><span className="text-[8px] font-bold text-amber-400 block uppercase">Left</span></div>
+                        <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-amber-100 rounded-lg text-amber-600">
+                                <ShieldAlert className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-black text-amber-900 uppercase tracking-wide">Probation</h4>
+                                <p className="text-[10px] font-medium text-amber-600/80">30-Day Period</p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <span className="text-2xl font-black text-amber-500 leading-none">{probation.daysRemaining}</span>
+                            <span className="text-[8px] font-bold text-amber-400 block uppercase">Left</span>
+                        </div>
                     </div>
-                    <div className="h-1.5 w-full bg-amber-200/50 rounded-full overflow-hidden relative z-10"><motion.div initial={{ width: 0 }} animate={{ width: `${probation.percentage}%` }} className="h-full bg-amber-500 rounded-full" /></div>
+                    <div className="h-1.5 w-full bg-amber-200/50 rounded-full overflow-hidden relative z-10">
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${probation.percentage}%` }} className="h-full bg-amber-500 rounded-full" />
+                    </div>
                     <CalendarClock className="absolute -bottom-4 -right-4 w-24 h-24 text-amber-500/5 rotate-12" />
                 </div>
-            )}
-        </div>
+            </div>
+        )}
 
         {/* ... Deployment Status ... */}
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
@@ -183,12 +174,14 @@ export function OverviewTab({ member }: Props) {
 
         {/* ... Accolades ... */}
         <div className="space-y-3">
-            <div className="flex items-center gap-3 px-2"><Award className="w-4 h-4 text-amber-500" /><span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Validated Accolades</span></div>
+            <div className="flex items-center gap-3 px-2">
+                <Award className="w-4 h-4 text-amber-500" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Validated Accolades</span>
+            </div>
             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 pl-2 snap-x">
                 {member.badges && member.badges.length > 0 ? member.badges.map((badge: any, i: number) => { 
                     const Icon = TACTICAL_ICONS.find(ic => ic.id === badge.iconId)?.icon || Award; 
                     
-                    // UPDATED: PARSE DATE IF EOTM
                     let subText = "";
                     if (badge.label === "Employee of the Month" && badge.desc) {
                          subText = badge.desc.replace("Employee of the Month - ", "");

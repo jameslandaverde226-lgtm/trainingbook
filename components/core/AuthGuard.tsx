@@ -3,8 +3,9 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppStore } from "@/lib/store/useStore";
-import { Loader2, Command, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
+import Image from "next/image";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { currentUser, authLoading, checkAuth } = useAppStore();
@@ -35,13 +36,22 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
              transition={{ duration: 0.5, ease: "easeOut" }}
              className="relative z-10 flex flex-col items-center"
            >
-              <div className="w-20 h-20 bg-[#E51636] rounded-[24px] flex items-center justify-center shadow-[0_20px_40px_-10px_rgba(229,22,54,0.3)] mb-8 relative overflow-hidden group">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent" />
-                  <Command className="w-8 h-8 text-white relative z-10" />
+              {/* Logo Container - Matches Login Style */}
+              <div className="w-24 h-24 bg-white rounded-[24px] flex items-center justify-center shadow-[0_20px_40px_-10px_rgba(229,22,54,0.3)] mb-8 relative overflow-hidden group border-[3px] border-[#E51636]">
+                  <div className="absolute inset-0 bg-red-500 opacity-0 group-hover:opacity-5 transition-opacity duration-500" />
+                  <Image 
+                    src="/planning.svg"
+                    alt="TrainingBook Logo"
+                    width={80}
+                    height={80}
+                    className="w-14 h-14 object-contain relative z-10 drop-shadow-sm"
+                    priority
+                  />
               </div>
 
-              <h2 className="text-2xl font-[1000] text-slate-900 tracking-tighter mb-2">
-                Training<span className="text-[#E51636]">Book</span>
+              {/* UPDATED: Branding Text matches DynamicHeader style */}
+              <h2 className="text-3xl font-black tracking-tight text-slate-900 mb-2">
+                Training<span className="text-[#004F71]">book</span>
               </h2>
 
               <div className="flex items-center gap-3 bg-slate-50 border border-slate-100 px-4 py-2 rounded-full mt-4">

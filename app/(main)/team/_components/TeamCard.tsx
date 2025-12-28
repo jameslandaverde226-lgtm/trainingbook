@@ -72,7 +72,7 @@ const TeamCardComponent = ({
     isDropTarget,
     isWaitingForMentor
 }: Props) => {
-  const { updateMemberLocal } = useAppStore();
+  const { updateMemberLocal, team } = useAppStore(); 
   
   const isFOH = member.dept === "FOH";
   const isBOH = member.dept === "BOH";
@@ -91,9 +91,24 @@ const TeamCardComponent = ({
   const lastBadge = badgeCount > 0 ? member.badges![member.badges!.length - 1] : null;
   const LastBadgeIcon = lastBadge ? (TACTICAL_ICONS.find(i => i.id === lastBadge.iconId)?.icon || Award) : null;
 
+  // --- RESOLVE MENTOR DEPARTMENT COLOR ---
+  const mentorDeptColor = useMemo(() => {
+      if (!member.pairing?.id) return "bg-slate-800 text-white";
+      const mentorObj = team.find(m => m.id === member.pairing?.id);
+      if (!mentorObj) return "bg-slate-800 text-white";
+
+      return mentorObj.dept === "FOH" 
+        ? "bg-[#004F71] text-white" 
+        : mentorObj.dept === "BOH" 
+            ? "bg-[#E51636] text-white" 
+            : "bg-slate-800 text-white";
+  }, [member.pairing, team]);
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
     checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,7 +138,9 @@ const TeamCardComponent = ({
     <TiltWrapper 
       disabled={isMobile || isDragging} 
       className={cn(
-        "relative group w-full aspect-[3/4] perspective-1000 cursor-pointer select-none touch-none", 
+        "relative group w-full aspect-[3/4] perspective-1000 cursor-pointer select-none",
+        // UPDATED: Only disable touch actions (scrolling) if NOT on mobile
+        isMobile ? "touch-auto" : "touch-none",
         isDropTarget && !isDragging && "z-50 scale-[1.03]",
         isWaitingForMentor && "z-50 scale-[1.02]"
       )}
@@ -287,7 +304,7 @@ const TeamCardComponent = ({
                   </div>
                </div>
 
-               {/* MENTOR DOCK */}
+               {/* MENTOR DOCK - UPDATED WITH DEPT COLOR */}
                <div 
                     onClick={(e) => { e.stopPropagation(); onAssignClick(member); }}
                     className={cn(
@@ -302,10 +319,18 @@ const TeamCardComponent = ({
                    <AnimatePresence mode="wait">
                        {member.pairing ? (
                            <motion.div key="paired" className="flex items-center gap-3 w-full">
+                               {/* Dynamic Department Color for Avatar/Placeholder */}
                                <div className="relative shrink-0 w-8 h-8">
-                                   {member.pairing.image ? <img src={member.pairing.image} className="w-full h-full rounded-lg object-cover bg-slate-900 border border-white/20" alt={member.pairing.name} /> : <div className="w-full h-full rounded-lg bg-slate-800 flex items-center justify-center text-[10px] font-black text-white border border-white/20">{member.pairing.name.charAt(0)}</div>}
+                                   {member.pairing.image ? (
+                                        <img src={member.pairing.image} className="w-full h-full rounded-lg object-cover border border-white/20" alt={member.pairing.name} />
+                                   ) : (
+                                        <div className={cn("w-full h-full rounded-lg flex items-center justify-center text-[10px] font-black border border-white/20", mentorDeptColor)}>
+                                            {member.pairing.name.charAt(0)}
+                                        </div>
+                                   )}
                                    <div className="absolute -bottom-1 -right-1 bg-amber-400 rounded-full p-0.5 border border-black/10"><Crown className="w-2 h-2 text-black fill-current" /></div>
                                </div>
+                               
                                <div className="flex flex-col min-w-0">
                                    <span className="text-[7px] font-bold text-white/40 uppercase tracking-wider">Mentored By</span>
                                    <span className="text-[10px] font-black text-white truncate">{member.pairing.name}</span>

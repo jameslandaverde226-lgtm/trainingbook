@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion, LayoutGroup, PanInfo } from "framer-motion";
 import { 
   Users, Search, Zap, Loader2,
@@ -116,8 +116,7 @@ export default function TeamBoardPage() {
     
     // Pagination / Infinite Scroll
     const [visibleCount, setVisibleCount] = useState(12);
-    const loadMoreRef = useRef<HTMLDivElement>(null);
-
+    
     // Interaction State
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
     const [assignmentMember, setAssignmentMember] = useState<TeamMember | null>(null); 
@@ -166,26 +165,28 @@ export default function TeamBoardPage() {
                 return matchesStage && matchesFilter && matchesSearch && matchesPairing;
             })
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [team, activeStage, activeFilter, searchQuery, showMyPairings, currentUser]); // Added dependencies
+    }, [team, activeStage, activeFilter, searchQuery, showMyPairings, currentUser]);
 
     const visibleMembers = useMemo(() => {
         return filteredMembers.slice(0, visibleCount);
     }, [filteredMembers, visibleCount]);
 
-    // --- INFINITE SCROLL OBSERVER ---
-    useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && visibleCount < filteredMembers.length) {
-                    setVisibleCount((prev) => prev + 12);
-                }
-            },
-            { root: null, rootMargin: "200px", threshold: 0.1 }
-        );
+    // --- ROBUST INFINITE SCROLL (CALLBACK REF) ---
+    // This pattern ensures the observer is always fresh when the loader element mounts
+    const observer = useRef<IntersectionObserver | null>(null);
+    
+    const lastElementRef = useCallback((node: HTMLDivElement) => {
+        if (observer.current) observer.current.disconnect();
 
-        if (loadMoreRef.current) observer.observe(loadMoreRef.current);
-        return () => { if (loadMoreRef.current) observer.unobserve(loadMoreRef.current); };
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && visibleCount < filteredMembers.length) {
+                setVisibleCount(prev => prev + 12);
+            }
+        }, { rootMargin: "200px" });
+
+        if (node) observer.current.observe(node);
     }, [visibleCount, filteredMembers.length]);
+
 
     // --- SHARED: LINK LOGIC ---
     const linkMemberAndLeader = async (targetId: string, leaderId: string) => {
@@ -199,8 +200,7 @@ export default function TeamBoardPage() {
         isProcessingRef.current = true;
         const loadToast = toast.loading(`Linking ${leader.name} to ${targetMember.name}...`);
         
-        // 1. OPTIMISTIC UPDATE (Instant UI Change)
-        // This forces the "TeamCard" to re-render with the new mentor immediately
+        // 1. OPTIMISTIC UPDATE
         updateMemberLocal(targetMember.id, {
             pairing: { 
                 id: leader.id, 
@@ -248,29 +248,23 @@ export default function TeamBoardPage() {
     };
 
     // --- HANDLERS ---
-
-    // 1. OPEN RECRUITMENT DOCK (Triggered from Card "Assign Mentor" click)
     const openRecruitment = (member: TeamMember) => {
         setActiveLeaderId(null);
         setRecipientMemberId(member.id); // Highlight this card
         setIsTrainerPanelOpen(true);
     };
 
-    // 2. SELECT LEADER (Triggered from Dock)
     const handleSelectLeader = (leader: TeamMember | null) => {
         if (!leader) {
             setActiveLeaderId(null);
             return;
         }
 
-        // CASE A: We already clicked "Assign Mentor" on a card (recipientMemberId exists)
-        // So we finish the link immediately.
         if (recipientMemberId) {
             linkMemberAndLeader(recipientMemberId, leader.id);
             return;
         }
 
-        // CASE B: Standard flow (Pick leader first, then drag/click member to assign)
         if (activeLeaderId === leader.id) {
             setActiveLeaderId(null);
         } else {
@@ -278,21 +272,17 @@ export default function TeamBoardPage() {
         }
     };
 
-    // 3. MEMBER CLICK HANDLER (Dual Function: Assign OR Open Profile)
     const handleMemberClick = async (targetMember: TeamMember) => {
-        // A. If unit assignment needed, prioritize that
         if (targetMember.dept === "Unassigned") {
             setAssignmentMember(targetMember);
             return;
         }
 
-        // B. IF WE ARE IN RECRUITMENT MODE AND HAVE A LEADER SELECTED
         if (activeLeaderId) {
             linkMemberAndLeader(targetMember.id, activeLeaderId);
             return;
         }
 
-        // C. DEFAULT BEHAVIOR (Open Profile)
         setSelectedMemberId(targetMember.id);
     };
 
@@ -450,7 +440,6 @@ export default function TeamBoardPage() {
                 setActiveStage={setActiveStage}
                 activeFilter={activeFilter}
                 setActiveFilter={setActiveFilter}
-                // 4. PASS NEW PROPS
                 showMyPairings={showMyPairings}
                 setShowMyPairings={setShowMyPairings}
             />
@@ -519,8 +508,12 @@ export default function TeamBoardPage() {
                                 </AnimatePresence>
                                 
                                 {visibleCount < filteredMembers.length && (
-                                    <div ref={loadMoreRef} className="col-span-full py-12 flex justify-center w-full">
-                                        <div className="flex items-center gap-2 text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-100 shadow-sm">
+                                    <div 
+                                        ref={lastElementRef}
+                                        className="col-span-full py-12 flex justify-center w-full cursor-pointer"
+                                        onClick={() => setVisibleCount(prev => prev + 12)} // Manual fallback
+                                    >
+                                        <div className="flex items-center gap-2 text-slate-400 bg-white/50 px-4 py-2 rounded-full border border-slate-100 shadow-sm hover:bg-white hover:text-slate-600 transition-colors">
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                             <span className="text-[10px] font-black uppercase tracking-widest">Loading Roster...</span>
                                         </div>

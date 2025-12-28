@@ -6,7 +6,7 @@ import {
   X, Mail, CheckCircle2, Award, 
   Activity, Target, FileText, TrendingUp, Plus,
   Shield, Calendar, ChevronDown, Repeat, ChevronLeft,
-  Zap, Sparkles, Crown, ArrowRight
+  Zap, Sparkles, Crown, ArrowRight, Link2, User
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -169,21 +169,22 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                     </p>
                 </div>
 
-                {/* Detailed Info Cards */}
-                <div className="space-y-4 w-full">
-                    {/* Email */}
-                    <div className="group p-4 bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-200 rounded-2xl transition-all shadow-sm hover:shadow-md flex items-start gap-4">
+                {/* Detailed Info Cards (UPDATED LAYOUT) */}
+                <div className="grid grid-cols-2 gap-3 w-full">
+                    
+                    {/* EMAIL (Span 2) */}
+                    <div className="col-span-2 group p-4 bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-200 rounded-2xl transition-all shadow-sm hover:shadow-md flex items-center gap-4">
                         <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform", themeLightIconBg, themeColorText)}>
                             <Mail className="w-5 h-5" />
                         </div>
-                        <div className="min-w-0 flex-1 pt-0.5">
+                        <div className="min-w-0 flex-1">
                             <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Contact Email</p>
-                            <p className="text-xs font-bold text-slate-900 break-words leading-tight">{member.email}</p>
+                            <p className="text-xs font-bold text-slate-900 truncate" title={member.email}>{member.email}</p>
                         </div>
                     </div>
-                    
-                    {/* Joined Date */}
-                    <div className="group p-4 bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-200 rounded-2xl transition-all shadow-sm hover:shadow-md flex items-center gap-4">
+
+                    {/* JOINED (Span 2) */}
+                    <div className="col-span-2 group p-4 bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-200 rounded-2xl transition-all shadow-sm hover:shadow-md flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl bg-purple-100/50 flex items-center justify-center text-purple-600 shrink-0 group-hover:scale-110 transition-transform">
                             <Calendar className="w-5 h-5" />
                         </div>
@@ -193,18 +194,43 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                         </div>
                     </div>
 
-                    {/* Mentor */}
-                    <div className="group p-4 bg-slate-50 hover:bg-white border border-slate-100 hover:border-slate-200 rounded-2xl transition-all shadow-sm hover:shadow-md flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100/50 flex items-center justify-center text-emerald-600 shrink-0 group-hover:scale-110 transition-transform">
-                            <Shield className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Assigned Mentor</p>
-                            <p className="text-xs font-bold text-slate-400 italic">
-                                {member.pairing ? member.pairing.name : "No Mentor Assigned"}
-                            </p>
-                        </div>
+                    {/* MENTOR (Span 2 - Rich Card) */}
+                    <div className="col-span-2 group p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-3 relative overflow-hidden">
+                        {member.pairing ? (
+                            <>
+                                <div className={cn("absolute left-0 top-0 bottom-0 w-1", themeColorBg)} />
+                                <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 shrink-0 overflow-hidden relative shadow-sm">
+                                    {member.pairing.image ? (
+                                        <img src={member.pairing.image} alt={member.pairing.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white font-black text-sm">
+                                            {member.pairing.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
+                                        <Link2 className="w-3 h-3 text-slate-400" /> Assigned Mentor
+                                    </p>
+                                    <p className="text-sm font-black text-slate-900 truncate">
+                                        {member.pairing.name}
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                             // Empty State
+                             <>
+                                <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 shrink-0 border border-dashed border-slate-200">
+                                    <User className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Mentorship</p>
+                                    <p className="text-xs font-bold text-slate-300 italic">Unassigned</p>
+                                </div>
+                             </>
+                        )}
                     </div>
+
                 </div>
             </div>
         </div>
@@ -362,13 +388,7 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
 
             {/* --- SCROLLABLE CONTENT --- */}
             <div className="flex-1 overflow-y-auto p-0 md:p-0 bg-[#F8FAFC]"> 
-                {/* 
-                   UPDATED: Removed padding from parent to allow children full control (like OverviewTab's own padding). 
-                   But we need consistent padding for the tab content, so we can wrap them individually or pass classes.
-                   Here I removed p-5/p-10 to let tabs handle their internal layout if they want full height scrolling.
-                */}
-                
-                 {/* Mobile "New Mission" Button - Only visible on Overview ideally, but here for now */}
+                 {/* Mobile "New Mission" Button */}
                  <div className="md:hidden p-5 pb-0">
                     <button 
                         onClick={() => setIsAddEventOpen(true)}
