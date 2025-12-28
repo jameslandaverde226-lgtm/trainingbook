@@ -508,7 +508,8 @@ export default function TrainingBuilderPage() {
             }
         });
 
-        if (!newActiveId && sectionsRef.current.length > 0) {
+        // FIXED FALLBACK: Only fallback to top if we are actually at top
+        if (!newActiveId && sectionsRef.current.length > 0 && window.scrollY < 100) {
             newActiveId = sectionsRef.current[0].id;
         }
         
@@ -548,11 +549,15 @@ export default function TrainingBuilderPage() {
     
     setActiveSectionId(docRef.id);
     
+    // Explicitly update refs immediately to prevent null ref glitch
+    sectionsRef.current = [...sections, { id: docRef.id, title: "New Training Phase", duration: "Day 1", pageStart: lastPage + 1, pageEnd: lastPage + 2, tasks: [], dept: activeDept, order: nextOrder } as Section];
+
     setTimeout(() => {
         const el = sectionRefs.current[docRef.id];
         if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        // KEEP LOCK ON for a bit longer to allow layout to settle
         setTimeout(() => { isAutoScrolling.current = false; }, 800);
     }, 200);
   };
