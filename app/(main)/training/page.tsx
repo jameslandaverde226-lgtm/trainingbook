@@ -49,11 +49,11 @@ const CANVA_LINKS: Record<string, string> = {
   Unassigned: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view" 
 };
 
-// --- UPDATED: BRAND COLORS FOR SUBJECTS ---
+// --- PRESET COLORS FOR SUBJECTS ---
 const SUBJECT_COLORS = [
     { id: "slate", hex: "#f8fafc", bg: "bg-slate-50", text: "text-slate-500", border: "border-slate-200", dot: "bg-slate-400" }, 
-    { id: "navy", hex: "#f0f9ff", bg: "bg-[#004F71]/10", text: "text-[#004F71]", border: "border-[#004F71]/20", dot: "bg-[#004F71]" }, // Navy
-    { id: "red", hex: "#fff1f2", bg: "bg-[#E51636]/10", text: "text-[#E51636]", border: "border-[#E51636]/20", dot: "bg-[#E51636]" }, // Red
+    { id: "navy", hex: "#f0f9ff", bg: "bg-[#004F71]/10", text: "text-[#004F71]", border: "border-[#004F71]/20", dot: "bg-[#004F71]" }, 
+    { id: "red", hex: "#fff1f2", bg: "bg-[#E51636]/10", text: "text-[#E51636]", border: "border-[#E51636]/20", dot: "bg-[#E51636]" }, 
     { id: "amber", hex: "#fffbeb", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200", dot: "bg-amber-400" },
 ];
 
@@ -207,7 +207,7 @@ function TrainingDynamicIsland({
     );
 }
 
-// --- DRAGGABLE TASK COMPONENT ---
+// ... (DraggableTask Component remains unchanged) ...
 const DraggableTask = ({ 
     task, 
     activeDept, 
@@ -220,10 +220,8 @@ const DraggableTask = ({
     const controls = useDragControls();
     const isSubject = task.type === 'subject';
     
-    // UPDATED: Use explicit bg/text classes instead of hex
     const colorTheme = SUBJECT_COLORS.find(c => c.id === task.color) || SUBJECT_COLORS[0];
     
-    // Apply styling classes directly
     const subjectClasses = isSubject 
         ? cn(colorTheme.bg, colorTheme.text, "rounded-xl border", colorTheme.border, "shadow-sm") 
         : "bg-slate-50/50 rounded-xl md:rounded-2xl border border-transparent hover:border-slate-200 hover:bg-white";
@@ -355,7 +353,7 @@ const DraggableTask = ({
     );
 };
 
-// ... (Main Page Component unchanged) ...
+// --- MAIN PAGE ---
 export default function TrainingBuilderPage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [activeDept, setActiveDept] = useState<Department>("FOH");
