@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { CalendarEvent } from "./types";
-import { Scissors } from "lucide-react";
+import { Scissors, Link2Off } from "lucide-react"; // Imported Link2Off icon
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,6 @@ export default function TimelineConnections({
 }: Props) {
   const [hoveredLink, setHoveredLink] = useState<string | null>(null);
 
-  // Intelligent Bezier Path Generator
   const getPath = (x1: number, y1: number, x2: number, y2: number, index: number = 0) => {
     const width = Math.abs(x2 - x1);
     const isBackwards = x2 < x1;
@@ -41,9 +40,6 @@ export default function TimelineConnections({
   };
 
   return (
-    // FIX: Remove 'pointer-events-none' from here if it blocks children, 
-    // but we keep it to allow clicking through empty space. 
-    // We will ensure children override this.
     <svg className="absolute inset-0 pointer-events-none overflow-visible w-full h-full">
       <defs>
         <linearGradient id="activeFlow" gradientUnits="userSpaceOnUse">
@@ -65,16 +61,40 @@ export default function TimelineConnections({
       </defs>
 
       {events.map((event) => {
-        if (!event.linkedEventIds || event.linkedEventIds.length === 0 || !eventCoordinates.has(event.id)) return null;
+        // 1. Check if the target event (current iteration) is visible
+        if (!eventCoordinates.has(event.id)) return null;
+        if (!event.linkedEventIds || event.linkedEventIds.length === 0) return null;
+
+        const target = eventCoordinates.get(event.id)!;
 
         return event.linkedEventIds.map((sourceId, idx) => {
-            if (!eventCoordinates.has(sourceId)) return null;
+            const source = eventCoordinates.get(sourceId);
+
+            // 2. CASE: Source is HIDDEN (Filtered out)
+            // Render a "Stub" or "Ghost Link" indicator instead of a full line
+            if (!source) {
+                if (mode === 'cables') {
+                     // Draw a short dashed line fading out to the left to indicate an incoming connection from a hidden event
+                     return (
+                         <g key={`ghost-${event.id}-${sourceId}`}>
+                             <path 
+                                d={`M ${target.xStart - 40} ${target.y} L ${target.xStart} ${target.y}`} 
+                                stroke="#cbd5e1" 
+                                strokeWidth="2" 
+                                strokeDasharray="4 4"
+                                opacity="0.5"
+                                markerEnd="url(#arrowHead)"
+                             />
+                             <circle cx={target.xStart - 45} cy={target.y} r="3" fill="#cbd5e1" opacity="0.5" />
+                         </g>
+                     );
+                }
+                return null;
+            }
 
             if (draggingId && (event.id === draggingId || sourceId === draggingId)) return null;
 
-            const source = eventCoordinates.get(sourceId)!;
-            const target = eventCoordinates.get(event.id)!;
-
+            // 3. CASE: Both Visible - Render Full Connection
             const path = getPath(source.xEnd, source.y, target.xStart, target.y, idx);
             
             const isBackwards = target.xStart < source.xEnd;
@@ -86,11 +106,9 @@ export default function TimelineConnections({
             
             const showTriggers = isHovered || isUnlinkingMode;
 
-            // RENDER VISUALS (LAYER 0)
             if (mode === 'cables') {
                 return (
                     <g key={linkKey}>
-                        {/* Visible Base Line */}
                         <path 
                           d={path} 
                           fill="none" 
@@ -100,8 +118,6 @@ export default function TimelineConnections({
                           style={{ filter: "url(#wireShadow)", transition: "stroke 0.3s ease, stroke-width 0.3s ease" }}
                           markerEnd={isHovered ? "url(#arrowHeadSever)" : "url(#arrowHead)"}
                         />
-
-                        {/* Flow Animation */}
                         {!showTriggers && (
                             <motion.path
                               d={path} 
@@ -119,17 +135,14 @@ export default function TimelineConnections({
                 );
             }
 
-            // RENDER CONTROLS (LAYER 30+)
             if (mode === 'controls') {
                 return (
                     <g 
                         key={linkKey} 
                         onMouseEnter={() => setHoveredLink(linkKey)}
                         onMouseLeave={() => setHoveredLink(null)}
-                        // FIX: Explicitly re-enable pointer events for this group
                         style={{ pointerEvents: 'auto' }} 
                     >
-                        {/* Invisible Hit Path - Widened for usability */}
                         <path 
                           d={path} 
                           fill="none" 
@@ -138,12 +151,9 @@ export default function TimelineConnections({
                           strokeLinecap="round"
                           style={{ cursor: isUnlinkingMode ? 'not-allowed' : 'pointer' }}
                         />
-
-                        {/* Scissor Button - Always rendered if trigger active */}
                         <AnimatePresence>
                             {showTriggers && (
                                 <g transform={`translate(${midX}, ${midY})`}>
-                                    {/* FIX: Ensure ForeignObject allows interaction */}
                                     <foreignObject x="-20" y="-20" width="40" height="40" style={{ overflow: 'visible', pointerEvents: 'auto' }}>
                                         <motion.button
                                             initial={{ scale: 0, opacity: 0 }}
@@ -153,7 +163,7 @@ export default function TimelineConnections({
                                             whileTap={{ scale: 0.9 }}
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                e.preventDefault(); // Stop event bubbling
+                                                e.preventDefault(); 
                                                 if(onRemoveLink) onRemoveLink(event.id, sourceId);
                                             }}
                                             className={cn(

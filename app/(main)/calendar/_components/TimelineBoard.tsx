@@ -60,23 +60,33 @@ export default function TimelineBoard({ currentDate, events, isStamping, onDragE
   const totalDays = timelineDays.length;
   const totalBoardWidth = SIDEBAR_WIDTH + (totalDays * DAY_WIDTH);
 
-  const { groupedEvents, eventCoordinates, totalHeight, sourceIds } = useMemo(() => {
+  const { groupedEvents, eventCoordinates, totalHeight, sourceIds, visibleEvents } = useMemo(() => {
     const groups: Record<string, CalendarEvent[]> = {};
     const coords = new Map<string, { xStart: number; xEnd: number; y: number }>();
     const sources = new Set<string>();
+    const visibleSet = new Set<string>();
     
     let currentY = GRID_HEADER_HEIGHT; 
 
-    events.forEach(e => { if(e.linkedEventIds) e.linkedEventIds.forEach(id => sources.add(id)); });
-
+    // First pass: Group and calculate Y positions for VISIBLE events
     EVENT_TYPES.forEach(type => {
-        const typeEvents = events.filter(e => e.type === type);
+        // FILTER 1: Match Type
+        let typeEvents = events.filter(e => e.type === type);
+        
+        // FILTER 2: DATE RANGE CHECK (CRITICAL FIX)
+        // Only calculate coordinates for events that are actually rendered within the timeline window
+        typeEvents = typeEvents.filter(event => {
+            return !(event.endDate < timelineStart || event.startDate > timelineEnd);
+        });
+
         groups[type] = typeEvents;
         
         if (typeEvents.length > 0) {
             currentY += GROUP_HEADER_HEIGHT;
             typeEvents.forEach(event => {
-                // Calculate VISIBLE start/end for connection line logic
+                visibleSet.add(event.id); 
+                
+                // Calculate coordinates
                 const effectiveStart = event.startDate < timelineStart ? timelineStart : event.startDate;
                 const effectiveEnd = event.endDate > timelineEnd ? timelineEnd : event.endDate;
                 
@@ -93,11 +103,27 @@ export default function TimelineBoard({ currentDate, events, isStamping, onDragE
             });
         }
     });
+
+    // Second pass: Identify valid sources for connections
+    events.forEach(e => { 
+        if (e.linkedEventIds && visibleSet.has(e.id)) {
+             e.linkedEventIds.forEach(sourceId => {
+                 if (visibleSet.has(sourceId)) {
+                     sources.add(sourceId);
+                 }
+             });
+        } 
+    });
     
-    return { groupedEvents: groups, eventCoordinates: coords, totalHeight: currentY + 200, sourceIds: sources };
+    return { 
+        groupedEvents: groups, 
+        eventCoordinates: coords, 
+        totalHeight: currentY + 200, 
+        sourceIds: sources,
+        visibleEvents: events 
+    };
   }, [events, timelineStart, timelineEnd, DAY_WIDTH, ROW_HEIGHT, GRID_HEADER_HEIGHT, GROUP_HEADER_HEIGHT, SIDEBAR_WIDTH]);
 
-  // ... (Keep handleEventClick, handleRemoveLink, toggles same as before) ...
   const handleEventClick = async (event: CalendarEvent) => {
     if (isStamping && onStamp) { onStamp(event.id); return; }
     if (isLinkingMode) { 
@@ -134,9 +160,9 @@ export default function TimelineBoard({ currentDate, events, isStamping, onDragE
                 {/* GRID BACKGROUND */}
                 <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: `linear-gradient(#004F71 1px, transparent 1px), linear-gradient(90deg, #004F71 1px, transparent 1px)`, backgroundSize: `${DAY_WIDTH}px ${ROW_HEIGHT}px`, backgroundPosition: `${SIDEBAR_WIDTH}px ${GRID_HEADER_HEIGHT}px` }} />
 
-                {/* CONNECTIONS */}
+                {/* CONNECTIONS (FIXED: Passed visibleEvents instead of all events) */}
                 <div className="absolute inset-0 z-0">
-                    <TimelineConnections events={events} eventCoordinates={eventCoordinates} mode="cables" draggingId={draggingId} isUnlinkingMode={isUnlinkingMode} />
+                    <TimelineConnections events={visibleEvents} eventCoordinates={eventCoordinates} mode="cables" draggingId={draggingId} isUnlinkingMode={isUnlinkingMode} />
                 </div>
 
                 {/* STICKY HEADER */}
@@ -177,7 +203,8 @@ export default function TimelineBoard({ currentDate, events, isStamping, onDragE
                                         {typeEvents.map((event) => {
                                             const isSource = sourceIds.has(event.id);
                                             const isTarget = event.linkedEventIds && event.linkedEventIds.length > 0;
-                                            if (event.endDate < timelineStart || event.startDate > timelineEnd) return null; // Hides off-screen events
+                                            // The off-screen check is now redundant here since we filtered groupedEvents above, 
+                                            // but keeping it harmless.
                                             return (
                                                 <motion.div key={event.id} layout initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: ROW_HEIGHT }} exit={{ opacity: 0, height: 0 }} transition={{ type: "spring", stiffness: 500, damping: 30 }} className={cn("flex relative transition-colors group/row hover:bg-blue-50/10")} style={{ height: ROW_HEIGHT }}>
                                                     <div className="sticky left-0 z-[40] shrink-0 border-r border-slate-200 bg-white" style={{ width: SIDEBAR_WIDTH }}>
@@ -198,7 +225,7 @@ export default function TimelineBoard({ currentDate, events, isStamping, onDragE
                 </div>
 
                 <div className="absolute inset-0 z-50 pointer-events-none">
-                    <TimelineConnections events={events} eventCoordinates={eventCoordinates} mode="controls" draggingId={draggingId} onRemoveLink={handleRemoveLink} isUnlinkingMode={isUnlinkingMode} />
+                    <TimelineConnections events={visibleEvents} eventCoordinates={eventCoordinates} mode="controls" draggingId={draggingId} onRemoveLink={handleRemoveLink} isUnlinkingMode={isUnlinkingMode} />
                 </div>
             </div>
          </div>
