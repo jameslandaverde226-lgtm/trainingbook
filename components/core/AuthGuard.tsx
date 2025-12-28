@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppStore } from "@/lib/store/useStore";
 import { Loader2, ShieldCheck } from "lucide-react";
@@ -12,22 +12,26 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { currentUser, authLoading, checkAuth, subscribeTeam, subscribeEvents } = useAppStore();
   const router = useRouter();
   const pathname = usePathname();
+  
+  // Local state to prevent premature redirects
+  const [isChecking, setIsChecking] = useState(true);
 
   // 1. Initial Auth Check
   useEffect(() => {
-    checkAuth();
+    const initAuth = async () => {
+        await checkAuth();
+        setIsChecking(false);
+    };
+    initAuth();
   }, [checkAuth]);
 
   // 2. Global Data Subscription
-  // Once the user is confirmed logged in, start listening to Firestore immediately.
-  // This ensures data is available on ALL pages (Settings, Team, Calendar, etc.)
   useEffect(() => {
     if (currentUser) {
        console.log("✅ [AuthGuard] User authenticated. Initializing global data streams...");
        const unsubTeam = subscribeTeam();
        const unsubEvents = subscribeEvents();
        
-       // Cleanup listeners on unmount (e.g. logout)
        return () => {
            unsubTeam();
            unsubEvents();
@@ -35,14 +39,22 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser, subscribeTeam, subscribeEvents]);
 
-  // 3. Route Protection
+  // 3. Route Protection logic
   useEffect(() => {
-    if (!authLoading && !currentUser && pathname !== "/login") {
-       router.push("/login");
+    // Only run this logic if we are NOT currently loading auth state
+    if (!authLoading && !isChecking) {
+        if (!currentUser && pathname !== "/login") {
+            // No user, not on login page -> Redirect to Login
+            router.push("/login");
+        } else if (currentUser && pathname === "/login") {
+            // User exists, but on login page -> Redirect to Dashboard
+            router.push("/dashboard");
+        }
     }
-  }, [currentUser, authLoading, router, pathname]);
+  }, [currentUser, authLoading, isChecking, router, pathname]);
 
-  if (authLoading) {
+  // If loading, show the splash screen
+  if (authLoading || isChecking) {
      return (
         <div className="h-screen w-full bg-white flex flex-col items-center justify-center relative overflow-hidden font-sans">
            {/* Ambient Background Accents */}
@@ -91,9 +103,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
      );
   }
 
-  // If on login page, just render it
-  if (pathname === "/login") return <>{children}</>;
-
-  // If logged in (or loading finished and rejected), render children
+  // If checking is done and no user (and we are on login), render children (the login form)
+  // If checking is done and user exists (and we are NOT on login), render children (the app)
   return <>{children}</>;
 }
