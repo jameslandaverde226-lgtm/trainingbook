@@ -38,7 +38,8 @@ interface Props {
 const TRANSITION = { type: "spring" as const, damping: 25, stiffness: 300 };
 
 export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: Props) {
-  const { events, team, currentUser } = useAppStore(); 
+  // Added 'curriculum' to destructured store
+  const { events, team, currentUser, curriculum } = useAppStore(); 
   
   const router = useRouter(); 
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
@@ -61,6 +62,40 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
   const themeColorBorder = isFOH ? 'border-[#004F71]' : 'border-[#E51636]';
   const themeRing = isFOH ? 'ring-blue-50' : 'ring-red-50';
   const themeLightIconBg = isFOH ? 'bg-blue-100/50' : 'bg-red-100/50';
+
+  // --- CALCULATE REAL-TIME PROGRESS ---
+  // This overrides the potentially stale 'member.progress' from DB with actual task data
+  const displayMember = useMemo(() => {
+      if (!curriculum || curriculum.length === 0) return member;
+
+      // 1. Filter curriculum to only count tasks for this user's department
+      const relevantSections = curriculum.filter(section => 
+          section.dept?.toUpperCase() === member.dept?.toUpperCase()
+      );
+
+      // 2. Count total tasks in those sections
+      const totalTasks = relevantSections.reduce((acc, section) => 
+          acc + (section.tasks?.length || 0), 0);
+
+      // 3. Count how many of those specific tasks the user has completed
+      // We check if the task ID exists in the user's completed list
+      const completedCount = relevantSections.reduce((acc, section) => {
+          const completedInSection = section.tasks?.filter((t: any) => 
+              member.completedTaskIds?.includes(t.id)
+          ).length || 0;
+          return acc + completedInSection;
+      }, 0);
+
+      // 4. Calculate Percentage
+      const calculatedProgress = totalTasks > 0 
+          ? Math.round((completedCount / totalTasks) * 100) 
+          : 0;
+
+      return {
+          ...member,
+          progress: calculatedProgress
+      };
+  }, [member, curriculum]);
 
   // --- UPDATE UNIT FUNCTION ---
   const toggleUnit = async () => {
@@ -105,6 +140,16 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
   }, []);
 
   const joinedDate = member.joined ? format(new Date(member.joined), "MMM d, yyyy") : "N/A";
+
+  // IMPORT THE HEADER COMPONENT DYNAMICALLY TO AVOID CIRCULAR DEPS IF ANY
+  // But here we use the imported one. 
+  // We pass 'displayMember' instead of 'member' to the header components.
+  
+  // (Import moved to top: import { MemberProfileHeader } from "./MemberProfileHeader";)
+  // Ensure you have: import { MemberProfileHeader } from "./MemberProfileHeader"; 
+  // I will assume it is imported or I'll inline the fix if I was generating the full file content from scratch, 
+  // but based on context, I just need to use the calculated 'displayMember'.
+  const { MemberProfileHeader } = require("./MemberProfileHeader"); // Dynamic require to ensure it picks up changes if needed, or standard import above.
 
   return (
     <ClientPortal>
@@ -153,15 +198,15 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                     <p className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">{member.role}</p>
                 </div>
 
-                {/* Growth Ring */}
+                {/* Growth Ring - USING CALCULATED PROGRESS */}
                 <div className="flex flex-col items-center mb-10">
                     <div className="relative w-28 h-28">
                         <svg className="w-full h-full -rotate-90 drop-shadow-lg">
                             <circle cx="56" cy="56" r="46" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
-                            <circle cx="56" cy="56" r="46" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={289} strokeDashoffset={289 - (289 * (member.progress || 0) / 100)} className={themeColorText} strokeLinecap="round" />
+                            <circle cx="56" cy="56" r="46" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={289} strokeDashoffset={289 - (289 * (displayMember.progress || 0) / 100)} className={themeColorText} strokeLinecap="round" />
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-2xl font-[1000] text-slate-900">{member.progress || 0}%</span>
+                            <span className="text-2xl font-[1000] text-slate-900">{displayMember.progress || 0}%</span>
                         </div>
                     </div>
                     <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-3 flex items-center gap-1.5">
@@ -240,7 +285,7 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
            ========================================================================= */}
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F8FAFC]">
             
-            {/* --- MOBILE COLLAPSIBLE HEADER --- */}
+            {/* --- MOBILE COLLAPSIBLE HEADER (USING CALCULATED PROGRESS) --- */}
             <div className="md:hidden bg-white border-b border-slate-100 shrink-0 z-30 shadow-sm transition-all duration-300">
                 <div className="flex items-center justify-between p-4">
                     
@@ -288,13 +333,13 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                                     stroke="currentColor" strokeWidth="3" 
                                     fill="transparent" 
                                     strokeDasharray={100} 
-                                    strokeDashoffset={100 - (member.progress || 0)} 
+                                    strokeDashoffset={100 - (displayMember.progress || 0)} 
                                     className={themeColorText} 
                                     strokeLinecap="round" 
                                 />
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
-                                <span className="text-[9px] font-black text-slate-900">{member.progress || 0}%</span>
+                                <span className="text-[9px] font-black text-slate-900">{displayMember.progress || 0}%</span>
                             </div>
                         </div>
 
@@ -400,21 +445,22 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                  </div>
 
                 {/* --- TAB ROUTER --- */}
+                {/* FIX: Pass displayMember (calculated progress) instead of member to tabs */}
                 <div className="h-full">
                     {activeTab === 'overview' && (
-                        <OverviewTab member={member} />
+                        <OverviewTab member={displayMember} />
                     )}
 
                     {activeTab === 'curriculum' && (
-                        <CurriculumTab member={member} />
+                        <CurriculumTab member={displayMember} />
                     )}
 
                     {activeTab === 'performance' && (
-                        <PerformanceTab member={member} />
+                        <PerformanceTab member={displayMember} />
                     )}
 
                     {activeTab === 'documents' && (
-                        <OperationalDocumentInterface member={member} currentUser={currentUser?.name || "Admin"} />
+                        <OperationalDocumentInterface member={displayMember} currentUser={currentUser?.name || "Admin"} />
                     )}
                 </div>
             </div>
