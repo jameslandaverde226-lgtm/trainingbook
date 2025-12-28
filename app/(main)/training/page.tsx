@@ -29,7 +29,7 @@ interface Task {
   image?: string;
   duration?: string;
   type?: 'task' | 'subject'; 
-  color?: string; // UPDATED: Added color property for subjects
+  color?: string; 
 }
 
 interface Section {
@@ -49,14 +49,12 @@ const CANVA_LINKS: Record<string, string> = {
   Unassigned: "https://www.canva.com/design/DAG7sot3RWY/Sv-7Y3IEyBqUUFB999JiPA/view" 
 };
 
-// --- PRESET COLORS FOR SUBJECTS ---
+// --- UPDATED: BRAND COLORS FOR SUBJECTS ---
 const SUBJECT_COLORS = [
-    { id: "slate", hex: "#f1f5f9", text: "text-slate-500", border: "border-slate-200" }, // Default
-    { id: "blue", hex: "#eff6ff", text: "text-blue-600", border: "border-blue-200" },
-    { id: "red", hex: "#fef2f2", text: "text-red-600", border: "border-red-200" },
-    { id: "green", hex: "#f0fdf4", text: "text-emerald-600", border: "border-emerald-200" },
-    { id: "amber", hex: "#fffbeb", text: "text-amber-600", border: "border-amber-200" },
-    { id: "purple", hex: "#faf5ff", text: "text-purple-600", border: "border-purple-200" },
+    { id: "slate", hex: "#f8fafc", bg: "bg-slate-50", text: "text-slate-500", border: "border-slate-200", dot: "bg-slate-400" }, 
+    { id: "navy", hex: "#f0f9ff", bg: "bg-[#004F71]/10", text: "text-[#004F71]", border: "border-[#004F71]/20", dot: "bg-[#004F71]" }, // Navy
+    { id: "red", hex: "#fff1f2", bg: "bg-[#E51636]/10", text: "text-[#E51636]", border: "border-[#E51636]/20", dot: "bg-[#E51636]" }, // Red
+    { id: "amber", hex: "#fffbeb", bg: "bg-amber-50", text: "text-amber-600", border: "border-amber-200", dot: "bg-amber-400" },
 ];
 
 const SPRING_TRANSITION: Transition = {
@@ -222,14 +220,13 @@ const DraggableTask = ({
     const controls = useDragControls();
     const isSubject = task.type === 'subject';
     
-    // Determine styles based on color prop or default
+    // UPDATED: Use explicit bg/text classes instead of hex
     const colorTheme = SUBJECT_COLORS.find(c => c.id === task.color) || SUBJECT_COLORS[0];
-    const subjectStyle = isSubject 
-        ? cn(colorTheme.hex, colorTheme.text, "rounded-xl border", colorTheme.border) 
+    
+    // Apply styling classes directly
+    const subjectClasses = isSubject 
+        ? cn(colorTheme.bg, colorTheme.text, "rounded-xl border", colorTheme.border, "shadow-sm") 
         : "bg-slate-50/50 rounded-xl md:rounded-2xl border border-transparent hover:border-slate-200 hover:bg-white";
-
-    // Inject bg color into inline style for Tailwind arb values if needed, but here using classes
-    const containerStyle = isSubject ? { backgroundColor: colorTheme.hex } : {};
 
     return (
         <Reorder.Item
@@ -242,10 +239,9 @@ const DraggableTask = ({
                 layout 
                 className={cn(
                     "group transition-all flex flex-col gap-3 relative p-3 md:p-4",
-                    isSubject ? "mt-4 mb-2" : "", // Margins for subject spacing
-                    subjectStyle
+                    isSubject ? "mt-4 mb-2" : "", 
+                    subjectClasses
                 )}
-                style={containerStyle}
             >
                 <div className="flex items-center gap-3 md:gap-4">
                     {/* --- DRAG HANDLE --- */}
@@ -308,7 +304,7 @@ const DraggableTask = ({
                                 
                                 {/* SUBJECT COLOR PICKER */}
                                 {isSubject && (
-                                    <div className="flex gap-1 bg-white/50 p-1 rounded-lg border border-slate-200/50">
+                                    <div className="flex gap-1.5 bg-white/60 p-1.5 rounded-lg border border-slate-200/50 shadow-sm backdrop-blur-sm">
                                         {SUBJECT_COLORS.map(c => (
                                             <button
                                                 key={c.id}
@@ -317,11 +313,10 @@ const DraggableTask = ({
                                                     updateSection(section.id, { tasks: newTasks });
                                                 }}
                                                 className={cn(
-                                                    "w-3 h-3 rounded-full transition-transform hover:scale-125",
+                                                    "w-3.5 h-3.5 rounded-full transition-transform hover:scale-125 border border-black/5",
+                                                    c.dot,
                                                     task.color === c.id ? "ring-2 ring-slate-400 scale-110" : ""
                                                 )}
-                                                style={{ backgroundColor: c.hex === "#f1f5f9" ? "#cbd5e1" : c.hex.replace('50', '400').replace('100', '400').replace('eff6ff', '#60a5fa').replace('fef2f2', '#f87171').replace('f0fdf4', '#4ade80').replace('fffbeb', '#fbbf24').replace('faf5ff', '#a78bfa') }} 
-                                                // Using rough darken mapping for the dots to be visible on white
                                                 title={c.id}
                                             />
                                         ))}
