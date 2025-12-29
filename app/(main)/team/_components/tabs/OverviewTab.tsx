@@ -19,7 +19,6 @@ interface Props {
   member: TeamMember;
 }
 
-// Updated Style Helper
 const getCategoryStyle = (type: string) => {
     switch (type) {
         case 'GOAL': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
@@ -27,7 +26,6 @@ const getCategoryStyle = (type: string) => {
         case 'AWARD': return 'bg-amber-50 text-amber-700 border-amber-100'; 
         case 'VOTE': return 'bg-slate-100 text-slate-600 border-slate-200'; 
         
-        // NEW SYSTEM TYPES
         case 'PROMOTION': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
         case 'TRANSFER': return 'bg-cyan-50 text-cyan-700 border-cyan-100';
         case 'ASSIGNMENT': return 'bg-sky-50 text-sky-700 border-sky-100';
@@ -37,12 +35,12 @@ const getCategoryStyle = (type: string) => {
         case 'COMMENDATION': return 'bg-amber-50 text-amber-700 border-amber-100';
         case 'REVIEW': return 'bg-blue-50 text-blue-700 border-blue-100';
         case 'NOTE': return 'bg-slate-100 text-slate-600 border-slate-200';
+        
         case 'MODULE': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
         default: return 'bg-slate-100 text-slate-600 border-slate-200';
     }
 };
 
-// Helper for smarter date display
 const getSmartDate = (date: Date) => {
     if (isToday(date)) {
         return formatDistanceToNow(date, { addSuffix: true }).replace("about ", "");
@@ -53,39 +51,46 @@ const getSmartDate = (date: Date) => {
 export function OverviewTab({ member }: Props) {
   const { events, curriculum } = useAppStore();
   const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
-  
-  // LIVE TASK LOOKUP
   const taskMap = useTaskMap();
 
   // --- ACTIVITY DATA ---
   const timelineData = useMemo(() => {
     const history: any[] = [];
-    const assignedEvents = events.filter(e => e.teamMemberId === member.id || e.assignee === member.id);
+    
+    // Filter events where this member is the SUBJECT (teamMemberId) or the Assignee (if it's a Goal they own)
+    const assignedEvents = events.filter(e => 
+        e.teamMemberId === member.id || (e.assignee === member.id && e.type === 'Goal')
+    );
     
     assignedEvents.forEach(e => {
         let category = 'MISSION';
         let desc = e.description || "";
         let title = e.title;
 
-        // DYNAMIC TITLE OVERRIDE (For verified modules)
+        // DYNAMIC TITLE
         if (e.metadata?.taskId && taskMap[e.metadata.taskId]) {
             title = `Module Verified: ${taskMap[e.metadata.taskId]}`;
         }
 
-        if (desc.startsWith("[DOCUMENT LOG:")) {
+        // --- IMPROVED DOCUMENT PARSING ---
+        // Check if description starts with the tag OR contains the tag (for safety)
+        if (desc.includes("[DOCUMENT LOG:")) {
+             // Extract type
              const match = desc.match(/\[DOCUMENT LOG: (.*?)\]/);
              const docType = match ? match[1] : 'Note';
+             
              if (docType.includes("Incident")) category = 'INCIDENT';
              else if (docType.includes("Commendation")) category = 'COMMENDATION';
              else if (docType.includes("Review")) category = 'REVIEW';
              else if (docType.includes("Note")) category = 'NOTE';
              else category = 'DOCUMENT';
-             desc = desc.replace(/\[DOCUMENT LOG: .*?\]\n\n/, "");
+
+             // Clean description for display: Remove the tag and following newlines
+             desc = desc.replace(/\[DOCUMENT LOG: .*?\](\n\n)?/, "").trim();
         }
         else if (e.type === 'Goal') category = 'GOAL';
         else if (e.type === 'OneOnOne') category = '1-ON-1';
         else if (e.type === 'Award') {
-             // Differentiate general awards from EOTM Winner logs
              if (title.startsWith("EOTM Winners")) {
                  category = 'WINNER';
              } else {
@@ -95,7 +100,7 @@ export function OverviewTab({ member }: Props) {
         else if (e.type === 'Vote') category = 'VOTE';
         else if (e.title === "Mentorship Uplink") category = 'SYSTEM';
 
-        // DETECT NEW SYSTEM LOGS
+        // SYSTEM LOGS
         if (desc.includes("[SYSTEM LOG: PROMOTION]")) category = 'PROMOTION';
         else if (desc.includes("[SYSTEM LOG: TRANSFER]")) category = 'TRANSFER';
         else if (desc.includes("[SYSTEM LOG: ASSIGNMENT]")) category = 'ASSIGNMENT';
@@ -106,8 +111,13 @@ export function OverviewTab({ member }: Props) {
         }
 
         history.push({ 
-            id: e.id, date: e.startDate, title: title, category, 
-            description: desc, rawEvent: e, mentorName: e.assigneeName 
+            id: e.id, 
+            date: e.createdAt?.toDate ? e.createdAt.toDate() : e.startDate, // Prefer createdAt for stream accuracy
+            title: title, 
+            category, 
+            description: desc, 
+            rawEvent: e, 
+            mentorName: e.assigneeName 
         });
     });
 
@@ -118,15 +128,8 @@ export function OverviewTab({ member }: Props) {
                  if (member.completedTaskIds?.includes(t.id)) completedNames.push(t.title);
              });
         });
-        if (completedNames.length > 0) {
-             history.push({
-                 id: 'module-summary',
-                 date: new Date(),
-                 title: `${completedNames.length} Training Modules Verified`,
-                 category: 'MODULE',
-                 description: `Completed: ${completedNames.slice(0, 2).join(", ")}${completedNames.length > 2 ? "..." : ""}`
-             });
-        }
+        // Only push summary if we don't have individual events for these (legacy support)
+        // But since we generate events now, we might not need this. Keeping as fallback.
     }
 
     return history.sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, 8); 
@@ -139,7 +142,7 @@ export function OverviewTab({ member }: Props) {
   return (
     <div className="p-5 lg:p-10 space-y-6 lg:space-y-8 pb-32 h-full overflow-y-auto custom-scrollbar bg-[#F8FAFC]">
         
-        {/* --- PROBATION STATUS (Only show if active) --- */}
+        {/* --- PROBATION --- */}
         {probation && probation.isActive && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
                 <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 lg:p-5 rounded-[24px] lg:rounded-[28px] border border-amber-100 shadow-sm relative overflow-hidden">
@@ -166,12 +169,12 @@ export function OverviewTab({ member }: Props) {
             </div>
         )}
 
-        {/* ... Deployment Status ... */}
+        {/* --- DEPLOYMENT STATUS --- */}
         <div className="bg-white p-6 lg:p-10 rounded-[32px] border border-slate-200 shadow-sm overflow-hidden">
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.25em] mb-6 text-center">Unit Deployment Status</h4>
             <div className="overflow-x-auto no-scrollbar pt-12 pb-6 -mx-6 px-6 scroll-smooth snap-x">
-                <div className="flex items-center gap-4 px-4 min-w-max mx-auto">
-                    <div className="absolute left-10 right-10 top-[4.5rem] h-0.5 bg-slate-100 -z-10" />
+                <div className="flex items-center gap-4 px-4 min-w-max mx-auto relative">
+                    <div className="absolute left-10 right-10 top-[1.25rem] h-0.5 bg-slate-100 -z-10" />
                     {STAGES.map((s, i) => { 
                         const currentIdx = STAGES.findIndex(x => x.id === member.status); 
                         const isDone = i < currentIdx; const isCurrent = i === currentIdx; 
@@ -189,7 +192,7 @@ export function OverviewTab({ member }: Props) {
             </div>
         </div>
 
-        {/* ... Accolades ... */}
+        {/* --- ACCOLADES --- */}
         <div className="space-y-3">
             <div className="flex items-center gap-3 px-2">
                 <Award className="w-4 h-4 text-amber-500" />
@@ -238,7 +241,6 @@ export function OverviewTab({ member }: Props) {
                             <div className="space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <span className={cn("px-2 py-0.5 rounded-md text-[8px] font-black uppercase border", getCategoryStyle(item.category))}>{item.category}</span>
-                                    {/* UPDATED DATE FORMAT */}
                                     <span className="text-[8px] font-bold text-slate-300 uppercase">{getSmartDate(item.date)}</span>
                                 </div>
                                 <p className="text-xs lg:text-sm font-bold text-slate-800 leading-tight">{item.title}</p>
@@ -260,7 +262,6 @@ export function OverviewTab({ member }: Props) {
                                 <h5 className="text-xs font-bold text-slate-900 leading-snug">{goal.title}</h5>
                                 <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">{goal.description || "No specific details logged."}</p>
                                 <div className="mt-2 flex items-center gap-2">
-                                    {/* UPDATED DATE FORMAT */}
                                     <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">{getSmartDate(goal.date)}</span>
                                 </div>
                             </div>

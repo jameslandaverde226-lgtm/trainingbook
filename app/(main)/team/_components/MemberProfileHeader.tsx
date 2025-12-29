@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Camera, Loader2, Mail, Calendar, ArrowLeftRight, TrendingUp, AlertCircle, Copy, Check } from "lucide-react";
+import { useRef, useState, useMemo } from "react";
+import { Camera, Loader2, Mail, Calendar, ArrowLeftRight, TrendingUp, AlertCircle, Copy, Check, Link2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { TeamMember } from "../../calendar/_components/types";
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export function MemberProfileHeader({ member }: Props) {
-  const { updateMemberLocal } = useAppStore();
+  const { updateMemberLocal, team } = useAppStore(); 
   
   const isFOH = member.dept === "FOH";
   const isBOH = member.dept === "BOH";
@@ -26,12 +26,27 @@ export function MemberProfileHeader({ member }: Props) {
   const brandBg = isFOH ? 'bg-[#004F71]' : isBOH ? 'bg-[#E51636]' : 'bg-slate-500';
   const initials = member.name.split(' ').map(n => n[0]).join('').toUpperCase();
   
-  // FIX: Simplified check
   const hasValidImage = member.image && !member.image.includes('ui-avatars.com');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // --- DYNAMIC MENTOR COLOR LOGIC ---
+  const mentorDeptStyle = useMemo(() => {
+    if (!member.pairing?.id) return "bg-slate-900 text-white";
+    
+    // Find the mentor in the full team list to get their department
+    const mentorObj = team.find(m => m.id === member.pairing?.id);
+    
+    // Fallback if not found (or data loading)
+    if (!mentorObj) return "bg-slate-900 text-white";
+
+    if (mentorObj.dept === "FOH") return "bg-[#004F71] text-white";
+    if (mentorObj.dept === "BOH") return "bg-[#E51636] text-white";
+    
+    return "bg-slate-500 text-white";
+  }, [member.pairing, team]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -76,7 +91,6 @@ export function MemberProfileHeader({ member }: Props) {
           
           await batch.commit();
           
-          // LOG: UNIT TRANSFER
           await addDoc(collection(db, "events"), {
                 title: `Unit Transfer: ${newDept}`,
                 type: "Operation",
@@ -125,7 +139,6 @@ export function MemberProfileHeader({ member }: Props) {
                         "w-16 h-16 lg:w-32 lg:h-32 rounded-[20px] lg:rounded-[32px] p-1 shadow-sm lg:shadow-md border border-slate-100 lg:rotate-[-3deg] transition-transform group-hover/avatar:rotate-0 group-hover/avatar:scale-105 bg-white",
                     )}>
                         <div className="w-full h-full rounded-[16px] lg:rounded-[24px] overflow-hidden flex items-center justify-center bg-slate-50 relative">
-                            {/* FIX: Direct Image Render without Loading State */}
                             {hasValidImage ? (
                                 <img src={member.image} className="w-full h-full object-cover" alt="" />
                             ) : (
@@ -138,12 +151,12 @@ export function MemberProfileHeader({ member }: Props) {
                     </div>
                 </div>
 
-                {/* 2. IDENTITY (Name, Role, Progress) */}
+                {/* 2. IDENTITY */}
                 <div className="flex-1 min-w-0 flex flex-col lg:items-center justify-center w-full">
                     <h2 className="text-xl lg:text-3xl font-[900] text-slate-900 tracking-tight lg:text-center leading-none mb-1.5 lg:mb-2 truncate w-full">{member.name}</h2>
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] lg:mb-4 truncate">{member.role}</span>
                     
-                    {/* MOBILE: Beautiful Progress Bar */}
+                    {/* MOBILE: Progress Bar */}
                     <div className="lg:hidden mt-2 w-full max-w-[200px]">
                         <div className="flex justify-between items-end mb-1">
                             <span className={cn("text-[8px] font-black uppercase tracking-widest", brandText)}>Growth</span>
@@ -158,7 +171,7 @@ export function MemberProfileHeader({ member }: Props) {
                     </div>
                 </div>
 
-                {/* 3. PROGRESS RING (Desktop Only) */}
+                {/* 3. PROGRESS RING (Desktop) */}
                 <div className="hidden lg:flex flex-col items-center gap-2 mt-4">
                     <div className="relative w-24 h-24 flex items-center justify-center">
                         <svg className="w-full h-full -rotate-90">
@@ -179,7 +192,7 @@ export function MemberProfileHeader({ member }: Props) {
                 </div>
             </div>
 
-            {/* SECOND ROW: METADATA & ACTIONS */}
+            {/* SECOND ROW */}
             <div className="w-full mt-2 lg:mt-8 grid grid-cols-2 gap-3">
                 
                 {/* Unit Button */}
@@ -224,6 +237,43 @@ export function MemberProfileHeader({ member }: Props) {
                         {member.joined ? format(new Date(member.joined), "MMM d, yyyy") : "N/A"}
                     </span>
                 </div>
+            </div>
+
+            {/* MENTOR CARD (Fixed Color Logic) */}
+            <div className="col-span-2 mt-4 group p-3 bg-white border border-slate-100 rounded-xl lg:rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-3 relative overflow-hidden">
+                {member.pairing ? (
+                    <>
+                        <div className={cn("absolute left-0 top-0 bottom-0 w-1", mentorDeptStyle.includes("bg-[#004F71]") ? "bg-[#004F71]" : mentorDeptStyle.includes("bg-[#E51636]") ? "bg-[#E51636]" : "bg-slate-500")} />
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 shrink-0 overflow-hidden relative shadow-sm">
+                            {member.pairing.image ? (
+                                <img src={member.pairing.image} alt={member.pairing.name} className="w-full h-full object-cover" />
+                            ) : (
+                                // APPLYING THE DYNAMIC COLOR HERE
+                                <div className={cn("w-full h-full flex items-center justify-center font-black text-sm", mentorDeptStyle)}>
+                                    {member.pairing.name.charAt(0)}
+                                </div>
+                            )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
+                                <Link2 className="w-3 h-3 text-slate-400" /> Assigned Mentor
+                            </p>
+                            <p className="text-sm font-black text-slate-900 truncate">
+                                {member.pairing.name}
+                            </p>
+                        </div>
+                    </>
+                ) : (
+                     <>
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-300 shrink-0 border border-dashed border-slate-200">
+                            <User className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Mentorship</p>
+                            <p className="text-xs font-bold text-slate-300 italic">Unassigned</p>
+                        </div>
+                     </>
+                )}
             </div>
 
             {isUnassigned && (

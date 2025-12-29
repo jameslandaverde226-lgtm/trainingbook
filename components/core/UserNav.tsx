@@ -107,18 +107,6 @@ export default function UserNav() {
                     <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-900 transition-colors" />
                 </Link>
 
-                <Link 
-                    href="/profile" 
-                    onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-3 w-full p-3 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all group"
-                >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-white group-hover:shadow-sm transition-all">
-                        <User className="w-4 h-4" />
-                    </div>
-                    <span className="flex-1 text-left">My Profile</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-900 transition-colors" />
-                </Link>
-
             </div>
 
             {/* Footer / Logout */}

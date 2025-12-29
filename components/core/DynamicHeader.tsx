@@ -1,19 +1,27 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image'; 
 import { usePathname } from 'next/navigation'; 
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, AnimatePresence, useDragControls, PanInfo } from 'framer-motion';
 import { 
   LayoutDashboard, 
   Users, 
   GraduationCap,
   Calendar,
-  BookOpen
+  BookOpen,
+  X,
+  ExternalLink,
+  Loader2,
+  Maximize2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserNav from '@/components/core/UserNav'; 
+import ClientPortal from '@/components/core/ClientPortal';
+
+// --- CONFIGURATION ---
+const PATHWAY_URL = "https://www.pathway.cfahome.com/";
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -23,6 +31,13 @@ const NAV_LINKS = [
   { href: '/team', label: 'Roster', icon: Users },
 ];
 
+// --- CUSTOM PATHWAY ICON ---
+const PathwayIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 32 35" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
+    <path d="m20.936 3.8357e-4h-13.741c-1.7485-0.018804-3.4335 0.65443-4.6876 1.8729-1.2541 1.2185-1.9757 2.8833-2.0073 4.6316v22.049c0.067005 1.7321 0.80221 3.3709 2.0514 4.5727s2.9152 1.8731 4.6486 1.8731 3.3994-0.6713 4.6486-1.8731c1.2491-1.2018 1.9843-2.8406 2.0513-4.5727v-13.23c0.0106-0.6291 0.2693-1.2286 0.7199-1.6678 0.4505-0.4393 1.0563-0.6828 1.6855-0.6774h4.6204c0.2852 0.0198 0.5715-0.0193 0.841-0.1148 0.2694-0.0956 0.5164-0.2455 0.7255-0.4406 0.2091-0.195 0.3758-0.431 0.4898-0.6932 0.1139-0.2623 0.1728-0.5451 0.1728-0.8311 0-0.2859-0.0589-0.5687-0.1728-0.831-0.114-0.2622-0.2807-0.49818-0.4898-0.69324-0.2091-0.19505-0.4561-0.34502-0.7255-0.44056-0.2695-0.09553-0.5558-0.13463-0.841-0.11482h-4.5803c-1.75-0.0241-3.4381 0.64738-4.6934 1.867-1.2553 1.2195-1.9752 2.8875-2.0015 4.6375v13.24c-0.03951 0.6124-0.31066 1.1868-0.75835 1.6066-0.44769 0.4197-1.0384 0.6533-1.652 0.6533s-1.2044-0.2336-1.6521-0.6533c-0.44769-0.4198-0.7188-0.9942-0.75832-1.6066v-22.049c0.01056-0.62915 0.26926-1.2286 0.71978-1.6679 0.45053-0.43926 1.0564-0.68273 1.6856-0.67735h13.741c0.9096-0.03504 1.817 0.11392 2.6677 0.43786 0.8508 0.32395 1.6274 0.81626 2.2833 1.4474 0.656 0.63119 1.1778 1.3883 1.5343 2.2259 0.3564 0.83764 0.5401 1.7386 0.5401 2.6489 0 0.9104-0.1837 1.8113-0.5401 2.6489-0.3565 0.8376-0.8783 1.5947-1.5343 2.2259-0.6559 0.6312-1.4325 1.1235-2.2833 1.4475-0.8507 0.3239-1.7581 0.4729-2.6677 0.4378h-0.411c-0.5528 0-1.0831 0.2197-1.474 0.6106-0.391 0.391-0.6106 0.9212-0.6106 1.4741 0 0.5528 0.2196 1.0831 0.6106 1.4741 0.3909 0.3909 0.9212 0.6105 1.474 0.6105h0.411c2.8973 0 5.676-1.1509 7.7247-3.1996s3.1997-4.8275 3.1997-7.7248c0-2.8973-1.151-5.676-3.1997-7.7247-2.0487-2.0487-4.8274-3.1997-7.7247-3.1997l-0.0401-0.010032z" fill="currentColor" />
+  </svg>
+);
+
 export default function DynamicHeader() {
   const pathname = usePathname();
   const { scrollY } = useScroll();
@@ -31,6 +46,20 @@ export default function DynamicHeader() {
   const headerY = useTransform(scrollY, [0, 100], [0, -10]);
   const headerBorder = useTransform(scrollY, [0, 20], ["rgba(0,0,0,0)", "rgba(226,232,240,1)"]);
   const headerShadow = useTransform(scrollY, [0, 20], ["none", "0 10px 15px -3px rgba(0, 0, 0, 0.05)"]);
+
+  const [isPathwayOpen, setIsPathwayOpen] = useState(false);
+  const [iframeLoading, setIframeLoading] = useState(true);
+  
+  // Mobile sheet logic
+  const dragControls = useDragControls();
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   return (
     <>
@@ -91,15 +120,21 @@ export default function DynamicHeader() {
                 );
               })}
             </div>
+            
+            {/* PATHWAY BUTTON (Desktop) */}
+            <button
+               onClick={() => { setIsPathwayOpen(true); setIframeLoading(true); }}
+               className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 hover:bg-slate-100 hover:border-slate-300 transition-all group ml-2"
+            >
+                <PathwayIcon className="w-5 h-5 text-[#004F71] group-hover:scale-110 transition-transform" />
+                <span className="text-[11px] font-black uppercase text-[#004F71] tracking-wide">Pathway</span>
+            </button>
+
           </div>
 
           {/* --- Right: Actions --- */}
           <div className="flex items-center gap-3 shrink-0">
-            {/* REMOVED: Search and Bell buttons were here */}
-            
-            {/* UserNav Component */}
             <UserNav />
-            
           </div>
         </div>
       </motion.header>
@@ -121,9 +156,7 @@ export default function DynamicHeader() {
             <span className="text-lg font-black tracking-tight text-slate-900">Trainingbook</span>
           </Link>
 
-          {/* UserNav Component */}
           <UserNav />
-          
       </header>
 
       {/* =======================================
@@ -158,8 +191,131 @@ export default function DynamicHeader() {
                     </Link>
                 )
             })}
+            
+            <div className="w-px h-8 bg-slate-200 mx-1" />
+
+            {/* PATHWAY BUTTON (Mobile Dock) */}
+            <button 
+                onClick={() => { setIsPathwayOpen(true); setIframeLoading(true); }}
+                className="relative flex items-center justify-center w-14 h-14 rounded-full bg-[#004F71]/10 border border-[#004F71]/20 active:scale-95 transition-transform"
+            >
+                <PathwayIcon className="w-7 h-7 text-[#004F71]" />
+            </button>
+
         </nav>
       </div>
+
+      {/* =======================================
+          PATHWAY IFRAME MODAL
+      ======================================= */}
+      <AnimatePresence>
+        {isPathwayOpen && (
+            <ClientPortal>
+                {/* Backdrop */}
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[200] bg-[#0F172A]/80 backdrop-blur-xl"
+                    onClick={() => setIsPathwayOpen(false)}
+                />
+                
+                {/* Modal Window */}
+                <motion.div 
+                    initial={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 20 }}
+                    animate={isMobile ? { y: 0 } : { opacity: 1, scale: 1, y: 0 }}
+                    exit={isMobile ? { y: "100%" } : { opacity: 0, scale: 0.95, y: 20 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    drag={isMobile ? "y" : false}
+                    dragControls={dragControls}
+                    dragListener={false}
+                    dragConstraints={{ top: 0, bottom: 0 }}
+                    dragElastic={0.05}
+                    onDragEnd={(_, info: PanInfo) => { if (isMobile && info.offset.y > 100) setIsPathwayOpen(false); }}
+                    className={cn(
+                        "fixed z-[210] bg-white shadow-2xl overflow-hidden flex flex-col border border-white/20 ring-1 ring-black/5 pointer-events-auto",
+                        // Mobile: Use Dynamic Viewport Height (dvh)
+                        "bottom-0 left-0 right-0 h-[92dvh] rounded-t-[32px]",
+                        // Desktop: Centered Modal Styles - FIXED HEIGHT AND POSITIONING
+                        "md:inset-10 md:h-auto md:rounded-[40px]"
+                    )}
+                >
+                    {/* Mobile Drag Handle */}
+                    <div 
+                        className="md:hidden h-10 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white border-b border-slate-50 shrink-0"
+                        onPointerDown={(e) => dragControls.start(e)}
+                    >
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+                    </div>
+
+                    {/* Header */}
+                    <div className="h-16 md:h-20 bg-white md:bg-[#004F71] text-[#004F71] md:text-white px-6 md:px-8 flex items-center justify-between shrink-0 relative overflow-hidden z-20 border-b border-slate-100 md:border-0 pt-6 md:pt-0">
+                        {/* Desktop Header Texture */}
+                        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] hidden md:block" />
+                        
+                        <div className="flex items-center gap-4 relative z-10">
+                            <div className="w-10 h-10 bg-[#004F71]/10 md:bg-white/10 rounded-xl flex items-center justify-center border border-[#004F71]/10 md:border-white/10 shadow-sm">
+                                <PathwayIcon className="w-6 h-6 text-[#004F71] md:text-white" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg md:text-xl font-[1000] tracking-tight leading-none text-slate-900 md:text-white">Pathway</h3>
+                                <p className="text-[10px] font-bold text-slate-400 md:text-blue-200 uppercase tracking-widest mt-0.5">External Resource</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 relative z-10">
+                             <a 
+                                href={PATHWAY_URL} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold transition-all border border-white/10"
+                             >
+                                 <Maximize2 className="w-4 h-4" /> Open in New Tab
+                             </a>
+                             <button 
+                                onClick={() => setIsPathwayOpen(false)}
+                                className="p-2.5 bg-slate-50 md:bg-white text-slate-400 md:text-[#004F71] hover:bg-slate-100 rounded-full transition-all shadow-sm md:shadow-lg active:scale-90"
+                             >
+                                 <X className="w-5 h-5" />
+                             </button>
+                        </div>
+                    </div>
+
+                    {/* Iframe Content */}
+                    <div className="flex-1 bg-slate-50 relative w-full flex flex-col min-h-0">
+                        {iframeLoading && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center z-0 text-slate-400">
+                                <Loader2 className="w-10 h-10 animate-spin mb-4 text-[#004F71]" />
+                                <span className="text-xs font-black uppercase tracking-widest">Connecting to Pathway...</span>
+                            </div>
+                        )}
+                        
+                        <iframe 
+                            src={PATHWAY_URL}
+                            className={cn(
+                                "flex-1 w-full border-none relative z-10 bg-white transition-opacity duration-500",
+                                iframeLoading ? "opacity-0" : "opacity-100"
+                            )}
+                            onLoad={() => setIframeLoading(false)}
+                            allowFullScreen
+                        />
+                        
+                        {/* Mobile Floating Button (Glassmorphism) - Positioned above safe area */}
+                        <div className="md:hidden absolute bottom-12 left-1/2 -translate-x-1/2 z-30 w-auto pointer-events-none">
+                            <a 
+                                href={PATHWAY_URL} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="pointer-events-auto flex items-center gap-3 px-6 py-3.5 bg-[#E51636]/90 backdrop-blur-xl text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-900/20 hover:scale-105 active:scale-95 transition-all border border-white/20"
+                            >
+                                <ExternalLink className="w-4 h-4" /> Open External Site
+                            </a>
+                        </div>
+                    </div>
+                </motion.div>
+            </ClientPortal>
+        )}
+      </AnimatePresence>
     </>
   );
 }

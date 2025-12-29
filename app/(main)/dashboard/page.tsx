@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { motion, AnimatePresence, LayoutGroup, Variants } from "framer-motion"; // Added Variants type import
+import { motion, AnimatePresence, LayoutGroup, Variants } from "framer-motion"; 
 import { 
   Users, Clock, AlertCircle, 
   Target, CheckSquare, X,
@@ -10,7 +10,7 @@ import {
   ArrowRight, GraduationCap,
   BookOpen, Sparkles, User, Plus, Edit3, Trash2, FileText, CheckCircle2, Loader2,
   Zap, Shield, MessageSquare, Flag, Mountain, Rocket, Crosshair, LayoutList, Search,
-  Gauge, DollarSign, Percent, Hash, Layers, Award, Vote
+  Gauge, DollarSign, Percent, Hash, Layers, Award, Vote, Star
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format, isSameMonth, formatDistanceToNow, isFuture } from "date-fns";
@@ -31,78 +31,97 @@ import { MemberDetailSheet } from "../team/_components/MemberDetailSheet";
 import StrategicVisionModal, { VisionPillar } from "./_components/StrategicVisionModal"; 
 import { useTaskMap } from "@/lib/hooks/useTaskMap";
 
-// --- REUSABLE UI COMPONENTS ---
-const GlassCard = ({ children, className, onClick }: { children: React.ReactNode, className?: string, onClick?: () => void }) => (
-  <motion.div 
-    whileHover={onClick ? { scale: 1.02, y: -2 } : {}}
-    whileTap={onClick ? { scale: 0.98 } : {}}
-    onClick={onClick}
-    className={cn(
-      "bg-white border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] rounded-[24px] md:rounded-[32px] overflow-hidden relative transition-all duration-300", 
-      onClick && "cursor-pointer hover:shadow-xl hover:border-slate-200",
-      className
-    )}
-  >
-    {children}
-  </motion.div>
-);
-
-const ActivityIcon = ({ type }: { type: EventType | 'System' }) => {
-    switch (type) {
-        case "Training": return <div className="w-8 h-8 rounded-xl bg-[#004F71]/10 flex items-center justify-center text-[#004F71] shadow-sm relative z-10 ring-4 ring-white"><Shield className="w-4 h-4" /></div>;
-        case "Goal": return <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shadow-sm relative z-10 ring-4 ring-white"><Target className="w-4 h-4" /></div>;
-        case "Deadline": return <div className="w-8 h-8 rounded-xl bg-[#E51636]/10 flex items-center justify-center text-[#E51636] shadow-sm relative z-10 ring-4 ring-white"><Zap className="w-4 h-4" /></div>;
-        case "OneOnOne": return <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 shadow-sm relative z-10 ring-4 ring-white"><MessageSquare className="w-4 h-4" /></div>;
-        case "Award": return <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shadow-sm relative z-10 ring-4 ring-white"><Trophy className="w-4 h-4 fill-current" /></div>;
-        case "Vote": return <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 shadow-sm relative z-10 ring-4 ring-white"><Vote className="w-4 h-4" /></div>;
-        default: return <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shadow-sm relative z-10 ring-4 ring-white"><Activity className="w-4 h-4" /></div>;
-    }
+// --- HELPER: LIVE TIME AGO ---
+const TimeAgo = ({ date }: { date: Date }) => {
+  const [label, setLabel] = useState("");
+  useEffect(() => {
+    const update = () => setLabel(formatDistanceToNow(date, { addSuffix: true }));
+    update();
+    const timer = setInterval(update, 60000); // Update every minute
+    return () => clearInterval(timer);
+  }, [date]);
+  return <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{label}</span>;
 };
 
+// --- HELPER: CONTEXTUAL ICONS ---
+const FeedIcon = ({ type, priority }: { type: string, priority: string }) => {
+  const config = useMemo(() => {
+    switch (type) {
+      case "Training": return { icon: Shield, bg: "bg-blue-50", text: "text-blue-600", ring: "ring-blue-100" };
+      case "Goal": return { icon: Target, bg: "bg-emerald-50", text: "text-emerald-600", ring: "ring-emerald-100" };
+      case "Deadline": return { icon: Zap, bg: "bg-red-50", text: "text-red-600", ring: "ring-red-100" };
+      case "OneOnOne": return { icon: MessageSquare, bg: "bg-purple-50", text: "text-purple-600", ring: "ring-purple-100" };
+      case "Award": return { icon: Trophy, bg: "bg-amber-50", text: "text-amber-600", ring: "ring-amber-100" };
+      case "Vote": return { icon: Vote, bg: "bg-slate-100", text: "text-slate-500", ring: "ring-slate-200" };
+      default: return { icon: Activity, bg: "bg-slate-50", text: "text-slate-500", ring: "ring-slate-100" };
+    }
+  }, [type]);
+
+  const Icon = config.icon;
+
+  return (
+    <div className={cn(
+      "relative z-10 w-10 h-10 rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 ring-4 ring-white",
+      config.bg, config.text,
+      priority === 'High' && "ring-red-50 ring-offset-2 ring-offset-white"
+    )}>
+      <Icon className="w-5 h-5" />
+      {priority === 'High' && (
+        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+        </span>
+      )}
+    </div>
+  );
+};
+
+// --- COMPONENT: KPI CARD ---
 const KPICard = ({ kpi, onClick }: { kpi: any, onClick: () => void }) => {
   return (
       <motion.div 
           whileHover={{ y: -4, scale: 1.01 }}
           onClick={onClick}
-          className="relative flex flex-col rounded-[28px] md:rounded-[32px] overflow-hidden bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 h-[200px] md:h-[220px] cursor-pointer group"
+          className="relative flex flex-col rounded-[24px] md:rounded-[32px] overflow-hidden bg-white border border-slate-100 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 h-[160px] md:h-[220px] cursor-pointer group"
       >
            {/* Background Watermark */}
            <div className={cn("absolute top-[-20px] right-[-20px] p-6 opacity-[0.03] pointer-events-none transform rotate-12 transition-transform group-hover:scale-110 duration-700", kpi.color)}>
-              <kpi.icon className="w-32 h-32 md:w-48 md:h-48" />
+              <kpi.icon className="w-24 h-24 md:w-48 md:h-48" />
           </div>
 
           {/* Header */}
-          <div className="flex justify-between items-start p-5 md:p-6 relative z-10">
-              <div className="flex items-center gap-4">
-                   <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-2xl flex items-center justify-center text-white shadow-lg", kpi.modalColor)}>
-                       <kpi.icon className="w-5 h-5 md:w-6 md:h-6" />
+          <div className="flex justify-between items-start p-4 md:p-6 relative z-10">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-3 md:gap-4 w-full">
+                   <div className={cn("w-8 h-8 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0", kpi.modalColor)}>
+                       <kpi.icon className="w-4 h-4 md:w-6 md:h-6" />
                    </div>
-                   <div>
-                       <span className="inline-block text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
+                   
+                   <div className="min-w-0 w-full">
+                       <span className="block text-[7px] md:text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5 truncate w-full">
                           {kpi.trend}
                        </span>
-                       <h3 className="text-base md:text-lg font-[1000] text-slate-900 leading-none">
+                       <h3 className="text-[10px] md:text-lg font-[1000] text-slate-900 leading-tight w-full line-clamp-2 md:line-clamp-1 break-words">
                            {kpi.label}
                        </h3>
                    </div>
               </div>
-              <div className="p-2 rounded-full bg-slate-50 text-slate-300 group-hover:bg-[#004F71] group-hover:text-white transition-colors">
+              <div className="hidden md:block p-2 rounded-full bg-slate-50 text-slate-300 group-hover:bg-[#004F71] group-hover:text-white transition-colors shrink-0">
                    <ChevronRight className="w-4 h-4" />
               </div>
           </div>
 
           {/* Metric */}
-          <div className="relative z-10 pl-5 md:pl-6 flex-1 flex flex-col justify-center">
+          <div className="relative z-10 pl-4 md:pl-6 flex-1 flex flex-col justify-center">
                <div className="flex items-baseline gap-1">
-                  <span className={cn("text-4xl md:text-5xl font-[1000] tracking-tighter", kpi.color)}>
+                  <span className={cn("text-3xl md:text-5xl font-[1000] tracking-tighter", kpi.color)}>
                       {kpi.value}
                   </span>
               </div>
           </div>
 
           {/* Footer / Status Bar */}
-          <div className="relative z-10 px-5 md:px-6 pb-5 md:pb-6">
-               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+          <div className="relative z-10 px-4 md:px-6 pb-4 md:pb-6 mt-auto">
+               <div className="h-1 md:h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }} 
                       animate={{ width: "65%" }} 
@@ -110,7 +129,7 @@ const KPICard = ({ kpi, onClick }: { kpi: any, onClick: () => void }) => {
                       className={cn("h-full rounded-full", kpi.modalColor)} 
                     />
                </div>
-               <div className="flex justify-between mt-2">
+               <div className="hidden md:flex justify-between mt-2">
                    <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"><Activity className="w-3 h-3" /> Live System Data</span>
                </div>
           </div>
@@ -118,6 +137,7 @@ const KPICard = ({ kpi, onClick }: { kpi: any, onClick: () => void }) => {
   )
 }
 
+// --- COMPONENT: KPI MODAL (DRILLDOWN) ---
 interface KPIModalProps {
     title: string;
     items: { id: string; title: string; subtitle: string; icon?: any; status?: string, rawEvent?: CalendarEvent }[];
@@ -175,7 +195,6 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
         i.subtitle.toLowerCase().includes(search.toLowerCase())
     );
 
-    // FIX: Explicitly typed Variants to resolve TS error
     const backdropVariants: Variants = {
         hidden: { opacity: 0 },
         visible: { opacity: 1, transition: { duration: 0.2 } },
@@ -183,9 +202,9 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
     };
 
     const modalVariants: Variants = {
-        hidden: { scale: 0.95, opacity: 0, y: 40 },
-        visible: { scale: 1, opacity: 1, y: 0, transition: { type: "spring", damping: 25, stiffness: 300 } },
-        exit: { scale: 0.95, opacity: 0, y: 40, transition: { duration: 0.2 } }
+        hidden: { y: "100%", opacity: 1 },
+        visible: { y: 0, opacity: 1, transition: { type: "spring", damping: 25, stiffness: 300 } },
+        exit: { y: "100%", opacity: 1, transition: { duration: 0.2 } }
     };
 
     return (
@@ -196,7 +215,7 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-md -z-10" 
+                    className="absolute inset-0 bg-[#0F172A]/60 backdrop-blur-md -z-10 pointer-events-auto" 
                     onClick={onClose} 
                 />
                 
@@ -205,7 +224,7 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    className="bg-[#F8FAFC] w-full md:w-[95%] max-w-2xl rounded-t-[40px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col h-[90vh] md:max-h-[85vh] border border-white/20 ring-1 ring-black/5 z-10"
+                    className="pointer-events-auto bg-[#F8FAFC] w-full md:w-[95%] max-w-2xl rounded-t-[40px] md:rounded-[48px] shadow-2xl relative overflow-hidden flex flex-col h-[90vh] md:max-h-[85vh] border border-white/20 ring-1 ring-black/5 z-10"
                 >
                     {/* --- HEADER --- */}
                     <div className={cn("p-8 pt-10 text-white relative overflow-hidden shrink-0 bg-gradient-to-br", theme.gradient)}>
@@ -320,8 +339,13 @@ const KPIModal = ({ title, items, onClose, color, icon: Icon, onItemClick }: KPI
     );
 };
 
+// --- COMPONENT: STRATEGIC VISION BOARD ---
 const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], onUpdate: () => void }) => {
-    const ICONS: any = { Zap, Mountain, Target, Gauge, Users, DollarSign, Trophy };
+    // EXPANDED ICON LIST FOR THE BOARD
+    const ICONS: any = { 
+        Zap, Mountain, Target, Gauge, Users, DollarSign, Trophy, 
+        MessageSquare, Shield, Activity, Rocket, Sparkles, Star
+    };
     
     const getColors = (color: string) => {
         const map: any = {
@@ -331,6 +355,7 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
             amber: { text: "text-amber-300", bg: "bg-amber-500/10", border: "border-amber-500/20", bar: "from-amber-400 to-yellow-500" },
             violet: { text: "text-violet-300", bg: "bg-violet-500/10", border: "border-violet-500/20", bar: "from-violet-400 to-fuchsia-500" },
             rose: { text: "text-rose-300", bg: "bg-rose-500/10", border: "border-rose-500/20", bar: "from-rose-400 to-pink-500" },
+            slate: { text: "text-slate-300", bg: "bg-slate-500/10", border: "border-slate-500/20", bar: "from-slate-400 to-slate-600" }
         };
         return map[color] || map.cyan;
     };
@@ -366,9 +391,11 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
                 </div>
 
                 {pillars.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    // --- UPDATED: 3 CARDS FIT ON MOBILE ---
+                    <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 no-scrollbar -mx-6 px-6 md:grid md:grid-cols-2 lg:grid-cols-3 md:mx-0 md:px-0 md:overflow-visible">
                         {pillars.map(pillar => {
                             const style = getColors(pillar.color);
+                            // Fallback to Target if icon not found
                             const Icon = ICONS[pillar.icon] || Target;
                             const target = pillar.target || 100;
                             const progress = Math.min(100, Math.max(0, (pillar.current / target) * 100));
@@ -376,43 +403,42 @@ const StrategicVisionBoard = ({ pillars, onUpdate }: { pillars: VisionPillar[], 
                             return (
                                 <motion.div 
                                     key={pillar.id} 
-                                    className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden backdrop-blur-sm hover:bg-white/10 transition-colors group/card h-[220px]"
+                                    className="relative bg-white/5 border border-white/10 rounded-[32px] overflow-hidden backdrop-blur-sm hover:bg-white/10 transition-colors group/card h-[160px] md:h-[220px] min-w-[38vw] md:min-w-0 snap-center shrink-0 flex flex-col justify-between p-4 md:p-6"
                                 >
-                                    <div className="absolute inset-0 p-6 flex flex-col justify-between">
-                                        <div className="flex justify-between items-start">
-                                            <div className="flex items-center gap-4">
-                                                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg", style.bg, style.border)}>
-                                                    <Icon className="w-6 h-6 fill-current" />
-                                                </div>
-                                                <div>
-                                                    <span className="inline-block text-[9px] font-black uppercase tracking-widest text-blue-200 mb-0.5">
-                                                        {pillar.subtitle || "METRIC"}
-                                                    </span>
-                                                    <h3 className="text-lg font-[1000] text-white leading-tight">
-                                                        {pillar.title}
-                                                    </h3>
-                                                </div>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn("w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-white shadow-lg", style.bg, style.border)}>
+                                                {/* REMOVED FILL-CURRENT to avoid white circle blobs on certain icons */}
+                                                <Icon className="w-5 h-5 md:w-6 md:h-6" />
+                                            </div>
+                                            <div>
+                                                <span className="inline-block text-[8px] font-black uppercase tracking-widest text-blue-200 mb-0.5">
+                                                    {pillar.subtitle || "METRIC"}
+                                                </span>
+                                                <h3 className="text-sm md:text-lg font-[1000] text-white leading-tight line-clamp-2">
+                                                    {pillar.title}
+                                                </h3>
                                             </div>
                                         </div>
-                                        <div className="text-center">
-                                            <div className="flex items-baseline justify-center gap-1">
-                                                <span className="text-5xl font-[1000] tracking-tighter drop-shadow-sm text-white">
-                                                    {pillar.current}
-                                                </span>
-                                                <span className="text-xs font-bold text-blue-200 uppercase">
-                                                    / {target} {pillar.unit === '%' && '%'}
-                                                </span>
-                                            </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="flex items-baseline justify-center gap-1">
+                                            <span className="text-3xl md:text-5xl font-[1000] tracking-tighter drop-shadow-sm text-white">
+                                                {pillar.current}
+                                            </span>
+                                            <span className="text-[10px] md:text-xs font-bold text-blue-200 uppercase">
+                                                / {target} {pillar.unit === '%' && '%'}
+                                            </span>
                                         </div>
-                                        <div>
-                                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                                                <motion.div 
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${progress}%` }}
-                                                    transition={{ duration: 1.5, ease: "circOut" }}
-                                                    className={cn("h-full rounded-full relative bg-gradient-to-r", style.bar)}
-                                                />
-                                            </div>
+                                    </div>
+                                    <div>
+                                        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                                            <motion.div 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${progress}%` }}
+                                                transition={{ duration: 1.5, ease: "circOut" }}
+                                                className={cn("h-full rounded-full relative bg-gradient-to-r", style.bar)}
+                                            />
                                         </div>
                                     </div>
                                 </motion.div>
@@ -483,6 +509,32 @@ export default function DashboardPage() {
     return () => { unsubEvents(); unsubTeam(); unsubVision(); clearInterval(timer); };
   }, [subscribeEvents, subscribeTeam]);
 
+  // SCROLL SPY FOR MOBILE TABS
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            if (entry.target === feedRef.current) setMobileTab('live');
+            if (entry.target === nextRef.current) setMobileTab('next');
+          }
+        });
+      },
+      {
+        root: container,
+        threshold: 0.5 // 50% visibility triggers the tab switch
+      }
+    );
+
+    if (feedRef.current) observer.observe(feedRef.current);
+    if (nextRef.current) observer.observe(nextRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
   // CALCULATE LIVE METRICS
   const calculatedPillars = useMemo(() => {
     const currentMonth1on1s = events.filter(e => e.type === "OneOnOne" && e.status === "Done" && isSameMonth(e.startDate, new Date())).length;
@@ -548,6 +600,8 @@ export default function DashboardPage() {
   
   const scrollToSection = (section: 'live' | 'next') => {
       if (!scrollRef.current) return;
+      // Manually set state to feel instant, even if scrollspy triggers later
+      setMobileTab(section);
       if (section === 'live') {
           feedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       } else {
@@ -629,7 +683,7 @@ export default function DashboardPage() {
             
             <StrategicVisionBoard pillars={calculatedPillars} onUpdate={() => setIsVisionModalOpen(true)} />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 {kpis.map((kpi, idx) => (
                     <KPICard 
                         key={idx} 
@@ -650,98 +704,215 @@ export default function DashboardPage() {
                 </button>
             </div>
 
+            {/* --- CONTAINER: LIVE FEED & UP NEXT --- */}
             <div 
                 ref={scrollRef}
-                className="flex lg:grid lg:grid-cols-12 gap-4 lg:gap-6 overflow-x-auto lg:overflow-visible snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] -mx-4 px-4 pb-8 lg:mx-0 lg:px-0 lg:pb-0"
+                className="flex lg:grid lg:grid-cols-12 gap-6 md:gap-8 overflow-x-auto lg:overflow-visible snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-8 lg:mx-0 lg:px-0 lg:pb-0"
             >
             
-            {/* LIVE FEED PANEL */}
-            <div ref={feedRef} className="min-w-[90vw] md:min-w-[50vw] lg:min-w-0 col-span-12 lg:col-span-8 lg:col-start-1 lg:row-start-1 flex flex-col gap-4 snap-center h-fit">
-                <div className="hidden lg:flex items-center justify-between px-1">
-                    <div className="flex items-center gap-2">
-                        <LayoutList className="w-4 h-4 text-[#E51636]" />
-                        <h3 className="text-lg font-black text-slate-900 tracking-tight">Live Operational Feed</h3>
+            {/* =========================================================
+                1. LIVE OPERATIONAL FEED (Tactical Timeline)
+               ========================================================= */}
+            <div ref={feedRef} className="min-w-[90vw] md:min-w-[45vw] lg:min-w-0 col-span-12 lg:col-span-8 flex flex-col gap-5 snap-center h-fit shrink-0">
+                
+                {/* Section Header */}
+                <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#E51636] text-white rounded-lg shadow-lg shadow-red-500/20">
+                            <LayoutList className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-[1000] text-slate-900 tracking-tight leading-none">Live Ops</h3>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Real-time Intelligence</p>
+                        </div>
                     </div>
-                    <div className="px-2 py-0.5 bg-white border border-slate-100 rounded-full text-[8px] font-black uppercase tracking-widest text-slate-400">Real-time</div>
+                    <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-sm">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">System Active</span>
+                    </div>
                 </div>
 
-                <div className="bg-white border border-slate-100 lg:bg-transparent lg:border-0 rounded-[32px] p-4 lg:p-0 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] lg:shadow-none relative h-full">
-                    <div className="lg:hidden absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1 bg-slate-200 rounded-full mb-4 opacity-50" />
-                    <div className="relative pl-6 lg:pl-0 mt-4 lg:mt-0">
-                        <div className="absolute left-[15px] top-4 bottom-4 w-[2px] bg-slate-100 lg:hidden" />
-                        <div className="grid grid-cols-1 gap-3 md:gap-3">
-                            <AnimatePresence>
-                                {activityFeed.map((event, i) => {
-                                    const isDone = event.status === "Done";
-                                    return (
-                                        <motion.div 
-                                            key={event.id}
-                                            layoutId={`event-card-${event.id}`}
-                                            initial={{ opacity: 0, x: -10 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            onClick={() => { if(event.type === 'OneOnOne') setSelected1on1(event); else setSelectedEvent(event); }}
-                                            transition={{ delay: i * 0.05 }}
-                                            className="group relative bg-white lg:bg-white p-3 md:p-4 rounded-[20px] md:rounded-[24px] border border-slate-100 shadow-sm hover:shadow-md hover:border-slate-200 transition-all duration-300 flex items-start gap-3 md:gap-4 overflow-hidden cursor-pointer"
-                                        >
-                                            <div className={cn("hidden lg:block absolute left-0 top-0 bottom-0 w-1 transition-colors", event.priority === 'High' ? "bg-[#E51636]" : "bg-[#004F71]/50")} />
-                                            <div className="lg:hidden absolute -left-[25px] top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-white bg-slate-300 z-10" />
-                                            <ActivityIcon type={event.type} />
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between mb-0.5">
-                                                    <div className="flex items-center gap-2"><span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400">{getEventLabel(event.type)}</span>{isDone && <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded text-[7px] font-black uppercase tracking-wider">Completed</span>}</div>
-                                                    <span className="text-[8px] md:text-[9px] font-bold text-slate-300">{formatDistanceToNow(event.startDate)} ago</span>
-                                                </div>
-                                                <h4 className="text-sm md:text-base font-bold text-slate-900 leading-snug truncate group-hover:text-[#004F71] transition-colors">{event.title}</h4>
-                                                <div className="flex items-center gap-1.5 mt-1.5">
-                                                    <div className="w-4 h-4 rounded-md bg-slate-100 flex items-center justify-center text-[8px] font-black text-slate-500">{event.assigneeName.charAt(0)}</div>
-                                                    <span className="text-[10px] font-medium text-slate-500 truncate max-w-[100px]">{event.assigneeName}</span>
-                                                    <ArrowRight className="w-3 h-3 text-slate-300" />
-                                                    <span className="text-[10px] font-medium text-slate-500 truncate max-w-[100px]">{event.teamMemberName || "Team"}</span>
+                {/* Feed Card Container */}
+                <div className="relative pl-4 md:pl-0">
+                    {/* The Timeline Vertical Line */}
+                    <div className="absolute left-[39px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-slate-200 via-slate-100 to-transparent hidden md:block" />
+
+                    <div className="space-y-4">
+                        <AnimatePresence mode="popLayout">
+                            {activityFeed.map((event, i) => {
+                                const isDone = event.status === "Done";
+                                const isSystem = event.assigneeName === "System";
+
+                                return (
+                                    <motion.div 
+                                        key={event.id}
+                                        layout
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        transition={{ duration: 0.3, delay: i * 0.05 }}
+                                        onClick={() => { if(event.type === 'OneOnOne') setSelected1on1(event); else setSelectedEvent(event); }}
+                                        className="relative group cursor-pointer"
+                                    >
+                                        <div className="flex gap-4 md:gap-6 items-start">
+                                            
+                                            {/* Icon Column (Desktop) */}
+                                            <div className="hidden md:flex shrink-0">
+                                                <FeedIcon type={event.type} priority={event.priority} />
+                                            </div>
+
+                                            {/* Main Card */}
+                                            <div className={cn(
+                                                "flex-1 relative overflow-hidden rounded-[20px] md:rounded-[24px] border transition-all duration-300",
+                                                "bg-white shadow-sm hover:shadow-lg hover:-translate-y-0.5",
+                                                event.priority === 'High' ? "border-l-[4px] border-l-red-500 border-y-slate-100 border-r-slate-100" : "border-slate-100"
+                                            )}>
+                                                {/* Card Content */}
+                                                <div className="p-4 md:p-5 flex flex-col gap-2 relative z-10">
+                                                    
+                                                    {/* Top Row: Meta */}
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            {/* Mobile Icon */}
+                                                            <div className="md:hidden"><FeedIcon type={event.type} priority={event.priority} /></div>
+                                                            <div className="flex flex-col md:flex-row md:items-center gap-0.5 md:gap-2">
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{getEventLabel(event.type)}</span>
+                                                                {isDone && <span className="hidden md:inline text-emerald-500 text-[9px] font-black">• Completed</span>}
+                                                            </div>
+                                                        </div>
+                                                        <TimeAgo date={event.createdAt?.toDate ? event.createdAt.toDate() : event.startDate} />
+                                                    </div>
+
+                                                    {/* Middle: Title */}
+                                                    <h4 className={cn(
+                                                        "text-sm md:text-base font-bold leading-snug group-hover:text-[#004F71] transition-colors line-clamp-2",
+                                                        isSystem ? "text-slate-600 font-medium italic" : "text-slate-900"
+                                                    )}>
+                                                        {event.title}
+                                                    </h4>
+
+                                                    {/* Bottom: Assignees */}
+                                                    <div className="flex items-center gap-3 mt-1 pt-3 border-t border-slate-50">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-5 h-5 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center text-[9px] font-black text-slate-500 uppercase">
+                                                                {event.assigneeName.charAt(0)}
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-slate-500">{event.assigneeName}</span>
+                                                        </div>
+                                                        
+                                                        <ArrowRight className="w-3 h-3 text-slate-300" />
+                                                        
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={cn(
+                                                                "w-5 h-5 rounded-md border flex items-center justify-center text-[9px] font-black uppercase",
+                                                                event.teamMemberName === "Command" ? "bg-slate-800 text-white border-slate-800" : "bg-slate-50 text-slate-500 border-slate-200"
+                                                            )}>
+                                                                {event.teamMemberName ? event.teamMemberName.charAt(0) : "T"}
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-slate-500">{event.teamMemberName || "Team"}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </motion.div>
-                                    );
-                                })}
-                            </AnimatePresence>
-                        </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
                     </div>
                 </div>
             </div>
 
-            {/* UP NEXT PANEL */}
-            <div ref={nextRef} className="min-w-[90vw] md:min-w-[50vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-4 lg:sticky lg:top-24 snap-center h-fit">
-                <div className="hidden lg:flex items-center gap-2 px-1 mb-1">
-                    <Clock className="w-4 h-4 text-[#004F71]" />
-                    <h3 className="text-lg font-black text-slate-900 tracking-tight">Up Next</h3>
+            {/* =========================================================
+                2. UP NEXT HUD (Mission Card)
+               ========================================================= */}
+            <div ref={nextRef} className="min-w-[85vw] md:min-w-[40vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-5 lg:sticky lg:top-24 snap-center h-fit shrink-0">
+                
+                <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-[#004F71]" />
+                        <h3 className="text-lg font-[1000] text-slate-900 tracking-tight">On Deck</h3>
+                    </div>
                 </div>
                 
-                <GlassCard className="w-full p-6 md:p-8 flex flex-col bg-[#004F71] text-white border-0 shadow-xl relative overflow-hidden group min-h-[300px] md:min-h-[360px] snap-center">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-white/10 transition-colors duration-700" />
-                    <div className="flex items-center justify-between relative z-10 mb-6 md:mb-8">
-                        <div className="p-2.5 bg-white/10 rounded-xl backdrop-blur-md border border-white/10 shadow-inner"><BookOpen className="w-5 h-5" /></div>
-                        <div className="px-2.5 py-1 bg-white/10 rounded-full text-[8px] font-black uppercase tracking-widest border border-white/5">Priority</div>
-                    </div>
-
-                    {nextSession ? (
-                        <div className="mt-auto space-y-4 md:space-y-6 relative z-10">
-                            <div>
-                                <p className="text-[9px] font-black uppercase text-blue-200 tracking-[0.2em] mb-1">Upcoming Session</p>
-                                <p className="text-2xl md:text-3xl font-black leading-none mb-1">{nextSession.assigneeName}</p>
-                                <p className="text-xs md:text-sm text-blue-100 opacity-60 font-medium">with {nextSession.teamMemberName || "Team Member"}</p>
-                            </div>
-                            <div className="flex items-center gap-4 py-3 border-t border-white/10">
-                                <div className="text-center"><p className="text-lg md:text-xl font-black leading-none">{format(nextSession.startDate, "d")}</p><p className="text-[8px] font-bold uppercase text-blue-200 mt-1">{format(nextSession.startDate, "MMM")}</p></div>
-                                <div className="w-px h-6 bg-white/10" />
-                                <div><p className="text-sm md:text-base font-bold leading-none">{format(nextSession.startDate, "h:mm a")}</p><p className="text-[8px] font-bold uppercase text-blue-200 mt-1">Start Time</p></div>
-                            </div>
-                            <button onClick={() => setSelected1on1(nextSession)} className="w-full py-3 md:py-4 bg-white text-[#004F71] rounded-[20px] font-black uppercase text-[10px] tracking-[0.2em] shadow-lg hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-3">Launch Prep <ArrowRight className="w-3.5 h-3.5" /></button>
+                {nextSession ? (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative w-full rounded-[32px] overflow-hidden shadow-2xl group"
+                    >
+                        {/* 1. Dynamic Background */}
+                        <div className="absolute inset-0 bg-[#004F71]">
+                            <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[#E51636] rounded-full blur-[100px] opacity-40 mix-blend-screen -translate-y-1/2 translate-x-1/2 group-hover:opacity-60 transition-opacity duration-700" />
                         </div>
-                    ) : (
-                        <div className="mt-auto text-center pb-8 relative z-10 flex flex-col items-center"><CheckCircle2 className="w-16 h-16 mb-4 opacity-20" /><p className="text-xs font-bold uppercase tracking-widest opacity-40">All sessions logged</p></div>
-                    )}
-                </GlassCard>
+
+                        {/* 2. Glass Overlay Content */}
+                        <div className="relative z-10 p-6 md:p-8 flex flex-col h-full text-white">
+                            
+                            {/* Top Badges */}
+                            <div className="flex justify-between items-start mb-8">
+                                <div className="p-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg">
+                                    <BookOpen className="w-6 h-6 text-white" />
+                                </div>
+                                <div className="flex flex-col items-end">
+                                    <span className="px-3 py-1 bg-[#E51636] rounded-full text-[9px] font-black uppercase tracking-widest shadow-lg shadow-red-900/20 border border-white/10 mb-1">
+                                        Priority
+                                    </span>
+                                    <span className="text-[10px] font-bold text-blue-200">
+                                        {formatDistanceToNow(nextSession.startDate, { addSuffix: true })}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Main Info */}
+                            <div className="space-y-1 mb-8">
+                                <p className="text-[10px] font-black uppercase text-blue-300 tracking-[0.2em]">Next Directive</p>
+                                <h2 className="text-3xl md:text-4xl font-[1000] leading-[0.9] tracking-tighter drop-shadow-sm">
+                                    {nextSession.assigneeName}
+                                </h2>
+                                <div className="flex items-center gap-2 mt-2 opacity-90">
+                                    <span className="text-xs font-medium text-blue-100">Mentoring</span>
+                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/10 rounded-lg border border-white/10">
+                                        <User className="w-3 h-3" />
+                                        <span className="text-xs font-bold uppercase">{nextSession.teamMemberName || "Team"}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Time Slot HUD */}
+                            <div className="grid grid-cols-2 gap-px bg-white/10 border border-white/20 rounded-2xl overflow-hidden mb-6">
+                                <div className="p-4 flex flex-col items-center justify-center bg-white/5 backdrop-blur-sm">
+                                    <span className="text-2xl font-[1000] leading-none">{format(nextSession.startDate, "d")}</span>
+                                    <span className="text-[9px] font-black uppercase text-blue-200">{format(nextSession.startDate, "MMM")}</span>
+                                </div>
+                                <div className="p-4 flex flex-col items-center justify-center bg-white/5 backdrop-blur-sm border-l border-white/10">
+                                    <span className="text-xl font-[1000] leading-none">{format(nextSession.startDate, "h:mm")}</span>
+                                    <span className="text-[9px] font-black uppercase text-blue-200">{format(nextSession.startDate, "aa")}</span>
+                                </div>
+                            </div>
+
+                            {/* Action Button */}
+                            <button 
+                                onClick={() => setSelected1on1(nextSession)} 
+                                className="w-full py-4 bg-white text-[#004F71] rounded-2xl font-black uppercase text-[10px] tracking-[0.25em] shadow-xl hover:shadow-2xl hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 group/btn"
+                            >
+                                Launch Prep <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                            </button>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <div className="p-8 border-2 border-dashed border-slate-200 rounded-[32px] flex flex-col items-center justify-center text-center bg-white/50 h-[300px]">
+                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                            <CheckCircle2 className="w-8 h-8 text-slate-300" />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-1">All Clear</h4>
+                        <p className="text-xs text-slate-400 font-medium">No immediate sessions scheduled.</p>
+                    </div>
+                )}
             </div>
-        </div>
+            
+            </div>
         </div>
 
         <AnimatePresence>
