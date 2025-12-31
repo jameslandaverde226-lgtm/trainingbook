@@ -13,7 +13,8 @@ import {
   BookOpen,
   X,
   Loader2,
-  Maximize2
+  Maximize2,
+  ExternalLink // Added for visual feedback on mobile
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserNav from '@/components/core/UserNav'; 
@@ -57,11 +58,24 @@ export default function DynamicHeader() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // --- SMART HANDLER ---
+  const handlePathwayClick = () => {
+    if (isMobile) {
+        // iOS/Mobile FIX: 
+        // Force new tab so iOS can trigger the Universal Link (Open App)
+        // or let Safari handle the Auth Cookies (which fail in iframes).
+        window.open(PATHWAY_URL, '_blank');
+    } else {
+        // Desktop: Open the nice embedded modal
+        setIsPathwayOpen(true);
+        setIframeLoading(true);
+    }
+  };
+
   // --- SCROLL LOCKING ---
   useEffect(() => {
     if (isPathwayOpen) {
       document.body.style.overflow = 'hidden';
-      // Critical for iOS to prevent body scroll behind modal
       if (isMobile) {
         document.body.style.position = 'fixed';
         document.body.style.width = '100%';
@@ -106,7 +120,9 @@ export default function DynamicHeader() {
                 );
               })}
             </div>
-            <button onClick={() => { setIsPathwayOpen(true); setIframeLoading(true); }} className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 hover:bg-slate-100 hover:border-slate-300 transition-all group ml-2">
+            
+            {/* DESKTOP BUTTON - Keeps Modal Behavior */}
+            <button onClick={handlePathwayClick} className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 hover:bg-slate-100 hover:border-slate-300 transition-all group ml-2">
                 <PathwayIcon className="w-5 h-5 text-[#004F71] group-hover:scale-110 transition-transform" />
                 <span className="text-[11px] font-black uppercase text-[#004F71] tracking-wide">Pathway</span>
             </button>
@@ -137,13 +153,24 @@ export default function DynamicHeader() {
                 )
             })}
             <div className="w-px h-8 bg-slate-200 mx-1" />
-            <button onClick={() => { setIsPathwayOpen(true); setIframeLoading(true); }} className="relative flex items-center justify-center w-14 h-14 rounded-full bg-[#004F71]/10 border border-[#004F71]/20 active:scale-95 transition-transform">
+            
+            {/* MOBILE BUTTON - Now uses smart handler to launch App/Tab */}
+            <button 
+                onClick={handlePathwayClick} 
+                className="relative flex items-center justify-center w-14 h-14 rounded-full bg-[#004F71]/10 border border-[#004F71]/20 active:scale-95 transition-transform"
+            >
                 <PathwayIcon className="w-7 h-7 text-[#004F71]" />
+                {/* Optional indicator that this leaves the app on mobile */}
+                {isMobile && (
+                    <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                        <ExternalLink className="w-1.5 h-1.5 text-[#004F71]" />
+                    </div>
+                )}
             </button>
         </nav>
       </div>
 
-      {/* --- PATHWAY IFRAME MODAL --- */}
+      {/* --- PATHWAY IFRAME MODAL (Desktop Only, or if isMobile logic fails) --- */}
       <AnimatePresence>
         {isPathwayOpen && (
             <ClientPortal>
@@ -164,9 +191,7 @@ export default function DynamicHeader() {
                     onDragEnd={(_, info: PanInfo) => { if (isMobile && info.offset.y > 100) setIsPathwayOpen(false); }}
                     className={cn(
                         "fixed z-[210] bg-white shadow-2xl flex flex-col border border-white/20 ring-1 ring-black/5 pointer-events-auto",
-                        // MOBILE FIX: Use 100dvh to fill screen exactly, avoid bottom rounding
                         "bottom-0 left-0 right-0 h-[100dvh] rounded-none shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] overflow-hidden",
-                        // Desktop
                         "md:inset-10 md:h-auto md:rounded-[40px] md:overflow-hidden"
                     )}
                 >
@@ -210,12 +235,6 @@ export default function DynamicHeader() {
                             </div>
                         )}
                         
-                        {/* 
-                           IOS IFRAME HACK:
-                           1. Wrapper has -webkit-overflow-scrolling: touch
-                           2. Iframe is absolutely positioned to prevent expansion
-                           3. Sandbox includes 'allow-popups' and 'allow-scripts' but BLOCKS top-navigation
-                        */}
                         <div className="absolute inset-0 w-full h-full overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
                             <iframe 
                                 src={PATHWAY_URL}
