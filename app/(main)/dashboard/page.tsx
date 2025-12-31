@@ -600,7 +600,6 @@ export default function DashboardPage() {
   
   const scrollToSection = (section: 'live' | 'next') => {
       if (!scrollRef.current) return;
-      // Manually set state to feel instant, even if scrollspy triggers later
       setMobileTab(section);
       if (section === 'live') {
           feedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -654,7 +653,7 @@ export default function DashboardPage() {
   if (loading && team.length === 0) return <div className="h-screen flex flex-col items-center justify-center bg-[#F8FAFC] gap-4"><Loader2 className="w-10 h-10 animate-spin text-[#E51636]" /><p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Synchronizing Operations...</p></div>;
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-6 pb-32 font-sans text-slate-900 relative overflow-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-6 pb-40 font-sans text-slate-900 relative overflow-hidden">
         <div className="fixed inset-0 pointer-events-none">
             <div className="absolute top-[-20%] left-[-10%] w-[800px] md:w-[1400px] h-[800px] md:h-[1400px] bg-gradient-to-br from-blue-50/40 via-purple-50/20 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[600px] md:w-[1000px] h-[600px] md:h-[1000px] bg-gradient-to-tl from-red-50/30 to-transparent rounded-full blur-[100px] md:blur-[150px]" />
@@ -694,13 +693,13 @@ export default function DashboardPage() {
             </div>
 
             {/* Mobile Sticky Tabs */}
-            <div className="flex lg:hidden items-center justify-between gap-6 px-6 py-3 mb-4 sticky top-[68px] z-40 bg-[#F8FAFC]/90 backdrop-blur-lg border-b border-slate-200/60 -mx-4 md:mx-0 shadow-sm transition-all">
+            <div className="flex lg:hidden items-center justify-between gap-6 px-1 mb-2 sticky top-[68px] z-40 bg-[#F8FAFC]/90 backdrop-blur-lg py-3 -mx-4 md:mx-0 border-b border-slate-200/60 pl-6">
                 <div className="flex items-center gap-6">
-                    <button onClick={() => scrollToSection('live')} className={cn("text-sm font-black uppercase tracking-widest transition-colors relative py-1", mobileTab === 'live' ? "text-[#004F71]" : "text-slate-400")}>
+                    <button onClick={() => scrollToSection('live')} className={cn("text-base font-black uppercase tracking-widest transition-colors relative py-1", mobileTab === 'live' ? "text-[#004F71]" : "text-slate-400")}>
                         Live Feed
                         {mobileTab === 'live' && <motion.div layoutId="mobileTab" className="absolute -bottom-[13px] left-0 right-0 h-[2px] bg-[#004F71]" />}
                     </button>
-                    <button onClick={() => scrollToSection('next')} className={cn("text-sm font-black uppercase tracking-widest transition-colors relative py-1", mobileTab === 'next' ? "text-[#004F71]" : "text-slate-400")}>
+                    <button onClick={() => scrollToSection('next')} className={cn("text-base font-black uppercase tracking-widest transition-colors relative py-1", mobileTab === 'next' ? "text-[#004F71]" : "text-slate-400")}>
                         Up Next
                         {mobileTab === 'next' && <motion.div layoutId="mobileTab" className="absolute -bottom-[13px] left-0 right-0 h-[2px] bg-[#004F71]" />}
                     </button>
@@ -716,7 +715,8 @@ export default function DashboardPage() {
             {/* =========================================================
                 1. LIVE OPERATIONAL FEED (Tactical Timeline)
                ========================================================= */}
-            <div ref={feedRef} className="min-w-[calc(100vw-32px)] md:min-w-[45vw] lg:min-w-0 col-span-12 lg:col-span-8 flex flex-col gap-5 snap-center h-fit shrink-0">
+            {/* UPDATED WIDTH: 85vw creates the "peek" effect */}
+            <div ref={feedRef} className="min-w-[85vw] md:min-w-[45vw] lg:min-w-0 col-span-12 lg:col-span-8 flex flex-col gap-5 snap-center h-fit shrink-0">
                 
                 {/* Section Header */}
                 <div className="flex items-center justify-between px-1">
@@ -770,8 +770,8 @@ export default function DashboardPage() {
                                                 "bg-white shadow-sm hover:shadow-lg hover:-translate-y-0.5",
                                                 event.priority === 'High' ? "border-l-[4px] border-l-red-500 border-y-slate-100 border-r-slate-100" : "border-slate-100"
                                             )}>
-                                                {/* Card Content */}
-                                                <div className="p-4 md:p-5 flex flex-col gap-2 relative z-10">
+                                                {/* Card Content - REDUCED PADDING FOR MOBILE */}
+                                                <div className="p-3 md:p-5 flex flex-col gap-2 relative z-10">
                                                     
                                                     {/* Top Row: Meta */}
                                                     <div className="flex items-center justify-between">
@@ -779,16 +779,16 @@ export default function DashboardPage() {
                                                             {/* Mobile Icon */}
                                                             <div className="md:hidden"><FeedIcon type={event.type} priority={event.priority} /></div>
                                                             <div className="flex flex-col md:flex-row md:items-center gap-0.5 md:gap-2">
-                                                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{getEventLabel(event.type)}</span>
+                                                                <span className="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-slate-400">{getEventLabel(event.type)}</span>
                                                                 {isDone && <span className="hidden md:inline text-emerald-500 text-[9px] font-black">• Completed</span>}
                                                             </div>
                                                         </div>
                                                         <TimeAgo date={event.createdAt?.toDate ? event.createdAt.toDate() : event.startDate} />
                                                     </div>
 
-                                                    {/* Middle: Title */}
+                                                    {/* Middle: Title - REDUCED FONT SIZE */}
                                                     <h4 className={cn(
-                                                        "text-sm md:text-base font-bold leading-snug group-hover:text-[#004F71] transition-colors line-clamp-2",
+                                                        "text-xs md:text-base font-bold leading-snug group-hover:text-[#004F71] transition-colors line-clamp-2",
                                                         isSystem ? "text-slate-600 font-medium italic" : "text-slate-900"
                                                     )}>
                                                         {event.title}
@@ -829,7 +829,8 @@ export default function DashboardPage() {
             {/* =========================================================
                 2. UP NEXT HUD (Mission Card)
                ========================================================= */}
-            <div ref={nextRef} className="min-w-[calc(100vw-32px)] md:min-w-[40vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-5 lg:sticky lg:top-24 snap-center h-fit shrink-0">
+            {/* UPDATED WIDTH: 85vw creates the "peek" effect */}
+            <div ref={nextRef} className="min-w-[85vw] md:min-w-[40vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-5 lg:sticky lg:top-24 snap-center h-fit shrink-0">
                 
                 <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-2">

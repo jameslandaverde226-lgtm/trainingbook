@@ -65,7 +65,6 @@ export default function DynamicHeader() {
   useEffect(() => {
     if (isPathwayOpen) {
       document.body.style.overflow = 'hidden';
-      // For iOS Safari specifically to prevent rubber-banding of the body
       if (isMobile) document.documentElement.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -250,23 +249,28 @@ export default function DynamicHeader() {
                     onDragEnd={(_, info: PanInfo) => { if (isMobile && info.offset.y > 100) setIsPathwayOpen(false); }}
                     className={cn(
                         "fixed z-[210] bg-white shadow-2xl flex flex-col border border-white/20 ring-1 ring-black/5 pointer-events-auto",
-                        // Mobile: 92dvh for a slight bottom gap feel (bottom sheet), or 100dvh for full immersion
-                        "bottom-0 left-0 right-0 h-[92dvh] rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] overflow-hidden",
+                        // Mobile: 100dvh for full screen immersion to avoid cut-off
+                        "bottom-0 left-0 right-0 h-[100dvh] rounded-none shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] overflow-hidden",
                         // Desktop: Centered Modal Styles
                         "md:inset-10 md:h-auto md:rounded-[40px] md:overflow-hidden"
                     )}
                 >
                     {/* Mobile Drag Handle */}
                     <div 
-                        className="md:hidden h-7 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white shrink-0 z-30 border-b border-slate-50"
+                        className="md:hidden h-12 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white shrink-0 z-30 border-b border-slate-50 relative"
                         onPointerDown={(e) => dragControls.start(e)}
                     >
-                        <div className="w-10 h-1 bg-slate-300 rounded-full opacity-60" />
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+                        <button 
+                            onClick={() => setIsPathwayOpen(false)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-slate-50 rounded-full text-slate-400"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
                     </div>
 
-                    {/* Header */}
-                    <div className="h-16 md:h-20 bg-white md:bg-[#004F71] text-[#004F71] md:text-white px-6 md:px-8 flex items-center justify-between shrink-0 relative overflow-hidden z-20 border-b border-slate-100 md:border-0 md:pt-0">
-                        {/* Desktop Header Texture */}
+                    {/* Header (Desktop Only for styling, simplified on Mobile via drag handle) */}
+                    <div className="hidden md:flex h-16 md:h-20 bg-white md:bg-[#004F71] text-[#004F71] md:text-white px-6 md:px-8 items-center justify-between shrink-0 relative overflow-hidden z-20 border-b border-slate-100 md:border-0 md:pt-0">
                         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] hidden md:block" />
                         
                         <div className="flex items-center gap-4 relative z-10">
@@ -298,7 +302,7 @@ export default function DynamicHeader() {
                     </div>
 
                     {/* Iframe Content Wrapper */}
-                    <div className="relative flex-1 w-full bg-slate-50 overflow-hidden md:rounded-b-[32px]">
+                    <div className="relative flex-1 w-full bg-slate-50 overflow-y-auto md:rounded-b-[32px] -webkit-overflow-scrolling-touch">
                         {iframeLoading && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center z-0 text-slate-400 bg-white">
                                 <Loader2 className="w-10 h-10 animate-spin mb-4 text-[#004F71]" />
@@ -306,15 +310,16 @@ export default function DynamicHeader() {
                             </div>
                         )}
                         
-                        {/* ABSOLUTE POSITIONING IS CRITICAL FOR IOS SAFARI IFRAME CONTAINMENT */}
                         <iframe 
                             src={PATHWAY_URL}
                             className={cn(
-                                "absolute inset-0 w-full h-full border-none transition-opacity duration-500 bg-white",
+                                "w-full h-full border-none transition-opacity duration-500 bg-white",
                                 iframeLoading ? "opacity-0" : "opacity-100"
                             )}
                             onLoad={() => setIframeLoading(false)}
                             allowFullScreen
+                            scrolling="yes" 
+                            style={{ minHeight: '100%' }}
                         />
                     </div>
                 </motion.div>
