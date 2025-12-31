@@ -660,6 +660,8 @@ export default function DashboardPage() {
         </div>
 
         <div className="max-w-[1400px] mx-auto relative z-10 space-y-6 md:space-y-8 mt-4 md:mt-12">
+            
+            {/* Header & Vision Board & KPIs (Existing code) */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-1">
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="flex flex-col md:flex-row md:items-center gap-3 mb-2">
@@ -709,14 +711,14 @@ export default function DashboardPage() {
             {/* --- CONTAINER: LIVE FEED & UP NEXT --- */}
             <div 
                 ref={scrollRef}
-                className="flex lg:grid lg:grid-cols-12 gap-6 md:gap-8 overflow-x-auto lg:overflow-visible snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-20 lg:mx-0 lg:px-0 lg:pb-0"
+                className="flex w-screen -ml-4 px-4 overflow-x-auto lg:overflow-visible lg:w-auto lg:ml-0 lg:px-0 lg:grid lg:grid-cols-12 gap-6 md:gap-8 snap-x snap-mandatory no-scrollbar pb-20 lg:pb-0"
             >
             
             {/* =========================================================
                 1. LIVE OPERATIONAL FEED (Tactical Timeline)
                ========================================================= */}
-            {/* UPDATED WIDTH: 85vw creates the "peek" effect */}
-            <div ref={feedRef} className="min-w-[85vw] md:min-w-[45vw] lg:min-w-0 col-span-12 lg:col-span-8 flex flex-col gap-5 snap-center h-fit shrink-0">
+            {/* UPDATED WIDTH: calc(100vw - 32px) ensures it fits perfectly with padding */}
+            <div ref={feedRef} className="w-[calc(100vw-32px)] md:w-[45vw] lg:w-auto lg:col-span-8 flex flex-col gap-5 snap-center h-fit shrink-0">
                 
                 {/* Section Header */}
                 <div className="flex items-center justify-between px-1">
@@ -737,7 +739,6 @@ export default function DashboardPage() {
 
                 {/* Feed Card Container */}
                 <div className="relative pl-4 md:pl-0">
-                    {/* The Timeline Vertical Line */}
                     <div className="absolute left-[39px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-slate-200 via-slate-100 to-transparent hidden md:block" />
 
                     <div className="space-y-4">
@@ -829,8 +830,8 @@ export default function DashboardPage() {
             {/* =========================================================
                 2. UP NEXT HUD (Mission Card)
                ========================================================= */}
-            {/* UPDATED WIDTH: 85vw creates the "peek" effect */}
-            <div ref={nextRef} className="min-w-[85vw] md:min-w-[40vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-5 lg:sticky lg:top-24 snap-center h-fit shrink-0">
+            {/* FIXED WIDTH: calc(100vw - 32px) ensures it fits perfectly with padding */}
+            <div ref={nextRef} className="w-[calc(100vw-32px)] md:w-[40vw] lg:w-auto lg:col-span-4 lg:col-start-9 flex flex-col gap-5 lg:sticky lg:top-24 snap-center h-fit shrink-0">
                 
                 <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-2">
