@@ -8,7 +8,7 @@ import { motion, useScroll, useTransform, AnimatePresence, useDragControls, PanI
 import { 
   LayoutDashboard, 
   Users, 
-  GraduationCap, 
+  GraduationCap,
   Calendar,
   BookOpen,
   X,
@@ -41,15 +41,12 @@ export default function DynamicHeader() {
   const pathname = usePathname();
   const { scrollY } = useScroll();
   
-  // Header animations
   const headerY = useTransform(scrollY, [0, 100], [0, -10]);
   const headerBorder = useTransform(scrollY, [0, 20], ["rgba(0,0,0,0)", "rgba(226,232,240,1)"]);
   const headerShadow = useTransform(scrollY, [0, 20], ["none", "0 10px 15px -3px rgba(0, 0, 0, 0.05)"]);
 
   const [isPathwayOpen, setIsPathwayOpen] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
-  
-  // Mobile sheet logic
   const dragControls = useDragControls();
   const [isMobile, setIsMobile] = useState(false);
 
@@ -61,179 +58,97 @@ export default function DynamicHeader() {
   }, []);
 
   // --- SCROLL LOCKING ---
-  // Prevents the background page from scrolling while the modal is open
   useEffect(() => {
     if (isPathwayOpen) {
       document.body.style.overflow = 'hidden';
-      if (isMobile) document.documentElement.style.overflow = 'hidden';
+      // Critical for iOS to prevent body scroll behind modal
+      if (isMobile) {
+        document.body.style.position = 'fixed';
+        document.body.style.width = '100%';
+      }
     } else {
       document.body.style.overflow = 'unset';
-      if (isMobile) document.documentElement.style.overflow = 'unset';
+      if (isMobile) {
+        document.body.style.position = '';
+        document.body.style.width = '';
+      }
     }
     return () => {
       document.body.style.overflow = 'unset';
-      if (isMobile) document.documentElement.style.overflow = 'unset';
+      document.body.style.position = '';
+      document.body.style.width = '';
     };
   }, [isPathwayOpen, isMobile]);
 
   return (
     <>
-      {/* =======================================
-          DESKTOP & TABLET HEADER (Top)
-      ======================================= */}
+      {/* DESKTOP HEADER */}
       <motion.header
         style={{ y: headerY, borderColor: headerBorder, boxShadow: headerShadow }}
         className="sticky top-4 z-50 mx-auto max-w-[1800px] w-[95%] rounded-full transition-all duration-300 bg-white/80 backdrop-blur-xl border border-transparent hidden md:block"
       >
         <div className="px-6 h-16 flex items-center justify-between gap-4">
-          
-          {/* --- Left: Logo & Nav --- */}
           <div className="flex items-center gap-6 flex-1 overflow-hidden">
             <Link href="/dashboard" className="flex items-center gap-3 group shrink-0">
               <div className="relative h-9 w-9 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                <Image 
-                    src="/planning.svg" 
-                    alt="TrainingBook Logo" 
-                    width={36} 
-                    height={36} 
-                    className="w-full h-full object-contain"
-                />
+                <Image src="/planning.svg" alt="TrainingBook Logo" width={36} height={36} className="w-full h-full object-contain" />
               </div>
-              <span className="text-lg font-black tracking-tight text-slate-900">
-                Training<span className="text-[#004F71]">book</span>
-              </span>
+              <span className="text-lg font-black tracking-tight text-slate-900">Training<span className="text-[#004F71]">book</span></span>
             </Link>
-
-            {/* Desktop Navigation Pills */}
             <div className="flex items-center gap-1 p-1 bg-slate-100/50 rounded-full border border-slate-200/50">
               {NAV_LINKS.map((link) => {
                 const isActive = pathname?.startsWith(link.href);
                 return (
-                  <Link 
-                    key={link.href} 
-                    href={link.href}
-                    className={cn(
-                      "px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-all duration-300 flex items-center gap-2 relative",
-                      isActive 
-                        ? "text-[#004F71]" 
-                        : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
-                    )}
-                  >
-                    {isActive && (
-                      <motion.div 
-                        layoutId="desktopNav"
-                        className="absolute inset-0 bg-white shadow-sm rounded-full border border-slate-100"
-                        initial={false}
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-10 flex items-center gap-2">
-                        <link.icon className={cn("w-3.5 h-3.5", isActive && "text-[#E51636]")} />
-                        {link.label}
-                    </span>
+                  <Link key={link.href} href={link.href} className={cn("px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-all duration-300 flex items-center gap-2 relative", isActive ? "text-[#004F71]" : "text-slate-500 hover:text-slate-700 hover:bg-white/50")}>
+                    {isActive && <motion.div layoutId="desktopNav" className="absolute inset-0 bg-white shadow-sm rounded-full border border-slate-100" initial={false} transition={{ type: "spring", stiffness: 300, damping: 30 }} />}
+                    <span className="relative z-10 flex items-center gap-2"><link.icon className={cn("w-3.5 h-3.5", isActive && "text-[#E51636]")} />{link.label}</span>
                   </Link>
                 );
               })}
             </div>
-            
-            {/* PATHWAY BUTTON (Desktop) */}
-            <button
-               onClick={() => { setIsPathwayOpen(true); setIframeLoading(true); }}
-               className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 hover:bg-slate-100 hover:border-slate-300 transition-all group ml-2"
-            >
+            <button onClick={() => { setIsPathwayOpen(true); setIframeLoading(true); }} className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 hover:bg-slate-100 hover:border-slate-300 transition-all group ml-2">
                 <PathwayIcon className="w-5 h-5 text-[#004F71] group-hover:scale-110 transition-transform" />
                 <span className="text-[11px] font-black uppercase text-[#004F71] tracking-wide">Pathway</span>
             </button>
-
           </div>
-
-          {/* --- Right: Actions --- */}
-          <div className="flex items-center gap-3 shrink-0">
-            <UserNav />
-          </div>
+          <div className="flex items-center gap-3 shrink-0"><UserNav /></div>
         </div>
       </motion.header>
 
-      {/* =======================================
-          MOBILE TOP BAR
-      ======================================= */}
+      {/* MOBILE TOP BAR */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-[101] px-6 py-4 bg-slate-50/80 backdrop-blur-md flex items-center justify-between shadow-sm">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="relative h-9 w-9">
-                 <Image 
-                    src="/planning.svg" 
-                    alt="Logo" 
-                    width={36} 
-                    height={36} 
-                    className="w-full h-full object-contain"
-                />
-            </div>
+            <div className="relative h-9 w-9"><Image src="/planning.svg" alt="Logo" width={36} height={36} className="w-full h-full object-contain" /></div>
             <span className="text-lg font-black tracking-tight text-slate-900">Trainingbook</span>
           </Link>
-
           <UserNav />
       </header>
 
-      {/* =======================================
-          MOBILE COMMAND DOCK
-      ======================================= */}
+      {/* MOBILE DOCK */}
       <div className="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-auto">
         <nav className="flex items-center gap-2 p-2 bg-white/90 backdrop-blur-2xl border border-white/60 rounded-[32px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] ring-1 ring-white/50">
             {NAV_LINKS.map((link) => {
                 const isActive = pathname?.startsWith(link.href);
                 return (
-                    <Link 
-                        key={link.href} 
-                        href={link.href}
-                        className="relative flex items-center justify-center w-14 h-14 rounded-full"
-                    >
-                        {isActive && (
-                            <motion.div 
-                                layoutId="mobileNav"
-                                className="absolute inset-0 bg-[#E51636] rounded-full shadow-lg shadow-red-500/30"
-                                transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                            />
-                        )}
+                    <Link key={link.href} href={link.href} className="relative flex items-center justify-center w-14 h-14 rounded-full">
+                        {isActive && <motion.div layoutId="mobileNav" className="absolute inset-0 bg-[#E51636] rounded-full shadow-lg shadow-red-500/30" transition={{ type: "spring", stiffness: 350, damping: 25 }} />}
                         <link.icon className={cn("w-6 h-6 transition-all relative z-10", isActive ? "text-white scale-110" : "text-slate-400 hover:text-slate-600")} />
-                        
-                        {isActive && (
-                            <motion.div 
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="absolute bottom-1 w-1 h-1 bg-white rounded-full z-20" 
-                            />
-                        )}
                     </Link>
                 )
             })}
-            
             <div className="w-px h-8 bg-slate-200 mx-1" />
-
-            {/* PATHWAY BUTTON (Mobile Dock) */}
-            <button 
-                onClick={() => { setIsPathwayOpen(true); setIframeLoading(true); }}
-                className="relative flex items-center justify-center w-14 h-14 rounded-full bg-[#004F71]/10 border border-[#004F71]/20 active:scale-95 transition-transform"
-            >
+            <button onClick={() => { setIsPathwayOpen(true); setIframeLoading(true); }} className="relative flex items-center justify-center w-14 h-14 rounded-full bg-[#004F71]/10 border border-[#004F71]/20 active:scale-95 transition-transform">
                 <PathwayIcon className="w-7 h-7 text-[#004F71]" />
             </button>
-
         </nav>
       </div>
 
-      {/* =======================================
-          PATHWAY IFRAME MODAL
-      ======================================= */}
+      {/* --- PATHWAY IFRAME MODAL --- */}
       <AnimatePresence>
         {isPathwayOpen && (
             <ClientPortal>
                 {/* Backdrop */}
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[200] bg-[#0F172A]/80 backdrop-blur-xl"
-                    onClick={() => setIsPathwayOpen(false)}
-                />
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-[#0F172A]/80 backdrop-blur-xl" onClick={() => setIsPathwayOpen(false)} />
                 
                 {/* Modal Window */}
                 <motion.div 
@@ -249,9 +164,9 @@ export default function DynamicHeader() {
                     onDragEnd={(_, info: PanInfo) => { if (isMobile && info.offset.y > 100) setIsPathwayOpen(false); }}
                     className={cn(
                         "fixed z-[210] bg-white shadow-2xl flex flex-col border border-white/20 ring-1 ring-black/5 pointer-events-auto",
-                        // Mobile: 100dvh covers entire screen including URL bar area
+                        // MOBILE FIX: Use 100dvh to fill screen exactly, avoid bottom rounding
                         "bottom-0 left-0 right-0 h-[100dvh] rounded-none shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] overflow-hidden",
-                        // Desktop: Centered Modal Styles
+                        // Desktop
                         "md:inset-10 md:h-auto md:rounded-[40px] md:overflow-hidden"
                     )}
                 >
@@ -261,48 +176,33 @@ export default function DynamicHeader() {
                         onPointerDown={(e) => dragControls.start(e)}
                     >
                         <div className="w-10 h-1 bg-slate-300 rounded-full opacity-60" />
-                        <button 
-                            onClick={() => setIsPathwayOpen(false)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-slate-50 rounded-full text-slate-400"
-                        >
+                        <button onClick={() => setIsPathwayOpen(false)} className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-slate-50 rounded-full text-slate-400">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
 
-                    {/* Header (Desktop Only) */}
-                    <div className="hidden md:flex h-16 md:h-20 bg-white md:bg-[#004F71] text-[#004F71] md:text-white px-6 md:px-8 items-center justify-between shrink-0 relative overflow-hidden z-20 border-b border-slate-100 md:border-0 md:pt-0">
-                        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] hidden md:block" />
-                        
+                    {/* Desktop Header */}
+                    <div className="hidden md:flex h-20 bg-[#004F71] text-white px-8 items-center justify-between shrink-0 relative overflow-hidden z-20">
+                        <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
                         <div className="flex items-center gap-4 relative z-10">
-                            <div className="w-10 h-10 bg-[#004F71]/10 md:bg-white/10 rounded-xl flex items-center justify-center border border-[#004F71]/10 md:border-white/10 shadow-sm">
-                                <PathwayIcon className="w-6 h-6 text-[#004F71] md:text-white" />
+                            <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 shadow-sm">
+                                <PathwayIcon className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-lg md:text-xl font-[1000] tracking-tight leading-none text-slate-900 md:text-white">Pathway</h3>
-                                <p className="text-[10px] font-bold text-slate-400 md:text-blue-200 uppercase tracking-widest mt-0.5">External Resource</p>
+                                <h3 className="text-xl font-[1000] tracking-tight leading-none text-white">Pathway</h3>
+                                <p className="text-[10px] font-bold text-blue-200 uppercase tracking-widest mt-0.5">External Resource</p>
                             </div>
                         </div>
-
                         <div className="flex items-center gap-3 relative z-10">
-                             <a 
-                                href={PATHWAY_URL} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold transition-all border border-white/10"
-                             >
+                             <a href={PATHWAY_URL} target="_blank" rel="noreferrer" className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold transition-all border border-white/10">
                                  <Maximize2 className="w-4 h-4" /> Open in New Tab
                              </a>
-                             <button 
-                                onClick={() => setIsPathwayOpen(false)}
-                                className="p-2.5 bg-slate-50 md:bg-white text-slate-400 md:text-[#004F71] hover:bg-slate-100 rounded-full transition-all shadow-sm md:shadow-lg active:scale-90"
-                             >
-                                 <X className="w-5 h-5" />
-                             </button>
+                             <button onClick={() => setIsPathwayOpen(false)} className="p-2.5 bg-white text-[#004F71] hover:bg-slate-100 rounded-full transition-all shadow-lg active:scale-90"><X className="w-5 h-5" /></button>
                         </div>
                     </div>
 
                     {/* Iframe Content Wrapper */}
-                    <div className="relative flex-1 w-full bg-slate-50 overflow-y-auto md:rounded-b-[32px] -webkit-overflow-scrolling-touch">
+                    <div className="relative flex-1 w-full bg-slate-50 overflow-hidden md:rounded-b-[32px]">
                         {iframeLoading && (
                             <div className="absolute inset-0 flex flex-col items-center justify-center z-0 text-slate-400 bg-white">
                                 <Loader2 className="w-10 h-10 animate-spin mb-4 text-[#004F71]" />
@@ -311,22 +211,24 @@ export default function DynamicHeader() {
                         )}
                         
                         {/* 
-                            SANDBOX ATTRIBUTE CRITICAL:
-                            We explicitly omit 'allow-top-navigation' to prevent the iframe from breaking out of the app.
-                            We include 'allow-forms', 'allow-scripts', 'allow-same-origin' to ensure login works.
+                           IOS IFRAME HACK:
+                           1. Wrapper has -webkit-overflow-scrolling: touch
+                           2. Iframe is absolutely positioned to prevent expansion
+                           3. Sandbox includes 'allow-popups' and 'allow-scripts' but BLOCKS top-navigation
                         */}
-                        <iframe 
-                            src={PATHWAY_URL}
-                            className={cn(
-                                "w-full h-full border-none transition-opacity duration-500 bg-white",
-                                iframeLoading ? "opacity-0" : "opacity-100"
-                            )}
-                            onLoad={() => setIframeLoading(false)}
-                            allowFullScreen
-                            scrolling="yes" 
-                            style={{ minHeight: '100%' }}
-                            sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-modals"
-                        />
+                        <div className="absolute inset-0 w-full h-full overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                            <iframe 
+                                src={PATHWAY_URL}
+                                className={cn(
+                                    "w-full h-full border-none transition-opacity duration-500 bg-white",
+                                    iframeLoading ? "opacity-0" : "opacity-100"
+                                )}
+                                onLoad={() => setIframeLoading(false)}
+                                allowFullScreen
+                                sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-modals"
+                                style={{ minHeight: '100%' }}
+                            />
+                        </div>
                     </div>
                 </motion.div>
             </ClientPortal>
