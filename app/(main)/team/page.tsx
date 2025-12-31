@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-// ... existing imports ...
 import { AnimatePresence, motion, LayoutGroup, PanInfo } from "framer-motion";
 import { 
   Users, Search, Zap, Loader2,
@@ -21,7 +20,7 @@ import TrainerRecruitmentModal from "./_components/TrainerRecruitmentModal";
 import TeamDynamicIsland from "./_components/TeamDynamicIsland";
 import UnitAssignmentModal from "./_components/UnitAssignmentModal";
 
-// ... PromotionHUD component remains unchanged ...
+// --- PROMOTION HUD ---
 function PromotionHUD({ 
     draggingMember, 
     onPromote 
@@ -29,7 +28,6 @@ function PromotionHUD({
     draggingMember?: TeamMember; 
     onPromote: (memberId: string, newRole: Status) => void;
 }) {
-    // ... code unchanged ...
     const visibleStages = STAGES;
     const [hoveredStage, setHoveredStage] = useState<string | null>(null);
 
@@ -101,10 +99,53 @@ function PromotionHUD({
     );
 }
 
+// --- CONTROL BAR (MOVED OUTSIDE) ---
+// This prevents the input from losing focus on re-renders
+interface ControlBarProps {
+    className?: string;
+    viewMode: "grid" | "gallery";
+    setViewMode: (mode: "grid" | "gallery") => void;
+    searchQuery: string;
+    setSearchQuery: (query: string) => void;
+}
+
+const ControlBar = ({ className, viewMode, setViewMode, searchQuery, setSearchQuery }: ControlBarProps) => (
+    <div className={cn("flex items-center bg-white/90 backdrop-blur-2xl border border-white/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] rounded-full h-14 p-1.5 ring-1 ring-slate-900/5 w-full max-w-sm gap-2", className)}>
+        <div className="flex bg-slate-100 rounded-full p-1 border border-slate-200 shrink-0">
+            <button 
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95",
+                    viewMode === 'grid' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                )}
+            >
+                <LayoutGrid className="w-5 h-5" />
+            </button>
+            <button 
+                onClick={() => setViewMode('gallery')}
+                className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95",
+                    viewMode === 'gallery' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                )}
+            >
+                <GalleryHorizontal className="w-5 h-5" />
+            </button>
+        </div>
+        
+        <div className="flex-1 flex items-center gap-2 px-3 bg-slate-50/80 rounded-full h-full border border-slate-100/50">
+            <Search className="w-4 h-4 text-slate-400 shrink-0" />
+            <input 
+                className="bg-transparent w-full text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400" 
+                placeholder="Find member..." 
+                value={searchQuery} 
+                onChange={e => setSearchQuery(e.target.value)} 
+            />
+        </div>
+    </div>
+);
+
 // --- MAIN PAGE ---
 export default function TeamBoardPage() {
-    // 1. GET CURRENT USER
-    // Added 'curriculum' to store hook
     const { team, subscribeTeam, subscribeEvents, subscribeCurriculum, updateMemberLocal, currentUser, curriculum } = useAppStore(); 
     
     // Filters
@@ -113,7 +154,6 @@ export default function TeamBoardPage() {
     const [viewMode, setViewMode] = useState<"grid" | "gallery">("grid"); 
     const [searchQuery, setSearchQuery] = useState("");
     
-    // 2. NEW STATE: MY PAIRINGS FILTER
     const [showMyPairings, setShowMyPairings] = useState(false);
     
     // Pagination / Infinite Scroll
@@ -131,7 +171,6 @@ export default function TeamBoardPage() {
     const [activeLeaderId, setActiveLeaderId] = useState<string | null>(null);
     const [isTrainerPanelOpen, setIsTrainerPanelOpen] = useState(false);
     
-    // NEW STATE: Track which member clicked "Assign Mentor" to highlight their card
     const [recipientMemberId, setRecipientMemberId] = useState<string | null>(null);
     
     const isProcessingRef = useRef(false);
@@ -158,7 +197,7 @@ export default function TeamBoardPage() {
         visibleCountRef.current = visibleCount;
     }, [visibleCount]);
 
-    // 3. UPDATE FILTER LOGIC (WITH PROGRESS CALCULATION INJECTED)
+    // FILTER LOGIC
     const filteredMembers = useMemo(() => {
         return team
             .filter(m => {
@@ -166,16 +205,13 @@ export default function TeamBoardPage() {
                 const matchesFilter = activeFilter === "ALL" || m.dept === activeFilter;
                 const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
                 
-                // My Pairings Logic
                 const matchesPairing = showMyPairings 
                     ? m.pairing?.id === currentUser?.uid 
                     : true;
 
                 return matchesStage && matchesFilter && matchesSearch && matchesPairing;
             })
-            // --- INJECT REAL-TIME PROGRESS HERE ---
             .map(m => {
-                // Same logic as Detail Sheet
                 if (!curriculum || curriculum.length === 0) return m;
 
                 const relevantSections = curriculum.filter(section => 
@@ -198,7 +234,6 @@ export default function TeamBoardPage() {
 
                 return { ...m, progress: calculatedProgress };
             })
-            // --- END INJECTION ---
             .sort((a, b) => a.name.localeCompare(b.name));
     }, [team, activeStage, activeFilter, searchQuery, showMyPairings, currentUser, curriculum]);
 
@@ -206,7 +241,6 @@ export default function TeamBoardPage() {
         return filteredMembers.slice(0, visibleCount);
     }, [filteredMembers, visibleCount]);
 
-    // --- INFINITE SCROLL OBSERVER ---
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
@@ -226,9 +260,6 @@ export default function TeamBoardPage() {
             if (currentSentinel) observer.unobserve(currentSentinel); 
         };
     }, [filteredMembers.length]); 
-
-    // ... (All Handlers and Render logic remain the same, just passing the new enriched 'member' object) ...
-    // Note: I will just verify the rest of the file structure is intact below.
 
     // --- SHARED: LINK LOGIC ---
     const linkMemberAndLeader = async (targetId: string, leaderId: string) => {
@@ -284,7 +315,6 @@ export default function TeamBoardPage() {
         }
     };
 
-    // --- HANDLERS ---
     const openRecruitment = (member: TeamMember) => {
         setActiveLeaderId(null);
         setRecipientMemberId(member.id); 
@@ -426,42 +456,6 @@ export default function TeamBoardPage() {
         }
     };
 
-    // --- REUSABLE CONTROL BAR ---
-    const ControlBar = ({ className }: { className?: string }) => (
-        <div className={cn("flex items-center bg-white/90 backdrop-blur-2xl border border-white/60 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.15)] rounded-full h-14 p-1.5 ring-1 ring-slate-900/5 w-full max-w-sm gap-2", className)}>
-            <div className="flex bg-slate-100 rounded-full p-1 border border-slate-200 shrink-0">
-                <button 
-                    onClick={() => setViewMode('grid')}
-                    className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95",
-                        viewMode === 'grid' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                    )}
-                >
-                    <LayoutGrid className="w-5 h-5" />
-                </button>
-                <button 
-                    onClick={() => setViewMode('gallery')}
-                    className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center transition-all active:scale-95",
-                        viewMode === 'gallery' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                    )}
-                >
-                    <GalleryHorizontal className="w-5 h-5" />
-                </button>
-            </div>
-            
-            <div className="flex-1 flex items-center gap-2 px-3 bg-slate-50/80 rounded-full h-full border border-slate-100/50">
-                <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                <input 
-                    className="bg-transparent w-full text-sm font-bold text-slate-800 outline-none placeholder:text-slate-400" 
-                    placeholder="Find member..." 
-                    value={searchQuery} 
-                    onChange={e => setSearchQuery(e.target.value)} 
-                />
-            </div>
-        </div>
-    );
-
     return (
         <div className="min-h-screen bg-[#F8FAFC] pb-40 md:pb-20 relative overflow-x-hidden selection:bg-[#E51636] selection:text-white">
             <div className="absolute inset-0 pointer-events-none opacity-[0.4]" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
@@ -481,7 +475,12 @@ export default function TeamBoardPage() {
                     animate={{ y: 0, opacity: 1 }} 
                     className="pointer-events-auto"
                  >
-                     <ControlBar />
+                     <ControlBar 
+                        viewMode={viewMode}
+                        setViewMode={setViewMode}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                     />
                  </motion.div>
             </div>
 
@@ -588,7 +587,12 @@ export default function TeamBoardPage() {
 
             <div className="md:hidden fixed bottom-28 left-0 right-0 z-40 flex items-center pointer-events-none justify-center px-4">
                 <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="pointer-events-auto w-full max-w-sm">
-                    <ControlBar />
+                    <ControlBar 
+                        viewMode={viewMode}
+                        setViewMode={setViewMode}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                    />
                 </motion.div>
             </div>
 
