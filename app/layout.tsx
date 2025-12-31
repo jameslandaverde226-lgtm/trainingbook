@@ -7,14 +7,14 @@ import { Toaster } from "react-hot-toast";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TrainingBook",
+  title: "Trainingbook",
   description: "Operational Management System",
   // We removed the manual 'manifest' link and 'icons' block here.
   // Next.js will automatically find 'app/manifest.ts' and 'app/apple-icon.png'
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "TrainingBook",
+    title: "Trainingbook",
   },
 };
 

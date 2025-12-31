@@ -50,7 +50,7 @@ export default function LoginPage() {
                <div className="absolute inset-0 bg-red-500 opacity-0 group-hover:opacity-10 transition-opacity duration-500 blur-xl"></div>
                <Image 
                  src="/planning.svg" 
-                 alt="TrainingBook Logo" 
+                 alt="Trainingbook Logo" 
                  width={64} 
                  height={64} 
                  className="w-full h-full object-contain relative z-10 drop-shadow-sm transition-transform duration-500 group-hover:scale-110"
@@ -111,7 +111,7 @@ export default function LoginPage() {
                 {/* Also using the new SVG here for consistency */}
                 <Image 
                  src="/planning.svg" 
-                 alt="TrainingBook Logo" 
+                 alt="Trainingbook Logo" 
                  width={80} 
                  height={80} 
                  className="w-full h-full object-contain drop-shadow-md"
