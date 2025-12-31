@@ -12,7 +12,6 @@ import {
   Calendar,
   BookOpen,
   X,
-  ExternalLink,
   Loader2,
   Maximize2
 } from 'lucide-react';
@@ -60,6 +59,23 @@ export default function DynamicHeader() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // --- SCROLL LOCKING ---
+  // Prevents the background page from scrolling while the modal is open
+  useEffect(() => {
+    if (isPathwayOpen) {
+      document.body.style.overflow = 'hidden';
+      // For iOS Safari specifically to prevent rubber-banding of the body
+      if (isMobile) document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+      if (isMobile) document.documentElement.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+      if (isMobile) document.documentElement.style.overflow = 'unset';
+    };
+  }, [isPathwayOpen, isMobile]);
 
   return (
     <>
@@ -233,19 +249,19 @@ export default function DynamicHeader() {
                     dragElastic={0.05}
                     onDragEnd={(_, info: PanInfo) => { if (isMobile && info.offset.y > 100) setIsPathwayOpen(false); }}
                     className={cn(
-                        "fixed z-[210] bg-white shadow-2xl overflow-hidden flex flex-col border border-white/20 ring-1 ring-black/5 pointer-events-auto",
-                        // Mobile: Full screen height with refined aesthetic
-                        "bottom-0 left-0 right-0 h-[96dvh] rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]",
+                        "fixed z-[210] bg-white shadow-2xl flex flex-col border border-white/20 ring-1 ring-black/5 pointer-events-auto",
+                        // Mobile: 92dvh for a slight bottom gap feel (bottom sheet), or 100dvh for full immersion
+                        "bottom-0 left-0 right-0 h-[92dvh] rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] overflow-hidden",
                         // Desktop: Centered Modal Styles
-                        "md:inset-10 md:h-auto md:rounded-[40px]"
+                        "md:inset-10 md:h-auto md:rounded-[40px] md:overflow-hidden"
                     )}
                 >
-                    {/* Mobile Drag Handle - Slimmer for better aesthetics */}
+                    {/* Mobile Drag Handle */}
                     <div 
-                        className="md:hidden h-7 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white shrink-0 z-30"
+                        className="md:hidden h-7 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white shrink-0 z-30 border-b border-slate-50"
                         onPointerDown={(e) => dragControls.start(e)}
                     >
-                        <div className="w-12 h-1 bg-slate-200 rounded-full" />
+                        <div className="w-10 h-1 bg-slate-300 rounded-full opacity-60" />
                     </div>
 
                     {/* Header */}
@@ -281,19 +297,20 @@ export default function DynamicHeader() {
                         </div>
                     </div>
 
-                    {/* Iframe Content */}
-                    <div className="flex-1 bg-slate-50 relative w-full flex flex-col min-h-0">
+                    {/* Iframe Content Wrapper */}
+                    <div className="relative flex-1 w-full bg-slate-50 overflow-hidden md:rounded-b-[32px]">
                         {iframeLoading && (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center z-0 text-slate-400">
+                            <div className="absolute inset-0 flex flex-col items-center justify-center z-0 text-slate-400 bg-white">
                                 <Loader2 className="w-10 h-10 animate-spin mb-4 text-[#004F71]" />
                                 <span className="text-xs font-black uppercase tracking-widest">Connecting to Pathway...</span>
                             </div>
                         )}
                         
+                        {/* ABSOLUTE POSITIONING IS CRITICAL FOR IOS SAFARI IFRAME CONTAINMENT */}
                         <iframe 
                             src={PATHWAY_URL}
                             className={cn(
-                                "flex-1 w-full border-none relative z-10 bg-white transition-opacity duration-500",
+                                "absolute inset-0 w-full h-full border-none transition-opacity duration-500 bg-white",
                                 iframeLoading ? "opacity-0" : "opacity-100"
                             )}
                             onLoad={() => setIframeLoading(false)}

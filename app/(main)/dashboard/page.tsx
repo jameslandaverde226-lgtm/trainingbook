@@ -693,27 +693,30 @@ export default function DashboardPage() {
                 ))}
             </div>
 
-            <div className="flex lg:hidden items-center gap-6 px-1 mb-2">
-                <button onClick={() => scrollToSection('live')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'live' ? "text-slate-900" : "text-slate-300")}>
-                    Live Feed
-                    {mobileTab === 'live' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
-                </button>
-                <button onClick={() => scrollToSection('next')} className={cn("text-lg font-black transition-colors relative", mobileTab === 'next' ? "text-slate-900" : "text-slate-300")}>
-                    Up Next
-                    {mobileTab === 'next' && <motion.div layoutId="mobileTab" className="absolute -bottom-1 left-0 right-0 h-1 bg-[#E51636] rounded-full" />}
-                </button>
+            {/* Mobile Sticky Tabs */}
+            <div className="flex lg:hidden items-center justify-between gap-6 px-6 py-3 mb-4 sticky top-[68px] z-40 bg-[#F8FAFC]/90 backdrop-blur-lg border-b border-slate-200/60 -mx-4 md:mx-0 shadow-sm transition-all">
+                <div className="flex items-center gap-6">
+                    <button onClick={() => scrollToSection('live')} className={cn("text-sm font-black uppercase tracking-widest transition-colors relative py-1", mobileTab === 'live' ? "text-[#004F71]" : "text-slate-400")}>
+                        Live Feed
+                        {mobileTab === 'live' && <motion.div layoutId="mobileTab" className="absolute -bottom-[13px] left-0 right-0 h-[2px] bg-[#004F71]" />}
+                    </button>
+                    <button onClick={() => scrollToSection('next')} className={cn("text-sm font-black uppercase tracking-widest transition-colors relative py-1", mobileTab === 'next' ? "text-[#004F71]" : "text-slate-400")}>
+                        Up Next
+                        {mobileTab === 'next' && <motion.div layoutId="mobileTab" className="absolute -bottom-[13px] left-0 right-0 h-[2px] bg-[#004F71]" />}
+                    </button>
+                </div>
             </div>
 
             {/* --- CONTAINER: LIVE FEED & UP NEXT --- */}
             <div 
                 ref={scrollRef}
-                className="flex lg:grid lg:grid-cols-12 gap-6 md:gap-8 overflow-x-auto lg:overflow-visible snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-8 lg:mx-0 lg:px-0 lg:pb-0"
+                className="flex lg:grid lg:grid-cols-12 gap-6 md:gap-8 overflow-x-auto lg:overflow-visible snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-20 lg:mx-0 lg:px-0 lg:pb-0"
             >
             
             {/* =========================================================
                 1. LIVE OPERATIONAL FEED (Tactical Timeline)
                ========================================================= */}
-            <div ref={feedRef} className="min-w-[90vw] md:min-w-[45vw] lg:min-w-0 col-span-12 lg:col-span-8 flex flex-col gap-5 snap-center h-fit shrink-0">
+            <div ref={feedRef} className="min-w-[calc(100vw-32px)] md:min-w-[45vw] lg:min-w-0 col-span-12 lg:col-span-8 flex flex-col gap-5 snap-center h-fit shrink-0">
                 
                 {/* Section Header */}
                 <div className="flex items-center justify-between px-1">
@@ -826,7 +829,7 @@ export default function DashboardPage() {
             {/* =========================================================
                 2. UP NEXT HUD (Mission Card)
                ========================================================= */}
-            <div ref={nextRef} className="min-w-[85vw] md:min-w-[40vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-5 lg:sticky lg:top-24 snap-center h-fit shrink-0">
+            <div ref={nextRef} className="min-w-[calc(100vw-32px)] md:min-w-[40vw] lg:min-w-0 col-span-12 lg:col-span-4 lg:col-start-9 flex flex-col gap-5 lg:sticky lg:top-24 snap-center h-fit shrink-0">
                 
                 <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-2">
