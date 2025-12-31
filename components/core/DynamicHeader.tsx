@@ -8,7 +8,7 @@ import { motion, useScroll, useTransform, AnimatePresence, useDragControls, PanI
 import { 
   LayoutDashboard, 
   Users, 
-  GraduationCap,
+  GraduationCap, 
   Calendar,
   BookOpen,
   X,
@@ -249,7 +249,7 @@ export default function DynamicHeader() {
                     onDragEnd={(_, info: PanInfo) => { if (isMobile && info.offset.y > 100) setIsPathwayOpen(false); }}
                     className={cn(
                         "fixed z-[210] bg-white shadow-2xl flex flex-col border border-white/20 ring-1 ring-black/5 pointer-events-auto",
-                        // Mobile: 100dvh for full screen immersion to avoid cut-off
+                        // Mobile: 100dvh covers entire screen including URL bar area
                         "bottom-0 left-0 right-0 h-[100dvh] rounded-none shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] overflow-hidden",
                         // Desktop: Centered Modal Styles
                         "md:inset-10 md:h-auto md:rounded-[40px] md:overflow-hidden"
@@ -260,7 +260,7 @@ export default function DynamicHeader() {
                         className="md:hidden h-12 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white shrink-0 z-30 border-b border-slate-50 relative"
                         onPointerDown={(e) => dragControls.start(e)}
                     >
-                        <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+                        <div className="w-10 h-1 bg-slate-300 rounded-full opacity-60" />
                         <button 
                             onClick={() => setIsPathwayOpen(false)}
                             className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-slate-50 rounded-full text-slate-400"
@@ -269,7 +269,7 @@ export default function DynamicHeader() {
                         </button>
                     </div>
 
-                    {/* Header (Desktop Only for styling, simplified on Mobile via drag handle) */}
+                    {/* Header (Desktop Only) */}
                     <div className="hidden md:flex h-16 md:h-20 bg-white md:bg-[#004F71] text-[#004F71] md:text-white px-6 md:px-8 items-center justify-between shrink-0 relative overflow-hidden z-20 border-b border-slate-100 md:border-0 md:pt-0">
                         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] hidden md:block" />
                         
@@ -310,6 +310,11 @@ export default function DynamicHeader() {
                             </div>
                         )}
                         
+                        {/* 
+                            SANDBOX ATTRIBUTE CRITICAL:
+                            We explicitly omit 'allow-top-navigation' to prevent the iframe from breaking out of the app.
+                            We include 'allow-forms', 'allow-scripts', 'allow-same-origin' to ensure login works.
+                        */}
                         <iframe 
                             src={PATHWAY_URL}
                             className={cn(
@@ -320,6 +325,7 @@ export default function DynamicHeader() {
                             allowFullScreen
                             scrolling="yes" 
                             style={{ minHeight: '100%' }}
+                            sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-modals"
                         />
                     </div>
                 </motion.div>
