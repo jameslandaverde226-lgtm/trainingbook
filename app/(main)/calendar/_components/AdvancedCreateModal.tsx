@@ -65,16 +65,15 @@ function MemberSelect({
     const [search, setSearch] = useState("");
     const selectedOption = options.find(o => o.id === value);
 
-    // FILTER LOGIC: Exclude "Unassigned" members
     const filteredOptions = options.filter(o => 
         o.name.toLowerCase().includes(search.toLowerCase()) && 
         o.dept !== "Unassigned"
     );
 
     return (
-        <div className={cn("space-y-1.5 relative")} style={{ zIndex }}>
+        <div className={cn("space-y-1.5 relative w-full")} style={{ zIndex }}>
             <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-1">{label}</span>
-            <div className="relative">
+            <div className="relative w-full">
                 <button
                     onClick={() => !disabled && setIsOpen(!isOpen)}
                     disabled={disabled}
@@ -83,8 +82,8 @@ function MemberSelect({
                         disabled ? "bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed" : "border-slate-200 text-slate-900 hover:border-slate-300 focus:ring-2 focus:ring-blue-500/20"
                     )}
                 >
-                    <span className="truncate">{selectedOption ? selectedOption.name : placeholder}</span>
-                    <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", isOpen && "rotate-180")} />
+                    <span className="truncate mr-2">{selectedOption ? selectedOption.name : placeholder}</span>
+                    <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform shrink-0", isOpen && "rotate-180")} />
                 </button>
 
                 <AnimatePresence>
@@ -95,7 +94,7 @@ function MemberSelect({
                                 initial={{ opacity: 0, y: 5 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: 5 }}
-                                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-[110] flex flex-col max-h-[240px]"
+                                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden z-[110] flex flex-col max-h-[240px] w-full"
                             >
                                 <div className="p-2 border-b border-slate-50 sticky top-0 bg-white">
                                     <div className="relative">
@@ -121,18 +120,18 @@ function MemberSelect({
                                             className={cn(
                                                 "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-colors",
                                                 value === opt.id 
-                                                    ? "bg-[#E51636] text-white" // CHANGED FROM bg-slate-900
+                                                    ? "bg-[#E51636] text-white" 
                                                     : "text-slate-600 hover:bg-slate-50"
                                             )}
                                         >
-                                            <div className="flex flex-col items-start">
-                                                <span>{opt.name}</span>
+                                            <div className="flex flex-col items-start truncate mr-2">
+                                                <span className="truncate w-full text-left">{opt.name}</span>
                                                 <span className={cn(
-                                                    "text-[8px] uppercase font-bold tracking-wider",
+                                                    "text-[8px] uppercase font-bold tracking-wider truncate w-full text-left",
                                                     value === opt.id ? "text-white/80" : "text-slate-400"
                                                 )}>{opt.dept} Unit</span>
                                             </div>
-                                            {value === opt.id && <Check className="w-3.5 h-3.5" />}
+                                            {value === opt.id && <Check className="w-3.5 h-3.5 shrink-0" />}
                                         </button>
                                     )) : (
                                         <div className="p-4 text-center flex flex-col items-center gap-2">
@@ -177,7 +176,6 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
     if (isOpen) {
         if (preselectedMemberId) {
              const member = team.find(m => m.id === preselectedMemberId);
-             // Safety check: Don't autofill if unassigned
              if (member && member.dept !== "Unassigned") {
                  setAssignee(preselectedMemberId);
              } else {
@@ -191,14 +189,12 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
     }
   }, [isOpen, preselectedMemberId, preselectedDate, team]);
 
-  // Calendar Generation
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(currentMonth));
     const end = endOfWeek(endOfMonth(currentMonth));
     return eachDayOfInterval({ start, end });
   }, [currentMonth]);
 
-  // --- DATE SELECTION LOGIC ---
   const handleDateClick = (day: Date) => {
     if (!dateRange.start || (dateRange.start && dateRange.end)) {
         setDateRange({ start: day, end: null });
@@ -237,7 +233,6 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
           startDate.setHours(9, 0, 0, 0);
       }
 
-      // If no end date selected, default to start date
       const endDate = dateRange.end ? new Date(dateRange.end) : new Date(startDate);
       endDate.setHours(18, 0, 0, 0);
 
@@ -290,9 +285,11 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
               animate={{ y: 0, opacity: 1 }} 
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="pointer-events-auto relative bg-[#F8FAFC] w-full md:max-w-5xl h-[92vh] md:h-auto md:max-h-[90vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col overflow-hidden"
+              // FIXED: w-full, max-w-[100vw], overflow-hidden prevents card itself from spilling
+              className="pointer-events-auto relative bg-[#F8FAFC] w-full md:max-w-5xl h-[92vh] md:h-auto md:max-h-[90vh] rounded-t-[40px] md:rounded-[40px] shadow-2xl flex flex-col overflow-hidden max-w-[100vw]"
             >
                 {/* --- HEADER --- */}
+                {/* FIXED: overflow-hidden keeps the red blur circle contained */}
                 <div className="shrink-0 h-32 md:h-40 bg-[#E51636] z-0 flex items-start justify-between p-6 md:p-10 relative overflow-hidden">
                     <div className="relative z-10 pt-4 md:pt-0">
                         <div className="flex items-center gap-2 text-white/70 mb-1 md:mb-2">
@@ -310,17 +307,18 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
                 </div>
 
                 {/* --- CONTENT --- */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-white relative z-10 -mt-6 md:-mt-10 rounded-t-[32px] md:rounded-t-none md:rounded-none">
-                    <div className="flex flex-col md:flex-row min-h-full">
+                {/* FIXED: overflow-x-hidden ensures no horizontal scroll in the main body */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar bg-white relative z-10 -mt-6 md:-mt-10 rounded-t-[32px] md:rounded-t-none md:rounded-none w-full">
+                    <div className="flex flex-col md:flex-row min-h-full w-full">
                     
                         {/* LEFT COLUMN */}
-                        <div className="flex-1 p-6 md:p-10 space-y-8 border-b md:border-b-0 md:border-r border-slate-100/80">
+                        <div className="flex-1 p-6 md:p-10 space-y-8 border-b md:border-b-0 md:border-r border-slate-100/80 w-full relative">
                             
-                            <div className="space-y-3">
+                            <div className="space-y-3 w-full">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                                     <Target className="w-3 h-3" /> Mission Objective
                                 </label>
-                                <div className="relative group">
+                                <div className="relative group w-full">
                                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 font-black text-xl select-none">{">_"}</span>
                                     <input 
                                         value={title}
@@ -332,17 +330,17 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="space-y-3 w-full">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                                     <Shield className="w-3 h-3" /> Classification
                                 </label>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-3 w-full">
                                     {EVENT_TYPES.map((t) => (
                                         <button
                                             key={t.id}
                                             onClick={() => setType(t.id as EventType)}
                                             className={cn(
-                                                "flex flex-col items-center justify-center gap-2 py-3 px-2 rounded-xl border-2 transition-all active:scale-95 h-20",
+                                                "flex flex-col items-center justify-center gap-2 py-3 px-2 rounded-xl border-2 transition-all active:scale-95 h-20 w-full",
                                                 type === t.id 
                                                     ? cn(t.bg, t.border, t.color, "shadow-md scale-[1.02]") 
                                                     : "border-slate-100 bg-white text-slate-400 hover:border-slate-200 hover:bg-slate-50"
@@ -355,7 +353,7 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
                                 </div>
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="space-y-3 w-full">
                                 <div className="flex items-center justify-between px-1">
                                     <label className="text-[9px] font-black text-[#E51636] uppercase tracking-widest flex items-center gap-2">
                                         <CalendarIcon className="w-3 h-3" /> 
@@ -367,13 +365,13 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
                                         <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-1 hover:bg-slate-100 rounded-full transition-colors"><ChevronRight className="w-4 h-4 text-slate-400" /></button>
                                     </div>
                                 </div>
-                                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm select-none">
+                                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm select-none w-full">
                                     <div className="grid grid-cols-7 gap-1 text-center mb-3">
                                         {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d, i) => (
                                             <span key={i} className="text-[9px] font-black text-slate-300 uppercase">{d}</span>
                                         ))}
                                     </div>
-                                    <div className="grid grid-cols-7 gap-y-2 gap-x-1">
+                                    <div className="grid grid-cols-7 gap-y-2 gap-x-1 w-full">
                                         {calendarDays.map((day, i) => {
                                             const isStart = isSameDay(day, dateRange.start);
                                             const isEnd = dateRange.end ? isSameDay(day, dateRange.end) : false;
@@ -390,7 +388,7 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
                                                     key={i}
                                                     onClick={() => handleDateClick(day)}
                                                     className={cn(
-                                                        "h-9 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center relative",
+                                                        "h-9 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center relative w-full",
                                                         !isCurrentMonth && "text-slate-200",
                                                         isCurrentMonth && !isStart && !isEnd && !isMiddle && "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
                                                         
@@ -410,10 +408,11 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
                         </div>
 
                         {/* RIGHT COLUMN */}
-                        <div className="flex-1 p-6 md:p-10 bg-slate-50/50 flex flex-col space-y-8 relative">
+                        {/* FIXED: overflow-hidden on this column specifically clips the white blur circle */}
+                        <div className="flex-1 p-6 md:p-10 bg-slate-50/50 flex flex-col space-y-8 relative w-full overflow-hidden">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-slate-100 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-50 pointer-events-none" />
                             
-                            <div className="space-y-6 relative z-10">
+                            <div className="space-y-6 relative z-10 w-full">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                                     <Zap className="w-3 h-3" /> Logistics
                                 </label>
@@ -435,9 +434,9 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
                                     zIndex={20}
                                 />
 
-                                <div className="space-y-1.5 relative z-10">
+                                <div className="space-y-1.5 relative z-10 w-full">
                                     <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-1">Impact Level</span>
-                                    <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm">
+                                    <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full">
                                         {PRIORITIES.map((p) => (
                                             <button
                                                 key={p.id}
@@ -457,7 +456,7 @@ export default function AdvancedCreateModal({ isOpen, onClose, preselectedDate, 
                                 </div>
                             </div>
 
-                            <div className="space-y-2 flex-1 flex flex-col relative z-0">
+                            <div className="space-y-2 flex-1 flex flex-col relative z-0 w-full">
                                 <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 ml-1">
                                     <FileText className="w-3 h-3" /> Operational Context
                                 </label>
