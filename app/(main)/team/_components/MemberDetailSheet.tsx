@@ -1,4 +1,3 @@
-// app/(main)/team/_components/MemberDetailSheet.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -58,6 +57,28 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
   const themeColorBg = isFOH ? 'bg-[#004F71]' : 'bg-[#E51636]';
   const themeRing = isFOH ? 'ring-blue-50' : 'ring-red-50';
   const themeLightIconBg = isFOH ? 'bg-blue-100/50' : 'bg-red-100/50';
+
+  // --- DYNAMIC MENTOR COLOR LOGIC (FIXED) ---
+  const mentorDeptStyle = useMemo(() => {
+    if (!member.pairing?.id) return "bg-slate-400 text-white";
+    
+    // Find the mentor in the full team list to get their department
+    let mentorObj = team.find(m => m.id === member.pairing?.id);
+
+    // Fallback: Try finding by Name if ID lookup fails
+    if (!mentorObj && member.pairing.name) {
+        mentorObj = team.find(m => m.name === member.pairing?.name);
+    }
+    
+    if (!mentorObj) return "bg-slate-400 text-white";
+
+    const dept = mentorObj.dept?.toUpperCase();
+
+    if (dept === "FOH") return "bg-[#004F71] text-white";
+    if (dept === "BOH") return "bg-[#E51636] text-white";
+    
+    return "bg-slate-400 text-white";
+  }, [member.pairing, team]);
 
   const displayMember = useMemo(() => {
       if (!curriculum || curriculum.length === 0) return member;
@@ -144,7 +165,6 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
         {/* =========================================================================
             DESKTOP SIDEBAR 
            ========================================================================= */}
-        {/* FIX: Added md:rounded-l-[40px] here too so the white bg respects the curve during animation */}
         <div className="hidden md:flex w-[380px] bg-white border-r border-slate-100 flex-col h-full shrink-0 relative z-20 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] md:rounded-l-[40px] overflow-hidden">
             <div className="absolute top-0 left-0 right-0 h-64 bg-slate-50/50 -skew-y-6 transform origin-top-left z-0" />
             <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] pointer-events-none z-0" />
@@ -222,16 +242,17 @@ export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: 
                         </div>
                     </div>
 
-                    {/* MENTOR */}
+                    {/* MENTOR - FIXED COLOR LOGIC HERE */}
                     <div className="col-span-2 group p-3 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all flex items-center gap-3 relative overflow-hidden">
                         {member.pairing ? (
                             <>
-                                <div className={cn("absolute left-0 top-0 bottom-0 w-1", themeColorBg)} />
+                                <div className={cn("absolute left-0 top-0 bottom-0 w-1", mentorDeptStyle.includes("bg-[#004F71]") ? "bg-[#004F71]" : mentorDeptStyle.includes("bg-[#E51636]") ? "bg-[#E51636]" : "bg-slate-500")} />
                                 <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 shrink-0 overflow-hidden relative shadow-sm">
                                     {member.pairing.image ? (
                                         <img src={member.pairing.image} alt={member.pairing.name} className="w-full h-full object-cover" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-slate-900 text-white font-black text-sm">
+                                        // UPDATED: Use dynamic style
+                                        <div className={cn("w-full h-full flex items-center justify-center font-black text-sm", mentorDeptStyle)}>
                                             {member.pairing.name.charAt(0)}
                                         </div>
                                     )}

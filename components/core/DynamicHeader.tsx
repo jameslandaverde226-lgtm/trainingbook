@@ -234,22 +234,22 @@ export default function DynamicHeader() {
                     onDragEnd={(_, info: PanInfo) => { if (isMobile && info.offset.y > 100) setIsPathwayOpen(false); }}
                     className={cn(
                         "fixed z-[210] bg-white shadow-2xl overflow-hidden flex flex-col border border-white/20 ring-1 ring-black/5 pointer-events-auto",
-                        // Mobile: Use Dynamic Viewport Height (dvh)
-                        "bottom-0 left-0 right-0 h-[92dvh] rounded-t-[32px]",
-                        // Desktop: Centered Modal Styles - FIXED HEIGHT AND POSITIONING
+                        // Mobile: Full screen height with refined aesthetic
+                        "bottom-0 left-0 right-0 h-[96dvh] rounded-t-[32px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]",
+                        // Desktop: Centered Modal Styles
                         "md:inset-10 md:h-auto md:rounded-[40px]"
                     )}
                 >
-                    {/* Mobile Drag Handle */}
+                    {/* Mobile Drag Handle - Slimmer for better aesthetics */}
                     <div 
-                        className="md:hidden h-10 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white border-b border-slate-50 shrink-0"
+                        className="md:hidden h-7 w-full flex items-center justify-center cursor-grab active:cursor-grabbing touch-none bg-white shrink-0 z-30"
                         onPointerDown={(e) => dragControls.start(e)}
                     >
-                        <div className="w-12 h-1.5 bg-slate-200 rounded-full" />
+                        <div className="w-12 h-1 bg-slate-200 rounded-full" />
                     </div>
 
                     {/* Header */}
-                    <div className="h-16 md:h-20 bg-white md:bg-[#004F71] text-[#004F71] md:text-white px-6 md:px-8 flex items-center justify-between shrink-0 relative overflow-hidden z-20 border-b border-slate-100 md:border-0 pt-6 md:pt-0">
+                    <div className="h-16 md:h-20 bg-white md:bg-[#004F71] text-[#004F71] md:text-white px-6 md:px-8 flex items-center justify-between shrink-0 relative overflow-hidden z-20 border-b border-slate-100 md:border-0 md:pt-0">
                         {/* Desktop Header Texture */}
                         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] hidden md:block" />
                         
@@ -299,18 +299,6 @@ export default function DynamicHeader() {
                             onLoad={() => setIframeLoading(false)}
                             allowFullScreen
                         />
-                        
-                        {/* Mobile Floating Button (Glassmorphism) - Positioned above safe area */}
-                        <div className="md:hidden absolute bottom-12 left-1/2 -translate-x-1/2 z-30 w-auto pointer-events-none">
-                            <a 
-                                href={PATHWAY_URL} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="pointer-events-auto flex items-center gap-3 px-6 py-3.5 bg-[#E51636]/90 backdrop-blur-xl text-white rounded-full font-black text-[10px] uppercase tracking-widest shadow-xl shadow-red-900/20 hover:scale-105 active:scale-95 transition-all border border-white/20"
-                            >
-                                <ExternalLink className="w-4 h-4" /> Open External Site
-                            </a>
-                        </div>
                     </div>
                 </motion.div>
             </ClientPortal>

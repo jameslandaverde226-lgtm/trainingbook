@@ -32,20 +32,27 @@ export function MemberProfileHeader({ member }: Props) {
   const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // --- DYNAMIC MENTOR COLOR LOGIC ---
+  // --- DYNAMIC MENTOR COLOR LOGIC (ROBUST) ---
   const mentorDeptStyle = useMemo(() => {
-    if (!member.pairing?.id) return "bg-slate-900 text-white";
+    if (!member.pairing?.id) return "bg-slate-400 text-white";
     
-    // Find the mentor in the full team list to get their department
-    const mentorObj = team.find(m => m.id === member.pairing?.id);
+    // 1. Try finding by ID
+    let mentorObj = team.find(m => m.id === member.pairing?.id);
     
-    // Fallback if not found (or data loading)
-    if (!mentorObj) return "bg-slate-900 text-white";
+    // 2. Fallback: Try finding by Name if ID lookup fails
+    if (!mentorObj && member.pairing.name) {
+        mentorObj = team.find(m => m.name === member.pairing?.name);
+    }
+    
+    // Fallback if still not found
+    if (!mentorObj) return "bg-slate-400 text-white";
 
-    if (mentorObj.dept === "FOH") return "bg-[#004F71] text-white";
-    if (mentorObj.dept === "BOH") return "bg-[#E51636] text-white";
+    const dept = mentorObj.dept?.toUpperCase();
+
+    if (dept === "FOH") return "bg-[#004F71] text-white";
+    if (dept === "BOH") return "bg-[#E51636] text-white";
     
-    return "bg-slate-500 text-white";
+    return "bg-slate-400 text-white";
   }, [member.pairing, team]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
