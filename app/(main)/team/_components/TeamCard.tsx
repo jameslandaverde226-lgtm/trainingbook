@@ -75,26 +75,31 @@ const TeamCardComponent = ({
 }: Props) => {
   const { updateMemberLocal, team } = useAppStore(); 
   
-  const isFOH = member.dept === "FOH";
-  const isBOH = member.dept === "BOH";
+  // SAFEGUARDS: Ensure member properties exist before accessing them
+  const safeName = member?.name || "Unknown";
+  const safeImage = member?.image || "";
+  const safeDept = member?.dept || "Unassigned";
+  
+  const isFOH = safeDept === "FOH";
+  const isBOH = safeDept === "BOH";
   const isUnassigned = !isFOH && !isBOH;
   
   // FIX: Ensure hasImage is true if image string is present and valid
-  const hasImage = !!member.image && !member.image.includes('ui-avatars.com');
+  const hasImage = !!safeImage && !safeImage.includes('ui-avatars.com');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isMobile, setIsMobile] = useState(true);
   
-  const probation = useMemo(() => getProbationStatus(member.joined), [member.joined]);
-  const progressTicks = Math.round((member.progress || 0) / 10);
+  const probation = useMemo(() => getProbationStatus(member?.joined), [member?.joined]);
+  const progressTicks = Math.round((member?.progress || 0) / 10);
   
-  const badgeCount = member.badges?.length || 0;
+  const badgeCount = member?.badges?.length || 0;
   const lastBadge = badgeCount > 0 ? member.badges![member.badges!.length - 1] : null;
   const LastBadgeIcon = lastBadge ? (TACTICAL_ICONS.find(i => i.id === lastBadge.iconId)?.icon || Award) : null;
 
   const mentorDeptColor = useMemo(() => {
-      if (!member.pairing?.id) return "bg-slate-800 text-white";
+      if (!member?.pairing?.id) return "bg-slate-800 text-white";
       const mentorObj = team.find(m => m.id === member.pairing?.id);
       if (!mentorObj) return "bg-slate-800 text-white";
 
@@ -103,7 +108,7 @@ const TeamCardComponent = ({
         : mentorObj.dept === "BOH" 
             ? "bg-[#E51636] text-white" 
             : "bg-slate-800 text-white";
-  }, [member.pairing, team]);
+  }, [member?.pairing, team]);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.matchMedia("(max-width: 768px)").matches);
@@ -234,8 +239,8 @@ const TeamCardComponent = ({
               <>
                 {/* FIX: Added unoptimized to bypass Vercel 502 errors */}
                 <Image 
-                    src={member.image} 
-                    alt={member.name} 
+                    src={safeImage} 
+                    alt={safeName} 
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -248,7 +253,7 @@ const TeamCardComponent = ({
                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]" />
                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-50" />
                     <div className="absolute -bottom-10 -right-10 text-[12rem] font-[1000] text-white/5 rotate-[-15deg] leading-none pointer-events-none select-none">
-                        {member.name.charAt(0)}
+                        {safeName.charAt(0)}
                     </div>
                 </>
             )}
@@ -262,7 +267,7 @@ const TeamCardComponent = ({
                       "px-2.5 py-1 rounded-lg backdrop-blur-md border text-[8px] font-black uppercase tracking-[0.2em] shadow-sm",
                       isUnassigned ? "bg-slate-500/20 border-slate-500/30 text-slate-300" : "bg-white/10 border-white/10 text-white/90"
                   )}>
-                    {member.dept === "Unassigned" ? "NO UNIT" : member.dept}
+                    {safeDept === "Unassigned" ? "NO UNIT" : safeDept}
                   </div>
                   {probation && probation.isActive && (
                      <div className="px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 backdrop-blur-md flex items-center gap-2 shadow-sm text-amber-200">
@@ -293,16 +298,16 @@ const TeamCardComponent = ({
                <div>
                   {!hasImage && (
                       <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md border border-white/10 flex items-center justify-center text-2xl font-[1000] text-white shadow-lg mb-3">
-                          {member.name.charAt(0)}
+                          {safeName.charAt(0)}
                       </div>
                   )}
                   <h3 className="text-2xl md:text-3xl font-[900] text-white tracking-tighter leading-[0.9] drop-shadow-md mb-1.5">
-                    {member.name}
+                    {safeName}
                   </h3>
                   <div className="flex items-center gap-2 mb-3">
-                      <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">{member.role}</span>
+                      <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">{member?.role || "Team Member"}</span>
                       <div className="w-1 h-1 rounded-full bg-white/30" />
-                      <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">{member.progress}% Complete</span>
+                      <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">{member?.progress || 0}% Complete</span>
                   </div>
                   <div className="flex gap-1 mb-2">
                      {Array.from({ length: 10 }).map((_, i) => (
@@ -324,7 +329,7 @@ const TeamCardComponent = ({
                     )}
                >
                    <AnimatePresence mode="wait">
-                       {member.pairing ? (
+                       {member?.pairing ? (
                            <motion.div key="paired" className="flex items-center gap-3 w-full">
                                <div className="relative shrink-0 w-8 h-8">
                                    {member.pairing.image ? (
@@ -338,7 +343,7 @@ const TeamCardComponent = ({
                                         />
                                    ) : (
                                         <div className={cn("w-full h-full rounded-lg flex items-center justify-center text-[10px] font-black border border-white/20", mentorDeptColor)}>
-                                            {member.pairing.name.charAt(0)}
+                                            {(member.pairing.name || "?").charAt(0)}
                                         </div>
                                    )}
                                    <div className="absolute -bottom-1 -right-1 bg-amber-400 rounded-full p-0.5 border border-black/10"><Crown className="w-2 h-2 text-black fill-current" /></div>
