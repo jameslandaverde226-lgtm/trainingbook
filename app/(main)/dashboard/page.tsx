@@ -615,10 +615,8 @@ export default function DashboardPage() {
   }, [team, currentUser]);
 
   if (currentUser?.role === "Team Member") {
-    // (Team Member View code unchanged...)
     return (
         <div className="min-h-screen bg-[#F8FAFC] p-6 flex flex-col items-center justify-center">
-            {/* ... */}
              <div className="w-full max-w-sm perspective-1000">
                  <TeamCard 
                     member={myProfile || {} as any} 
@@ -629,7 +627,17 @@ export default function DashboardPage() {
                     isDragging={false}
                  />
              </div>
-             {/* ... */}
+             {/* ADDED MODAL SUPPORT FOR TEAM MEMBERS */}
+             <AnimatePresence>
+                {selectedMember && (
+                    <MemberDetailSheet 
+                        member={selectedMember} 
+                        onClose={() => setSelectedMember(null)}
+                        activeTab={activeTab} // <-- PASSED PROP
+                        setActiveTab={setActiveTab} // <-- PASSED PROP
+                    />
+                )}
+             </AnimatePresence>
         </div>
     );
   }
