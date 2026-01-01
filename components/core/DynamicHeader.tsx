@@ -14,11 +14,12 @@ import {
   X,
   Loader2,
   Maximize2,
-  ExternalLink // Added for visual feedback on mobile
+  ExternalLink 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserNav from '@/components/core/UserNav'; 
 import ClientPortal from '@/components/core/ClientPortal';
+import { useAppStore } from '@/lib/store/useStore'; // 1. Import Store
 
 // --- CONFIGURATION ---
 const PATHWAY_URL = "https://www.pathway.cfahome.com/";
@@ -51,6 +52,20 @@ export default function DynamicHeader() {
   const dragControls = useDragControls();
   const [isMobile, setIsMobile] = useState(false);
 
+  // 2. Get Current User & Role
+  const { currentUser } = useAppStore();
+  const isTeamMember = currentUser?.role === "Team Member";
+
+  // 3. Filter Navigation Links
+  const filteredNavLinks = NAV_LINKS.filter(link => {
+      // If user is "Team Member", ONLY show "Overview"
+      if (isTeamMember) {
+          return link.label === 'Overview';
+      }
+      // Otherwise, show all
+      return true;
+  });
+
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -61,12 +76,8 @@ export default function DynamicHeader() {
   // --- SMART HANDLER ---
   const handlePathwayClick = () => {
     if (isMobile) {
-        // iOS/Mobile FIX: 
-        // Force new tab so iOS can trigger the Universal Link (Open App)
-        // or let Safari handle the Auth Cookies (which fail in iframes).
         window.open(PATHWAY_URL, '_blank');
     } else {
-        // Desktop: Open the nice embedded modal
         setIsPathwayOpen(true);
         setIframeLoading(true);
     }
@@ -109,8 +120,10 @@ export default function DynamicHeader() {
               </div>
               <span className="text-lg font-black tracking-tight text-slate-900">Training<span className="text-[#004F71]">book</span></span>
             </Link>
+            
+            {/* DESKTOP NAV LINKS (FILTERED) */}
             <div className="flex items-center gap-1 p-1 bg-slate-100/50 rounded-full border border-slate-200/50">
-              {NAV_LINKS.map((link) => {
+              {filteredNavLinks.map((link) => {
                 const isActive = pathname?.startsWith(link.href);
                 return (
                   <Link key={link.href} href={link.href} className={cn("px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition-all duration-300 flex items-center gap-2 relative", isActive ? "text-[#004F71]" : "text-slate-500 hover:text-slate-700 hover:bg-white/50")}>
@@ -121,7 +134,7 @@ export default function DynamicHeader() {
               })}
             </div>
             
-            {/* DESKTOP BUTTON - Keeps Modal Behavior */}
+            {/* DESKTOP BUTTON */}
             <button onClick={handlePathwayClick} className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 border border-slate-200/60 hover:bg-slate-100 hover:border-slate-300 transition-all group ml-2">
                 <PathwayIcon className="w-5 h-5 text-[#004F71] group-hover:scale-110 transition-transform" />
                 <span className="text-[11px] font-black uppercase text-[#004F71] tracking-wide">Pathway</span>
@@ -140,10 +153,10 @@ export default function DynamicHeader() {
           <UserNav />
       </header>
 
-      {/* MOBILE DOCK */}
+      {/* MOBILE DOCK (FILTERED) */}
       <div className="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-auto">
         <nav className="flex items-center gap-2 p-2 bg-white/90 backdrop-blur-2xl border border-white/60 rounded-[32px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] ring-1 ring-white/50">
-            {NAV_LINKS.map((link) => {
+            {filteredNavLinks.map((link) => {
                 const isActive = pathname?.startsWith(link.href);
                 return (
                     <Link key={link.href} href={link.href} className="relative flex items-center justify-center w-14 h-14 rounded-full">
@@ -154,13 +167,12 @@ export default function DynamicHeader() {
             })}
             <div className="w-px h-8 bg-slate-200 mx-1" />
             
-            {/* MOBILE BUTTON - Now uses smart handler to launch App/Tab */}
+            {/* MOBILE BUTTON */}
             <button 
                 onClick={handlePathwayClick} 
                 className="relative flex items-center justify-center w-14 h-14 rounded-full bg-[#004F71]/10 border border-[#004F71]/20 active:scale-95 transition-transform"
             >
                 <PathwayIcon className="w-7 h-7 text-[#004F71]" />
-                {/* Optional indicator that this leaves the app on mobile */}
                 {isMobile && (
                     <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center shadow-sm">
                         <ExternalLink className="w-1.5 h-1.5 text-[#004F71]" />
@@ -170,7 +182,7 @@ export default function DynamicHeader() {
         </nav>
       </div>
 
-      {/* --- PATHWAY IFRAME MODAL (Desktop Only, or if isMobile logic fails) --- */}
+      {/* --- PATHWAY IFRAME MODAL --- */}
       <AnimatePresence>
         {isPathwayOpen && (
             <ClientPortal>
