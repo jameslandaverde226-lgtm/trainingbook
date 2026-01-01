@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { 
-  User, Shield, Fingerprint, Loader2, Camera, Plus, Check, Search, UserPlus, Save,
+  User, Shield, Fingerprint, Loader2, Plus, Check, Search, UserPlus, Save,
   ChevronDown, Trash2, RefreshCw, KeyRound, UserMinus, Lock, Unlock, FileKey, BarChart3, Users,
   Terminal, Server, AlertCircle, CheckCircle2, Activity, Mail, Crown, Star, Briefcase, RefreshCcw, Sparkles
 } from "lucide-react";
@@ -379,8 +379,7 @@ export default function SettingsPage() {
                 ))}
             </div>
 
-            {/* 
-                ==================================
+            {/* ==================================
                 CONTENT AREA 
                 ==================================
             */}
@@ -403,9 +402,6 @@ export default function SettingsPage() {
                                         <span className="text-3xl md:text-4xl font-black text-slate-300">{currentUser.name?.charAt(0) || "U"}</span>
                                     )}
                                 </div>
-                                <button className="absolute -bottom-2 -right-2 md:-bottom-3 md:-right-3 p-2 md:p-3 bg-slate-900 text-white rounded-xl shadow-lg hover:scale-110 transition-transform">
-                                    <Camera className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                </button>
                             </div>
 
                             <div className="flex-1 w-full space-y-6">
