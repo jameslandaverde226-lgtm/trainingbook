@@ -38,13 +38,20 @@ interface Props {
 const TRANSITION = { type: "spring" as const, damping: 25, stiffness: 300 };
 
 export function MemberDetailSheet({ member, onClose, activeTab, setActiveTab }: Props) {
-  const { events, team, currentUser, curriculum } = useAppStore(); 
+  // 1. ADD subscribeCurriculum to the destructuring
+  const { events, team, currentUser, curriculum, subscribeCurriculum } = useAppStore(); 
   
   const router = useRouter(); 
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
   
   const [currentDept, setCurrentDept] = useState(member.dept);
+
+  // 2. ACTIVATE CURRICULUM SUBSCRIPTION
+  useEffect(() => {
+    const unsub = subscribeCurriculum();
+    return () => unsub();
+  }, [subscribeCurriculum]);
 
   useEffect(() => {
     if (member.dept !== currentDept) {
